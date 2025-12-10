@@ -4,7 +4,6 @@ import * as bcrypt from "bcryptjs";
 export interface UserDocument {
   email: string;
   password: string;
-  isEmailVerified: boolean;
   role: "user" | "staff" | "admin";
   fullName?: string;
   profilePicture: string;
@@ -36,10 +35,6 @@ const userSchema = new Schema<UserDocument, UserModel, UserMethods>(
       trim: true,
       select: false, // to not return the password in the response, + .select('+password') to include it
     },
-    isEmailVerified: {
-      type: Boolean,
-      default: false,
-    },
     role: {
       type: String,
       enum: ["user", "staff", "admin"],
@@ -69,19 +64,6 @@ const userSchema = new Schema<UserDocument, UserModel, UserMethods>(
 );
 
 const saltRounds = Number(process.env.BCRYPT_SALT_ROUNDS) || 10;
-
-// userSchema.pre("save", async function (next) {
-//   if (!this.isModified("password")) {
-//     return next();
-//   }
-//   try {
-//     const salt = await bcrypt.genSalt(saltRounds);
-//     this.password = await bcrypt.hash(this.password, salt);
-//     next();
-//   } catch (error) {
-//     next(error);
-//   }
-// });
 
 userSchema.pre("save", async function () {
   if (!this.isModified("password")) return;

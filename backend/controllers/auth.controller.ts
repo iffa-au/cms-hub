@@ -1,103 +1,50 @@
-import User from "../models/user.model";
+import User from "../models/user.model.ts";
 import jwt from "jsonwebtoken";
+import aj from "../libs/arcjet.ts";
+import { generateToken, verifyRefreshToken } from "../utils/token.ts";
 
-// const registerUser = async (req, res) => {
-//     try {
-//       const { username, email, password } = req.body;
-//       console.log(email);
-//       const decision = await aj.protect(req, { requested: 1, email }); // Pass user email for context
+const refreshCookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV !== "development",
+  sameSite: process.env.NODE_ENV === "development" ? "lax" : "strict",
+  path: "/",
+  maxAge: 1000 * 60 * 60 * 24 * 14, // 14 days
+};
 
-//       if (decision.isDenied()) {
-//         if (decision.reason.isEmail()) {
-//           res.writeHead(403, { "Content-Type": "application/json" });
-//           res.end(JSON.stringify({ message: "Invalid Email Address" }));
-//           console.log("hi");
-//         }
-//       } // Handle other denial reasons if needed
-
-//       // Check if user already exists
-//       const existingUser = await User.findOne({ email });
-//       if (existingUser) {
-//         return res.status(400).json({ message: "User already exists" });
-//       }
-//       // Create new user
-//       const newUser = new User({ username, email, password });
-//       await newUser.save();
-
-//       // Generate JWT token for email verification
-//       const verificationToken = jwt.sign(
-//         { id: newUser._id, purpose: "email-verification" },
-//         process.env.JWT_SECRET,
-//         {
-//           expiresIn: "3h",
-//         }
-//       );
-
-//       const newVerification = new Verification({
-//         userId: newUser._id,
-//         token: verificationToken,
-//         expiredAt: Date.now() + 3 * 60 * 60 * 1000, // 3 hours from now
-//       });
-//       await newVerification.save();
-//       // Send verification email
-//       const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
-//       const emailBody = `<h1>Email Verification</h1>
-//       <p>Please click the link below to verify your email address:</p>
-//       <a href="${verificationUrl}">Verify Email</a>
-//       <p>This link will expire in 3 hours.</p>
-//       `;
-//       const emailSubject = "Email Verification";
-//       const isEmailSent = await sendEmail(email, emailSubject, emailBody);
-
-//       if (!isEmailSent) {
-//         return res
-//           .status(500)
-//           .json({ message: "Failed to send verification email" });
-//       }
-//       res.status(201).json({
-//         message:
-//           "Verification email sent to your emial. Please check and verify your account.",
-//       });
-//     } catch (error) {
-//       console.error(error);
-//       res.status(500).json({ message: "Internal Server Error" });
-//     }
-//   };
-
-export const registerUser = async (req, res) => {
+export const register = async (req, res) => {
   try {
     const { name, email, password } = req.body;
+    const decision = await aj.protect(req, { email });
+
+    if (decision.isDenied()) {
+      if (decision.reason.isEmail()) {
+        return res.status(403).json({ message: "Invalid Email Address" });
+      }
+    } // Handle other denial reasons if needed
 
     // check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser)
       return res.status(400).json({ message: "User already exists" });
 
-    const newUser = new User({ name, email, password });
+    const newUser = new User({ fullName: name, email, password });
     await newUser.save();
 
-    // Generate JWT token for email verification
-    const verificationToken = jwt.sign(
-      {
-        id: newUser._id,
-        // purpose: "email-verification"
-      },
-      process.env.JWT_SECRET!,
-      {
-        expiresIn: "3h",
-      }
-    );
-
-    req.session.user = {
-      id: newUser._id,
-      email: newUser.email,
-      name: newUser.fullName,
+    const { accessToken, refreshToken } = generateToken({
+      _id: newUser._id.toString(),
       role: newUser.role,
-    };
+    });
+    res.cookie("refreshToken", refreshToken, refreshCookieOptions);
 
     res.status(201).json({
       message: "User registered successfully",
-      user: req.session.user,
+      user: {
+        id: newUser._id,
+        email: newUser.email,
+        name: newUser.fullName,
+        role: newUser.role,
+      },
+      accessToken,
     });
   } catch (error) {
     console.error(error);
@@ -105,28 +52,61 @@ export const registerUser = async (req, res) => {
   }
 };
 
-export const signInUser = async (req, res) => {
+export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email }).select("+password");
     if (!user) return res.status(401).json({ message: "Invalid credentials" });
-    //TODO: CHECK IF THE EMAIL IS VERIFIED
 
     const isPasswordCorrect = await user.comparePassword(password);
     if (!isPasswordCorrect)
       return res.status(401).json({ message: "Invalid credentials" });
 
-    req.session.user = {
-      id: user._id,
-      email: user.email,
-      name: user.fullName,
+    const { accessToken, refreshToken } = generateToken({
+      _id: user._id.toString(),
       role: user.role,
-    };
+    });
+    res.cookie("refreshToken", refreshToken, refreshCookieOptions);
 
     res.status(200).json({
       message: "User signed in successfully",
-      user: req.session.user,
+      user: {
+        id: user._id,
+        email: user.email,
+        name: user.fullName,
+        role: user.role,
+      },
+      accessToken,
     });
-  } catch (error) {}
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const refresh = async (req, res) => {
+  const token = req.cookies?.refreshToken;
+  if (!token) return res.status(401).json({ message: "Missing refresh token" });
+
+  try {
+    const payload = verifyRefreshToken(token);
+    const { accessToken, refreshToken } = generateToken({
+      _id: payload.sub,
+      role: payload.role,
+    });
+    res.cookie("refreshToken", refreshToken, refreshCookieOptions);
+    res.status(200).json({
+      message: "Token refreshed successfully",
+      accessToken,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(401).json({ message: "Invalid/Expired refresh token" });
+  }
+};
+
+export const logout = async (req, res) => {
+  res.clearCookie("refreshToken", { path: "/" });
+  res.status(200).json({ message: "Logged out successfully" });
 };

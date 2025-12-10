@@ -1,0 +1,13 @@
+{
+    "compilerOptions": {
+        "rootDir": ".",
+        "outDir": "./dist",
+        "allowJs": true,
+        "esModuleInterop": true,
+        "allowImportingTsExtensions": true,
+        "declaration": true,
+        "emitDeclarationOnly": true
+    },
+    "include": ["**/*.ts"],
+    "exclude": ["node_modules"]
+}
