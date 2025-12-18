@@ -1,7 +1,7 @@
 import mongoose, { Schema, Model } from "mongoose";
 import * as bcrypt from "bcryptjs";
 
-export interface UserDocument {
+export interface IUser {
   email: string;
   password: string;
   role: "user" | "staff" | "admin";
@@ -15,9 +15,9 @@ export interface UserMethods {
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
-export type UserModel = Model<UserDocument, {}, UserMethods>;
+export type UserModel = Model<IUser, {}, UserMethods>;
 
-const userSchema = new Schema<UserDocument, UserModel, UserMethods>(
+const userSchema = new Schema<IUser, UserModel, UserMethods>(
   {
     email: {
       type: String,
