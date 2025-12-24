@@ -9,6 +9,7 @@ const genreSchema = new Schema<IGenre>({
   name: {
     type: String,
     required: true,
+    unique: true,
   },
   description: {
     type: String,

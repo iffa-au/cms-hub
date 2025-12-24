@@ -9,6 +9,7 @@ const awardCategorySchema = new Schema<IAwardCategory>({
   name: {
     type: String,
     required: true,
+    unique: true,
   },
   description: {
     type: String,

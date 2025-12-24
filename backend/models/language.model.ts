@@ -9,6 +9,7 @@ const languageSchema = new Schema<ILanguage>({
   name: {
     type: String,
     required: true,
+    unique: true,
   },
   description: {
     type: String,

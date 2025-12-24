@@ -9,6 +9,7 @@ const contentTypeSchema = new Schema<IContentType>({
   name: {
     type: String,
     required: true,
+    unique: true,
   },
   description: {
     type: String,

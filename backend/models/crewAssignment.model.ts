@@ -24,5 +24,11 @@ const crewAssignmentSchema = new Schema<ICrewAssignment>({
   },
 });
 
+// Ensure one role per crew member per submission is unique
+crewAssignmentSchema.index(
+  { submissionId: 1, crewMemberId: 1, crewRoleId: 1 },
+  { unique: true }
+);
+
 const CrewAssignment = model("CrewAssignment", crewAssignmentSchema);
 export default CrewAssignment;

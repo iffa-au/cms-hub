@@ -9,6 +9,7 @@ const countrySchema = new Schema<ICountry>({
   name: {
     type: String,
     required: true,
+    unique: true,
   },
   description: {
     type: String,

@@ -5,8 +5,8 @@
   "main": "index.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "ts-node index.ts",
-    "dev": "nodemon --exec ts-node index.ts"
+    "start": "ts-node --esm index.ts",
+    "dev": "nodemon --exec ts-node --esm index.ts"
   },
   "keywords": [],
   "author": "",

@@ -9,6 +9,7 @@ export interface ISubmission {
   releaseDate: Date;
   potraitImageUrl?: string;
   landscapeImageUrl?: string;
+  isFeatured?: boolean;
   status: SubmissionStatus;
   languageId: Types.ObjectId;
   countryId: Types.ObjectId;
@@ -64,6 +65,10 @@ const submissionSchema = new Schema<ISubmission>(
       type: Schema.Types.ObjectId,
       ref: "ContentType",
       required: true,
+    },
+    isFeatured: {
+      type: Boolean,
+      default: false,
     },
   },
   { timestamps: true }
