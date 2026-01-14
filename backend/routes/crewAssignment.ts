@@ -17,7 +17,3 @@ router.put("/:id", requireAuth, updateCrewAssignment);
 router.delete("/:id", requireAuth, deleteCrewAssignment);
 
 export default router;
-
-
-
-

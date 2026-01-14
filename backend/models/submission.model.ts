@@ -14,6 +14,8 @@ export interface ISubmission {
   languageId: Types.ObjectId;
   countryId: Types.ObjectId;
   contentTypeId: Types.ObjectId;
+  imdbUrl?: string;
+  trailerUrl?: string;
 }
 
 const submissionSchema = new Schema<ISubmission>(
@@ -69,6 +71,14 @@ const submissionSchema = new Schema<ISubmission>(
     isFeatured: {
       type: Boolean,
       default: false,
+    },
+    imdbUrl: {
+      type: String,
+      default: "",
+    },
+    trailerUrl: {
+      type: String,
+      default: "",
     },
   },
   { timestamps: true }
