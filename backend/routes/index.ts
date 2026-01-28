@@ -10,6 +10,7 @@ import crewRoleRoutes from "./crewRole.ts";
 import submissionRoutes from "./submission.ts";
 import nominationRoutes from "./nomination.ts";
 import crewAssignmentRoutes from "./crewAssignment.ts";
+import userRoutes from "./user.ts";
 
 const router = e.Router();
 
@@ -24,5 +25,6 @@ router.use("/crew-roles", crewRoleRoutes);
 router.use("/submissions", submissionRoutes);
 router.use("/nominations", nominationRoutes);
 router.use("/crew-assignments", crewAssignmentRoutes);
+router.use("/users", userRoutes);
 
 export default router;

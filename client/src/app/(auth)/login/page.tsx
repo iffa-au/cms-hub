@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { signInSchema } from "@/lib/schema";
+import Image from "next/image";
 import {
   Card,
   CardContent,
@@ -68,17 +69,29 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative min-h-screen flex flex-col items-center justify-center bg-background p-4">
+    <div className="relative min-h-screen flex flex-col items-center justify-center bg-background px-4 py-12">
       {/* Subtle radial glow background */}
-      <div className="pointer-events-none absolute inset-0 [background:radial-gradient(ellipse_at_center,rgba(0,0,0,0.08),transparent_55%)] dark:[background:radial-gradient(ellipse_at_center,rgba(255,255,255,0.06),transparent_55%)]" />
+      <div className="pointer-events-none absolute inset-0 [background:radial-gradient(ellipse_at_center,rgba(212,175,55,0.06),transparent_55%)]" />
 
-      <Card className="relative max-w-md w-full shadow-xl border-0 ring-1 ring-border/60">
+      {/* Brand header */}
+      <div className="mb-6 text-center">
+        {/* <div className="font-serif text-3xl md:text-4xl font-bold tracking-[0.25em] text-primary">
+          IFFA
+        </div> */}
+        <Image src="/assets/IFFA_logo.png" alt="IFFA Logo" width={200} height={200} />
+        <div className="h-px w-24 mx-auto my-3 bg-linear-to-r from-transparent via-primary to-transparent opacity-60" />
+        <p className="text-xs uppercase tracking-widest text-accent-foreground">
+          CMS Hub Sign In
+        </p>
+      </div>
+
+      <Card className="relative max-w-md w-full shadow-xl border border-border bg-surface-dark">
         <CardHeader className="mb-2 text-center space-y-1">
-          <CardTitle className="text-2xl font-extrabold tracking-tight">
-            IFFA CMS Hub
+          <CardTitle className="text-xl font-serif font-bold tracking-widest text-white">
+            Welcome Back
           </CardTitle>
-          <CardDescription className="text-sm text-muted-foreground">
-            Authorized personnel only. Please sign in to continue.
+          <CardDescription className="text-xs text-accent-foreground tracking-wider">
+            Authorized personnel only
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -123,7 +136,7 @@ export default function LoginPage() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <div className="flex justify-between items-center">
+                    {/* <div className="flex justify-between items-center">
                       <FormLabel>Password</FormLabel>
                       <Link
                         href="/forgot-password"
@@ -131,7 +144,7 @@ export default function LoginPage() {
                       >
                         Forgot Password?
                       </Link>
-                    </div>
+                    </div> */}
                     <FormControl>
                       <div className="relative">
                         <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-muted-foreground">
@@ -160,7 +173,7 @@ export default function LoginPage() {
 
               <Button
                 type="submit"
-                className="w-full bg-primary text-black hover:bg-amber-500/90"
+                className="w-full bg-primary text-black hover:bg-[#d9a50b] font-bold shadow-[0_0_20px_rgba(242,185,13,0.1)] hover:shadow-[0_0_30px_rgba(242,185,13,0.3)] transition-all duration-300 uppercase tracking-widest text-xs"
                 disabled={isPending}
               >
                 {isPending ? (
@@ -180,7 +193,7 @@ export default function LoginPage() {
                 href="/signup"
                 className="text-primary hover:underline font-medium"
               >
-                Request Access
+                Sign Up
               </Link>
             </p>
           </div>

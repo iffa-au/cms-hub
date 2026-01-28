@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { getData, postData, deleteData } from "@/lib/fetch-util";
+import { Trash2 } from "lucide-react";
 // Reusable style constants (scoped to this file)
 const PANEL =
   "rounded-xl border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50 flex flex-col";
@@ -21,6 +22,8 @@ const LIST_BTN =
   "text-primary/60 hover:text-primary border border-primary/20 bg-primary/5 hover:bg-primary/10 rounded-md p-1.5 transition-all";
 const ICON = "material-icons text-lg block";
 const TEXT_MUTED = "font-medium text-gray-200";
+const DEL_BTN =
+  "text-red-400 hover:text-red-300 border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 rounded-md px-3 py-1.5 transition-all text-[10px] font-bold tracking-widest uppercase";
 
 export default function AdminMetadataPage() {
   type Item = { _id: string; name: string; description?: string };
@@ -258,11 +261,11 @@ export default function AdminMetadataPage() {
                 <li className={LIST_ITEM} key={item._id}>
                   <span className={TEXT_MUTED}>{item.name}</span>
                   <button
-                    className={LIST_BTN}
+                    className={DEL_BTN}
                     onClick={() => handleDeleteContentType(item._id)}
                     aria-label={`Delete ${item.name}`}
                   >
-                    <span className={ICON}>close</span>
+                    <Trash2 className="h-4 w-4" />
                   </button>
                 </li>
               ))}
@@ -303,11 +306,11 @@ export default function AdminMetadataPage() {
                 <li className={LIST_ITEM} key={item._id}>
                   <span className={TEXT_MUTED}>{item.name}</span>
                   <button
-                    className={LIST_BTN}
+                    className={DEL_BTN}
                     onClick={() => handleDeleteGenre(item._id)}
                     aria-label={`Delete ${item.name}`}
                   >
-                    <span className={ICON}>close</span>
+                    <Trash2 className="h-4 w-4" />
                   </button>
                 </li>
               ))}
@@ -348,11 +351,11 @@ export default function AdminMetadataPage() {
                 <li className={LIST_ITEM} key={item._id}>
                   <span className={TEXT_MUTED}>{item.name}</span>
                   <button
-                    className={LIST_BTN}
+                    className={DEL_BTN}
                     onClick={() => handleDeleteLanguage(item._id)}
                     aria-label={`Delete ${item.name}`}
                   >
-                    <span className={ICON}>close</span>
+                    <Trash2 className="h-4 w-4" />
                   </button>
                 </li>
               ))}
@@ -392,12 +395,12 @@ export default function AdminMetadataPage() {
               {countries.map((item) => (
                 <li className={LIST_ITEM} key={item._id}>
                   <span className={TEXT_MUTED}>{item.name}</span>
-                  <button
-                    className={LIST_BTN}
+                    <button
+                    className={DEL_BTN}
                     onClick={() => handleDeleteCountry(item._id)}
                     aria-label={`Delete ${item.name}`}
                   >
-                    <span className={ICON}>close</span>
+                    <Trash2 className="h-4 w-4" />
                   </button>
                 </li>
               ))}
@@ -405,7 +408,7 @@ export default function AdminMetadataPage() {
           </div>
         </div>
       </div>
-      <div className={`${PANEL} mb-12`}>
+      <div className={`${PANEL} h-[450px] mb-12`}>
         <div className={PANEL_HEADER}>
           <h2 className={TITLE}>Award Categories</h2>
           <div className={GRID}>
@@ -433,17 +436,17 @@ export default function AdminMetadataPage() {
             </button>
           </div>
         </div>
-        <div className="p-3">
+        <div className={LIST_SCROLL}>
           <ul className={LIST}>
             {awardCategories.map((item) => (
               <li className={LIST_ITEM} key={item._id}>
                 <span className={TEXT_MUTED}>{item.name}</span>
                 <button
-                  className={LIST_BTN}
+                  className={DEL_BTN}
                   onClick={() => handleDeleteAwardCategory(item._id)}
                   aria-label={`Delete ${item.name}`}
                 >
-                  <span className={ICON}>close</span>
+                  <Trash2 className="h-4 w-4" />
                 </button>
               </li>
             ))}

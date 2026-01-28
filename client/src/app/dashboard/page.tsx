@@ -12,6 +12,7 @@ type SubmissionItem = {
   title: string;
   status: SubmissionStatus;
   createdAt: string;
+  releaseDate?: string;
 };
 
 function StatusBadge({ status }: { status: SubmissionStatus }) {
@@ -79,9 +80,12 @@ export default function Dashboard() {
             Manage and track your film entries.
           </p>
         </div>
-        <Button asChild>
-          <Link href="/submissions/new">New Submission</Link>
-        </Button>
+        <Link
+          href="/submissions/new"
+          className="px-8 py-3 rounded bg-primary text-black hover:bg-[#d9a50b] font-bold shadow-[0_0_20px_rgba(242,185,13,0.1)] hover:shadow-[0_0_30px_rgba(242,185,13,0.3)] transition-all duration-300 uppercase tracking-widest text-xs flex justify-center items-center gap-2"
+        >
+          New Submission
+        </Link>
       </div>
 
       {loading ? (
@@ -94,24 +98,28 @@ export default function Dashboard() {
             You haven&apos;t submitted any films yet.
           </p>
           <div className="mt-4">
-            <Button asChild>
-              <Link href="/submissions/new">Create your first submission</Link>
-            </Button>
+            <Link
+              href="/submissions/new"
+              className="inline-flex px-8 py-3 rounded bg-primary text-black hover:bg-[#d9a50b] font-bold shadow-[0_0_20px_rgba(242,185,13,0.1)] hover:shadow-[0_0_30px_rgba(242,185,13,0.3)] transition-all duration-300 uppercase tracking-widest text-xs justify-center items-center gap-2"
+            >
+              Create your first submission
+            </Link>
           </div>
         </div>
       ) : (
         <div className="divide-y divide-border rounded-lg border border-border overflow-hidden">
           <div className="grid grid-cols-12 px-6 py-3 text-[#bab29c] text-xs uppercase tracking-widest bg-surface-dark">
-            <div className="col-span-6">Title</div>
-            <div className="col-span-3">Status</div>
-            <div className="col-span-3 text-right">Created</div>
+            <div className="col-span-5">Title</div>
+            <div className="col-span-2">Status</div>
+            <div className="col-span-2">Release Date</div>
+            <div className="col-span-3 text-right">Submission Date</div>
           </div>
           {items.map((s) => (
             <div
               key={s._id}
               className="grid grid-cols-12 px-6 py-4 items-center"
             >
-              <div className="col-span-6 min-w-0">
+              <div className="col-span-5 min-w-0">
                 <Link
                   href={`/submissions/${s._id}`}
                   className="text-white hover:underline font-medium truncate"
@@ -119,11 +127,20 @@ export default function Dashboard() {
                   {s.title}
                 </Link>
               </div>
-              <div className="col-span-3">
+              <div className="col-span-2">
                 <StatusBadge status={s.status} />
               </div>
+              <div className="col-span-2 text-sm text-muted-foreground">
+                {s.releaseDate
+                  ? new Date(s.releaseDate).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "short",
+                    day: "2-digit",
+                  })
+                  : "—"}
+              </div>
               <div className="col-span-3 text-right text-sm text-muted-foreground">
-                {new Date(s.createdAt).toLocaleDateString()}
+                {new Date(s.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
               </div>
             </div>
           ))}

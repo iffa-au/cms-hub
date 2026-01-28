@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { deleteData, getData, postData } from "@/lib/fetch-util";
 import { toast } from "sonner";
+import { Search, X, Lock, Users, Trash2 } from "lucide-react";
 
 type CrewMember = { _id: string; name: string };
 type CrewRole = { _id: string; name: string };
@@ -148,7 +149,9 @@ export default function AssignCrewPage() {
         <section className={CARD}>
           <div className={SECTION_HEADER}>
             <div className="flex items-center gap-3">
-              <span className="inline-flex items-center justify-center w-6 h-6 rounded bg-[#2a261b] text-[#e2c35a]">🔒</span>
+              <div className="inline-flex items-center justify-center w-7 h-7 rounded bg-[#2a261b]">
+                <Lock className="h-4 w-4 text-primary" />
+              </div>
               <h3 className="text-white text-lg font-bold tracking-widest uppercase font-serif">
                 Current Assignment
               </h3>
@@ -192,8 +195,9 @@ export default function AssignCrewPage() {
                         onClick={() => removeAssignment(a._id)}
                         className="text-red-400 hover:text-red-300"
                         title="Remove"
+                        aria-label="Remove assignment"
                       >
-                        🗑
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   </div>
@@ -207,7 +211,9 @@ export default function AssignCrewPage() {
         <section className={`${CARD} mt-10`}>
           <div className={SECTION_HEADER}>
             <div className="flex items-center gap-3">
-              <span className="inline-flex items-center justify-center w-6 h-6 rounded bg-[#2a261b] text-[#e2c35a]">👥</span>
+              <div className="inline-flex items-center justify-center w-7 h-7 rounded bg-[#2a261b]">
+                <Users className="h-4 w-4 text-primary" />
+              </div>
               <h3 className="text-white text-lg font-bold tracking-widest uppercase font-serif">
                 Add Crew Member
               </h3>
@@ -216,12 +222,25 @@ export default function AssignCrewPage() {
           <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-2">
               <label className={LABEL}>Crew Member</label>
-              <input
-                className={INPUT}
-                placeholder="Search by name..."
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-              />
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input
+                  className="w-full bg-[#0a0a0a] border border-[#393528] rounded px-9 py-3 text-white placeholder-[#544e3b] focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all mt-2"
+                  placeholder="Search by name..."
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                  aria-label="Search crew member"
+                />
+                {filter ? (
+                  <button
+                    aria-label="Clear search"
+                    onClick={() => setFilter("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors p-1 rounded"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                ) : null}
+              </div>
               <select
                 className={INPUT}
                 value={selectedMemberId}

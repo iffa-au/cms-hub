@@ -3,6 +3,7 @@ import {
   createSubmission,
   getMySubmissions,
   getSubmission,
+  getSubmissionOverview,
   adminListSubmissions,
   approveSubmission,
   rejectSubmission,
@@ -13,6 +14,7 @@ import { requireAuth, requireRole } from "../middlewares/auth.middleware.ts";
 const router = e.Router();
 
 // Public
+router.get("/:id/overview", getSubmissionOverview);
 router.get("/:id", getSubmission);
 
 // User

@@ -183,7 +183,40 @@ export default function NewSubmissionPage() {
                 <label htmlFor="releaseDate" className={LABEL}>
                   Release Date<span className="text-primary">*</span>
                 </label>
-                <input className={INPUT} type="date" id="releaseDate" />
+                {/* Hidden input to participate in native form submit */}
+                <input
+                  id="releaseDate"
+                  type="hidden"
+                  value={releaseDate ? format(releaseDate, "yyyy-MM-dd") : ""}
+                />
+                <Popover open={open} onOpenChange={setOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className={cn(
+                        "w-full flex items-center justify-between bg-[#0a0a0a] border border-[#393528] rounded px-4 py-3 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all mt-2",
+                        !releaseDate && "text-muted-foreground"
+                      )}
+                      onClick={() => setOpen(true)}
+                    >
+                      <span>
+                        {releaseDate ? format(releaseDate, "PPP") : "Pick a date"}
+                      </span>
+                      <CalendarIcon className="h-4 w-4 opacity-70" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={releaseDate}
+                      onSelect={(d) => {
+                        setReleaseDate(d);
+                        setOpen(false);
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
 
               {/* content type */}

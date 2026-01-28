@@ -59,34 +59,68 @@ export default function EditSubmissionPage() {
     async function load() {
       try {
         setLoading(true);
-        // metadata
-        const [g, c, l, ct] = await Promise.all([
-          getData<{ success: boolean; data: MetaItem[] }>('/genres'),
-          getData<{ success: boolean; data: MetaItem[] }>('/countries'),
-          getData<{ success: boolean; data: MetaItem[] }>('/languages'),
-          getData<{ success: boolean; data: MetaItem[] }>('/content-types'),
-        ]);
-        if (!cancelled) {
-          if (g?.success) setGenres(g.data || []);
-          if (c?.success) setCountries(c.data || []);
-          if (l?.success) setLanguages(l.data || []);
-          if (ct?.success) setContentTypes(ct.data || []);
-        }
-        // submission detail
-        const res = await getData<{ success: boolean; data: SubmissionDetail }>(`/submissions/${id}`);
-        const d = res?.data;
-        if (d && !cancelled) {
-          setTitle(d.title || '');
-          setSynopsis(d.synopsis || '');
-          setReleaseDate(d.releaseDate ? new Date(d.releaseDate).toISOString().slice(0, 10) : '');
-          setPotraitImageUrl(d.potraitImageUrl || '');
-          setLandscapeImageUrl(d.landscapeImageUrl || '');
-          setImdbUrl(d.imdbUrl || '');
-          setTrailerUrl(d.trailerUrl || '');
-          setLanguageId(d.languageId || '');
-          setCountryId(d.countryId || '');
-          setContentTypeId(d.contentTypeId || '');
-          setGenreIds(d.genreIds && d.genreIds.length > 0 ? d.genreIds : d.genreId ? [d.genreId] : []);
+        // submission overview with meta (single round-trip)
+        try {
+          const res = await getData<{ success: boolean; data: any }>(`/submissions/${id}/overview?expand=meta`);
+          const d = res?.data;
+          if (d && !cancelled) {
+            // hydrate dropdown lists from meta if present
+            if (d.meta) {
+              setGenres(d.meta.genres || []);
+              setCountries(d.meta.countries || []);
+              setLanguages(d.meta.languages || []);
+              setContentTypes(d.meta.contentTypes || []);
+            }
+            setTitle(d.title || '');
+            setSynopsis(d.synopsis || '');
+            setReleaseDate(d.releaseDate ? new Date(d.releaseDate).toISOString().slice(0, 10) : '');
+            setPotraitImageUrl(d.potraitImageUrl || '');
+            setLandscapeImageUrl(d.landscapeImageUrl || '');
+            setImdbUrl(d.imdbUrl || '');
+            setTrailerUrl(d.trailerUrl || '');
+            setLanguageId(d.language?._id || d.languageId || '');
+            setCountryId(d.country?._id || d.countryId || '');
+            setContentTypeId(d.contentType?._id || d.contentTypeId || '');
+            const genreIdList =
+              Array.isArray(d.genres) && d.genres.length > 0
+                ? d.genres.map((g: any) => g?._id).filter(Boolean)
+                : Array.isArray(d.genreIds)
+                  ? d.genreIds
+                  : d.genreId
+                    ? [d.genreId]
+                    : [];
+            setGenreIds(genreIdList);
+          }
+        } catch {
+          // Fallback: fetch lists individually if meta not included/failed
+          const [g, c, l, ct] = await Promise.all([
+            getData<{ success: boolean; data: MetaItem[] }>('/genres'),
+            getData<{ success: boolean; data: MetaItem[] }>('/countries'),
+            getData<{ success: boolean; data: MetaItem[] }>('/languages'),
+            getData<{ success: boolean; data: MetaItem[] }>('/content-types'),
+          ]);
+          if (!cancelled) {
+            if (g?.success) setGenres(g.data || []);
+            if (c?.success) setCountries(c.data || []);
+            if (l?.success) setLanguages(l.data || []);
+            if (ct?.success) setContentTypes(ct.data || []);
+          }
+          // Fallback to basic detail if overview not found
+          const res2 = await getData<{ success: boolean; data: SubmissionDetail }>(`/submissions/${id}`);
+          const d2 = res2?.data;
+          if (d2 && !cancelled) {
+            setTitle(d2.title || '');
+            setSynopsis(d2.synopsis || '');
+            setReleaseDate(d2.releaseDate ? new Date(d2.releaseDate).toISOString().slice(0, 10) : '');
+            setPotraitImageUrl(d2.potraitImageUrl || '');
+            setLandscapeImageUrl(d2.landscapeImageUrl || '');
+            setImdbUrl(d2.imdbUrl || '');
+            setTrailerUrl(d2.trailerUrl || '');
+            setLanguageId(d2.languageId || '');
+            setCountryId(d2.countryId || '');
+            setContentTypeId(d2.contentTypeId || '');
+            setGenreIds(d2.genreIds && d2.genreIds.length > 0 ? d2.genreIds : d2.genreId ? [d2.genreId] : []);
+          }
         }
       } catch (e: any) {
         if (!cancelled) setError(e?.message || 'Failed to load submission');

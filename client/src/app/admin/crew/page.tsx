@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { deleteData, getData, postData } from '@/lib/fetch-util';
+import { Search, X } from 'lucide-react';
 
 type CrewMember = {
   _id: string;
@@ -113,34 +114,39 @@ export default function AdminCrewPage() {
       </div>
 
       {/* Search bar */}
-      <div className='bg-card p-2 rounded border border-border mb-8 flex items-center gap-2'>
+      <div className='bg-card p-2 rounded border border-border mb-8'>
         <div className='relative grow'>
+          <Search className='absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground' />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Escape') setQ('');
             }}
-            className='w-full bg-transparent border-none focus:ring-0 pl-3 text-sm text-foreground placeholder:text-muted-foreground/70 py-3'
-            placeholder='Search Crew By Name'
+            className='w-full bg-transparent border-none focus:ring-0 pl-9 pr-9 text-sm text-foreground placeholder:text-muted-foreground/70 py-3'
+            placeholder='Search crew by name'
             type='text'
+            aria-label='Search crew by name'
           />
+          {q ? (
+            <button
+              aria-label='Clear search'
+              onClick={() => setQ('')}
+              className='absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors p-1 rounded'
+            >
+              <X className='h-4 w-4' />
+            </button>
+          ) : null}
         </div>
-        <button
-          onClick={() => setQ('')}
-          className='px-4 py-2 text-muted-foreground hover:text-primary transition-colors border-l border-border text-xs font-semibold tracking-widest'
-        >
-          CLEAR
-        </button>
       </div>
 
       <div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
         {/* Left: Crew list */}
-        <section className='lg:col-span-2 rounded border border-border bg-surface-dark'>
+        <section className='lg:col-span-2 rounded border border-border bg-surface-dark h-[520px] flex flex-col overflow-hidden'>
           <div className='px-6 py-4 border-b border-border'>
             <h3 className='text-white text-sm font-bold tracking-widest uppercase font-serif'>All Crew Members</h3>
           </div>
-          <div className='divide-y divide-border'>
+          <div className='divide-y divide-border flex-1 overflow-y-auto min-h-0'>
             {loading ? (
               <div className='p-6 text-sm text-muted-foreground'>Loading…</div>
             ) : error ? (
@@ -177,11 +183,11 @@ export default function AdminCrewPage() {
         </section>
 
         {/* Right: Role management */}
-        <section className='rounded border border-border bg-surface-dark'>
+        <section className='rounded border border-border bg-surface-dark h-[520px] flex flex-col overflow-hidden'>
           <div className='px-6 py-4 border-b border-border'>
             <h3 className='text-white text-sm font-bold tracking-widest uppercase font-serif'>Crew Roles</h3>
           </div>
-          <div className='p-6 space-y-4'>
+          <div className='p-6 space-y-4 flex-1 flex flex-col min-h-0'>
             <div>
               <label className='text-accent-foreground text-xs font-bold uppercase tracking-widest'>Role Name</label>
               <input
@@ -212,7 +218,7 @@ export default function AdminCrewPage() {
               </button>
             </div>
             <div className='h-px w-full bg-border my-2' />
-            <div className='space-y-2'>
+            <div className='space-y-2 flex-1 overflow-y-auto min-h-0'>
               {roles.length === 0 ? (
                 <div className='text-sm text-muted-foreground'>No roles yet.</div>
               ) : (

@@ -115,7 +115,7 @@ export default function ReviewQueuePage() {
             <tr className='text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-bold'>
               <th className='px-4 py-3'>Film Details</th>
               <th className='px-4 py-3'>Content Type</th>
-              <th className='px-4 py-3 text-center'>Release</th>
+              <th className='px-4 py-3 text-center'>Release Year</th>
               <th className='px-4 py-3'>Genres</th>
               <th className='px-4 py-3 text-right'>Actions</th>
             </tr>

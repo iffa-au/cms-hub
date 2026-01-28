@@ -16,7 +16,6 @@ export default function Navbar() {
   // Base links for all authenticated users
   const commonLinks: { href: string; label: string }[] = [
     { href: "/dashboard", label: "Dashboard" },
-    { href: "/submissions/new", label: "New Submission" },
     { href: "/profile", label: "Profile" },
   ];
   // Admins can also see site-wide submissions list
@@ -30,6 +29,9 @@ export default function Navbar() {
   // Admins can manage crew
   if (user?.role === "admin") {
     commonLinks.splice(3, 0, { href: "/admin/crew", label: "Crew" });
+    // Admins can manage metadata
+    const insertAfterCrew = 4;
+    commonLinks.splice(insertAfterCrew, 0, { href: "/admin/metadata", label: "Metadata" });
   }
   // Staff and Admin can access the review queue
   if (user?.role === "admin" || user?.role === "staff") {
@@ -63,7 +65,7 @@ export default function Navbar() {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-20">
           <Link
-            href="/"
+            href="/dashboard"
             className="text-lg md:text-xl font-serif font-semibold tracking-wider"
           >
             {/* International Arab Film Festival of Australia */}
@@ -76,27 +78,27 @@ export default function Navbar() {
               priority
             />
           </Link>
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-6">
+          {/* Desktop Navigation (only on very wide screens to avoid wrapping) */}
+          <div className="hidden xl:flex items-center gap-6">
             {commonLinks.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="text-2xl uppercase tracking-wider hover:text-primary transition-colors"
+                className="whitespace-nowrap uppercase tracking-wider hover:text-primary transition-colors transition-transform duration-200 ease-out text-base hover:scale-105"
               >
                 {item.label}
               </Link>
             ))}
             <button
               onClick={handleLogout}
-              className="text-2xl uppercase tracking-wider hover:text-primary transition-colors"
+              className="whitespace-nowrap uppercase tracking-wider hover:text-primary transition-colors transition-transform duration-200 ease-out text-base hover:scale-105"
             >
               Logout
             </button>
           </div>
-          {/* Mobile Menu Button */}
+          {/* Mobile/Tablet Menu Button */}
           <button
-            className="md:hidden"
+            className="xl:hidden"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label="Toggle menu"
           >
@@ -105,7 +107,7 @@ export default function Navbar() {
 
           {/* Mobile Menu Navigation */}
           {mobileMenuOpen && (
-            <div className="md:hidden absolute top-20 left-0 right-0 bg-background/95 backdrop-blur-sm border-b border-border">
+            <div className="xl:hidden absolute top-20 left-0 right-0 bg-background/95 backdrop-blur-sm border-b border-border">
               <div className="container mx-auto px-4 py-4">
                 <div className="flex flex-col items-center gap-4">
                   {commonLinks.map((item) => (
@@ -113,7 +115,7 @@ export default function Navbar() {
                       key={item.href}
                       href={item.href}
                       onClick={() => setMobileMenuOpen(false)}
-                      className="text-sm uppercase my-2 tracking-wider hover:text-primary transition-colors"
+                      className="text-sm uppercase my-2 tracking-wider hover:text-primary transition-colors transition-transform duration-200 ease-out hover:scale-105"
                     >
                       {item.label}
                     </Link>
@@ -123,7 +125,7 @@ export default function Navbar() {
                       setMobileMenuOpen(false);
                       handleLogout();
                     }}
-                    className="text-sm uppercase my-2 tracking-wider hover:text-primary transition-colors"
+                    className="text-sm uppercase my-2 tracking-wider hover:text-primary transition-colors transition-transform duration-200 ease-out hover:scale-105"
                   >
                     Logout
                   </button>
