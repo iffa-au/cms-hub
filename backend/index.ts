@@ -71,7 +71,7 @@ app.use((err: any, req: any, res: any, next: any) => {
 });
 
 // ---------- start ----------
-const port = Number(process.env.PORT) || 3001; // backend default should not clash with Next.js
+const port = Number(process.env.PORT) || 8000; // backend default should not clash with Next.js
 
 app.listen(port, "0.0.0.0", () => {
   console.log(`Server is running on port ${port}`);
