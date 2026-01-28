@@ -1,0 +1,10 @@
+version: 1.0
+runtime: nodejs22
+build:
+  commands:
+    build:
+      - npm ci --include=dev
+run:
+  command: npm start
+  network:
+    port: 8000
