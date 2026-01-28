@@ -24,9 +24,10 @@ export default function ProfilePage() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await getData<{ success: boolean; data?: { name: string; email: string; role: string; bio?: string } }>('/users/me');
+        const res = await getData<{ success: boolean; data?: { name?: string; fullName?: string; email: string; role: string; bio?: string } }>('/users/me');
         if (!cancelled && res?.success && res.data) {
-          setName(res.data.name ?? '');
+          console.log('res.data', res.data);
+          setName(res.data.fullName ?? res.data.name ?? '');
           setEmail(res.data.email ?? '');
           setRole(res.data.role ?? '');
           setBio(res.data.bio ?? '');
@@ -58,6 +59,7 @@ export default function ProfilePage() {
         } catch {
           // ignore storage errors
         }
+
         setSuccess('Profile updated.');
         // reflect saved values locally
         setName(res.data?.name ?? name);

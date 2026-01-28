@@ -369,10 +369,61 @@ export const adminListSubmissions = async (req, res) => {
     const skip = (pageNum - 1) * limitNum;
 
     const [items, total] = await Promise.all([
-      Submission.find(filter)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limitNum),
+      Submission.aggregate([
+        { $match: filter },
+        { $sort: { createdAt: -1 } },
+        { $skip: skip },
+        { $limit: limitNum },
+        // Join genres via mapping table
+        {
+          $lookup: {
+            from: "submissiongenres",
+            localField: "_id",
+            foreignField: "submissionId",
+            as: "genreLinks",
+          },
+        },
+        {
+          $lookup: {
+            from: "genres",
+            localField: "genreLinks.genreId",
+            foreignField: "_id",
+            as: "genres",
+          },
+        },
+        // Join content type
+        {
+          $lookup: {
+            from: "contenttypes",
+            localField: "contentTypeId",
+            foreignField: "_id",
+            as: "contentType",
+          },
+        },
+        {
+          $project: {
+            creatorId: 1,
+            title: 1,
+            synopsis: 1,
+            releaseDate: 1,
+            potraitImageUrl: 1,
+            landscapeImageUrl: 1,
+            status: 1,
+            languageId: 1,
+            countryId: 1,
+            contentTypeId: 1,
+            imdbUrl: 1,
+            trailerUrl: 1,
+            isFeatured: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            contentTypeName: { $ifNull: [{ $arrayElemAt: ["$contentType.name", 0] }, null] },
+            genreNames: {
+              $map: { input: "$genres", as: "g", in: "$$g.name" },
+            },
+          },
+        },
+      ]),
       Submission.countDocuments(filter),
     ]);
 

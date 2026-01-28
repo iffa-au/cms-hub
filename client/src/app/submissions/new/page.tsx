@@ -76,8 +76,7 @@ export default function NewSubmissionPage() {
   }, []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    console.log("handleSubmit");
-    console.log("potraitImageUrl", potraitImageUrl);
+
     e.preventDefault();
     setError(null);
     setIsSubmitting(true);

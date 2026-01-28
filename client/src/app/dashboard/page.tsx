@@ -120,12 +120,22 @@ export default function Dashboard() {
               className="grid grid-cols-12 px-6 py-4 items-center"
             >
               <div className="col-span-5 min-w-0">
-                <Link
-                  href={`/submissions/${s._id}`}
-                  className="text-white hover:underline font-medium truncate"
-                >
-                  {s.title}
-                </Link>
+                {s.status === 'SUBMITTED' ? (
+                  <Link
+                    href={`/submissions/${s._id}/edit`}
+                    className="text-white hover:underline font-medium truncate"
+                    title="Click to edit while submission is pending review"
+                  >
+                    {s.title}
+                  </Link>
+                ) : (
+                  <span
+                    className="text-white/80 font-medium truncate "
+                    title="Editing disabled after review"
+                  >
+                    {s.title}
+                  </span>
+                )}
               </div>
               <div className="col-span-2">
                 <StatusBadge status={s.status} />

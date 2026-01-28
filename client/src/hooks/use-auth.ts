@@ -4,7 +4,13 @@ import { useMutation } from "@tanstack/react-query";
 
 export const useSignUpMutation = () => {
   return useMutation({
-    mutationFn: (data: SignUpFormData) => postData("/auth/register", data),
+    // Map frontend fields to backend API contract
+    mutationFn: (data: SignUpFormData) =>
+      postData("/auth/register", {
+        fullName: data.fullName,
+        email: data.email,
+        password: data.password,
+      }),
   });
 };
 

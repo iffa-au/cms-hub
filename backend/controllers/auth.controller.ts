@@ -13,9 +13,9 @@ const refreshCookieOptions = {
 
 export const register = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { fullName, email, password } = req.body;
+    console.log('fullName', fullName);
     const decision = await aj.protect(req, { email });
-console.log(req.body)
     if (decision.isDenied()) {
       if (decision.reason.isEmail()) {
         return res
@@ -24,6 +24,11 @@ console.log(req.body)
       }
     } // Handle other denial reasons if needed
 
+    if (!fullName || fullName.trim() === "") {
+      return res
+        .status(400)
+        .json({ success: false, message: "Full name is required" });
+    }
     // check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser)
@@ -32,7 +37,7 @@ console.log(req.body)
         .status(400)
         .json({ success: false, message: "User already exists" });
 
-    const newUser = new User({ fullName: name, email, password });
+    const newUser = new User({ fullName: fullName.trim(), email, password });
     await newUser.save();
 
     const { accessToken, refreshToken } = generateToken({

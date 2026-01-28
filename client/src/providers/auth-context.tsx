@@ -31,7 +31,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         localStorage.setItem("token", res.accessToken);
         setIsAuthenticated(true);
       }
-      console.log("res in login", res);
       if (res?.user) {
         setUser(res.user);
         // Persist user details so we can restore on refresh

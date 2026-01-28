@@ -31,11 +31,13 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useSignUpMutation } from "@/hooks/use-auth";
+import { useAuth } from "@/providers/auth-context";
 
 export type SignUpFormData = z.infer<typeof signUpSchema>;
 
 export default function SignupPage() {
   const router = useRouter();
+  const { login } = useAuth();
   const form = useForm<SignUpFormData>({
     resolver: zodResolver(signUpSchema),
     defaultValues: {
@@ -48,33 +50,22 @@ export default function SignupPage() {
 
   const { mutate, isPending } = useSignUpMutation(); // custom hook to handle sign-up mutation, isPending is a boolean that indicates if the mutation is in progress
 
-  // async function onSubmit(values: SignUpFormData) {
-  //   if (isPending) return;
-  //   setIsPending(true);
-  //   const result = await authRegister({
-  //     name: values.fullName,
-  //     email: values.email,
-  //     password: values.password,
-  //   });
-  //   setIsPending(false);
-  //   if (!result.ok) {
-  //     form.setError("email", {
-  //       message: result.error ?? "Registration failed",
-  //     });
-  //     return;
-  //   }
-  //   document.cookie = `isAuthed=1; path=/; SameSite=Lax`;
-  //   router.replace("/");
-  // }
+
 
   const handleOnSubmit = (values: SignUpFormData) => {
     mutate(values, {
-      onSuccess: (data) => {
-        toast.success("Email Verification link sent!", {
-          description: "Please check your email to verify your account.",
+      onSuccess: async (data) => {
+        toast.success("Sign up successful!", {
+          description: "Signing you in...",
         });
         form.reset(); // reset the form after successful submission
-        // navigate("/verify-email"); // redirect to email verification page
+        // Auto-login with the provided credentials
+        try {
+          await login(values.email, values.password);
+          router.replace("/dashboard");
+        } catch {
+          // If auto login fails, stay and let user login manually
+        }
       },
       onError: (error: any) => {
         const msg =
