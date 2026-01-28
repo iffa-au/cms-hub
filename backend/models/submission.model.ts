@@ -16,6 +16,7 @@ export interface ISubmission {
   contentTypeId: Types.ObjectId;
   imdbUrl?: string;
   trailerUrl?: string;
+  genreId?: Types.ObjectId;
 }
 
 const submissionSchema = new Schema<ISubmission>(
@@ -48,6 +49,7 @@ const submissionSchema = new Schema<ISubmission>(
       type: String,
       default: "",
     },
+
     status: {
       type: String,
       enum: ["SUBMITTED", "APPROVED", "REJECTED"],
@@ -63,10 +65,15 @@ const submissionSchema = new Schema<ISubmission>(
       ref: "Country",
       required: true,
     },
+    genreId: {
+      type: Schema.Types.ObjectId,
+      ref: "Genre",
+      required: true,
+    },
     contentTypeId: {
       type: Schema.Types.ObjectId,
       ref: "ContentType",
-      required: true,
+      // required: true,
     },
     isFeatured: {
       type: Boolean,

@@ -1,11 +1,14 @@
 import { z, ZodError } from "zod";
 
 const validateData = (schema: z.ZodObject<any>) => {
+
   return (req, res, next) => {
+
     try {
       schema.parse(req.body);
       next();
     } catch (error) {
+      console.log(error)
       if (error instanceof ZodError) {
         return res.status(400).json({
           status: "error",

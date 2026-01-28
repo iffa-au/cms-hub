@@ -16,22 +16,23 @@ const router = e.Router();
 router.get("/:id", getSubmission);
 
 // User
+
 router.post("/", requireAuth, createSubmission);
 router.get("/my/list", requireAuth, getMySubmissions);
 router.put("/:id", requireAuth, updateSubmission);
 
-// Admin
-router.get("/", requireAuth, requireRole("admin"), adminListSubmissions);
+// Admin/Staff review and listing
+router.get("/", requireAuth, requireRole("admin", "staff"), adminListSubmissions);
 router.patch(
   "/:id/approve",
   requireAuth,
-  requireRole("admin"),
+  requireRole("admin", "staff"),
   approveSubmission
 );
 router.patch(
   "/:id/reject",
   requireAuth,
-  requireRole("admin"),
+  requireRole("admin", "staff"),
   rejectSubmission
 );
 

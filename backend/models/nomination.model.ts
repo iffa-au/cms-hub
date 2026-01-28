@@ -5,6 +5,7 @@ export interface INomination {
   awardCategoryId: Types.ObjectId;
   year: number;
   isWinner: boolean;
+  crewMemberId?: Types.ObjectId | null;
 }
 
 const nominationSchema = new Schema<INomination>({
@@ -25,6 +26,11 @@ const nominationSchema = new Schema<INomination>({
   isWinner: {
     type: Boolean,
     default: false,
+  },
+  crewMemberId: {
+    type: Schema.Types.ObjectId,
+    ref: "CrewMember",
+    default: null,
   },
 });
 

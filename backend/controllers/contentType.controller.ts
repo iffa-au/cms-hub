@@ -2,7 +2,7 @@ import ContentType from "../models/contentType.model.ts";
 
 export const getContentTypes = async (req, res) => {
   try {
-    const items = await ContentType.find();
+    const items = await ContentType.find().sort({ name: 1 });
     res.status(200).json({
       success: true,
       message: "Content types fetched successfully",

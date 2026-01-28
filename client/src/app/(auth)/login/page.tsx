@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { authLogin } from "@/lib/api";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { signInSchema } from "@/lib/schema";
@@ -27,11 +26,14 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { z } from "zod";
+import { useAuth } from "@/providers/auth-context";
+import { toast } from "sonner";
+
 type SignInFormData = z.infer<typeof signInSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
-  const [isPending, setIsPending] = useState(false);
+  const searchParams = useSearchParams();
   const form = useForm<SignInFormData>({
     resolver: zodResolver(signInSchema),
     defaultValues: {
@@ -39,49 +41,44 @@ export default function LoginPage() {
       password: "",
     },
   });
+  const { login } = useAuth();
+  const [isPending, setIsPending] = useState(false);
 
-  // async function onSubmit(values: SignInFormData) {
-  //   if (isPending) return;
-  //   setIsPending(true);
-  //   const result = await authLogin(values);
-  //   setIsPending(false);
-  //   if (!result.ok) {
-  //     form.setError("email", { message: result.error ?? "Login failed" });
-  //     return;
-  //   }
-  //   document.cookie = `isAuthed=1; path=/; SameSite=Lax`;
-  //   router.replace("/");
-  // }
-
-  const handleOnSubmit = (values: SignInFormData) => {
-    mutate(values, {
-      onSuccess: (data) => {
-        login(data);
-        console.log("data", data);
-        toast.success("Logged in successfully!", {
-          description: "Welcome back to CMS Hub.",
-        });
-        form.reset(); // reset the form after successful submission
-        // window.location.href = "/dashboard"; // redirect to dashboard (later)
-      },
-      onError: (error) => {
-        const errorMessage =
-          (error as any)?.response?.data?.message || error.message;
-        toast.error(errorMessage, {
-          description: "There was an issue logging in. Please try again.",
-        });
-        console.error("Error during sign-in:", error);
-      },
-    });
+  const handleOnSubmit = async (values: SignInFormData) => {
+    if (isPending) return;
+    try {
+      setIsPending(true);
+      await login(values.email, values.password);
+      toast.success("Logged in successfully!", {
+        description: "Welcome back to CMS Hub.",
+      });
+      form.reset();
+      const next = searchParams.get("next") || "/dashboard";
+      router.replace(next);
+    } catch (error: any) {
+      const errorMessage =
+        error?.response?.data?.message || error?.message || "Login failed";
+      toast.error(errorMessage, {
+        description: "There was an issue logging in. Please try again.",
+      });
+      console.error("Error during sign-in:", error);
+    } finally {
+      setIsPending(false);
+    }
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-muted/40 p-4">
-      <Card className="max-w-md w-full shadow-xl">
-        <CardHeader className="mb-4 text-center space-y-1">
-          <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
+    <div className="relative min-h-screen flex flex-col items-center justify-center bg-background p-4">
+      {/* Subtle radial glow background */}
+      <div className="pointer-events-none absolute inset-0 [background:radial-gradient(ellipse_at_center,rgba(0,0,0,0.08),transparent_55%)] dark:[background:radial-gradient(ellipse_at_center,rgba(255,255,255,0.06),transparent_55%)]" />
+
+      <Card className="relative max-w-md w-full shadow-xl border-0 ring-1 ring-border/60">
+        <CardHeader className="mb-2 text-center space-y-1">
+          <CardTitle className="text-2xl font-extrabold tracking-tight">
+            IFFA CMS Hub
+          </CardTitle>
           <CardDescription className="text-sm text-muted-foreground">
-            Please sign in to continue
+            Authorized personnel only. Please sign in to continue.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -97,11 +94,25 @@ export default function LoginPage() {
                   <FormItem>
                     <FormLabel>Email Address</FormLabel>
                     <FormControl>
-                      <Input
-                        type="email"
-                        placeholder="email@example.com"
-                        {...field}
-                      />
+                      <div className="relative">
+                        <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-muted-foreground">
+                          {/* mail icon */}
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                            className="size-4"
+                          >
+                            <path d="M2 6.75A2.75 2.75 0 0 1 4.75 4h14.5A2.75 2.75 0 0 1 22 6.75v10.5A2.75 2.75 0 0 1 19.25 20H4.75A2.75 2.75 0 0 1 2 17.25V6.75Zm2.75-.25a.25.25 0 0 0-.25.25v.383l7.25 4.531 7.25-4.53V6.75a.25.25 0 0 0-.25-.25H4.75Zm14.5 3.367-6.773 4.235a.75.75 0 0 1-.804 0L4.9 9.867V17.25c0 .138.112.25.25.25h14.5a.25.25 0 0 0 .25-.25V9.867Z" />
+                          </svg>
+                        </div>
+                        <Input
+                          type="email"
+                          placeholder="name@iffa.com"
+                          className="pl-10"
+                          {...field}
+                        />
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -122,21 +133,40 @@ export default function LoginPage() {
                       </Link>
                     </div>
                     <FormControl>
-                      <Input
-                        type="password"
-                        placeholder="********"
-                        {...field}
-                      />
+                      <div className="relative">
+                        <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-muted-foreground">
+                          {/* lock icon */}
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                            className="size-4"
+                          >
+                            <path d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5Zm-3 8V7a3 3 0 1 1 6 0v3H9Zm3 4a1.5 1.5 0 0 1 .75 2.805V18a.75.75 0 0 1-1.5 0v-1.195A1.5 1.5 0 0 1 12 14Z" />
+                          </svg>
+                        </div>
+                        <Input
+                          type="password"
+                          placeholder="Enter your password"
+                          className="pl-10"
+                          {...field}
+                        />
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={isPending}>
+
+              <Button
+                type="submit"
+                className="w-full bg-primary text-black hover:bg-amber-500/90"
+                disabled={isPending}
+              >
                 {isPending ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 ) : (
-                  "Login"
+                  "Sign In"
                 )}
               </Button>
             </form>
@@ -150,7 +180,7 @@ export default function LoginPage() {
                 href="/signup"
                 className="text-primary hover:underline font-medium"
               >
-                Sign Up
+                Request Access
               </Link>
             </p>
           </div>

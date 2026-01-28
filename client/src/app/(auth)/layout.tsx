@@ -1,6 +1,7 @@
 "use client";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/providers/auth-context";
-import { redirect } from "next/navigation";
 
 export default function AuthLayout({
   children,
@@ -8,11 +9,13 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   const { isAuthenticated, isLoading } = useAuth();
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
-  if (isAuthenticated) {
-    return redirect("/dashboard");
-  }
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.replace("/dashboard");
+    }
+  }, [isAuthenticated, isLoading, router]);
+
   return <>{children}</>;
 }

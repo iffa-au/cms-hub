@@ -10,7 +10,7 @@ import { requireAuth, requireRole } from "../middlewares/auth.middleware.ts";
 
 const router = e.Router();
 
-router.get("/", getNominations); 
+router.get("/", requireAuth, requireRole("admin", "staff"), getNominations); 
 router.get("/:id", getNomination); 
 router.post("/", requireAuth, requireRole("admin"), createNomination);
 router.put("/:id", requireAuth, requireRole("admin"), updateNomination);

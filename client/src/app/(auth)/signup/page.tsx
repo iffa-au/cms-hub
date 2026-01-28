@@ -28,14 +28,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { useAuth } from "@/providers/auth-context";
 import { useSignUpMutation } from "@/hooks/use-auth";
 
 export type SignUpFormData = z.infer<typeof signUpSchema>;
 
 export default function SignupPage() {
   const router = useRouter();
-  const [isPending, setIsPending] = useState(false);
   const form = useForm<SignUpFormData>({
     resolver: zodResolver(signUpSchema),
     defaultValues: {
@@ -46,7 +44,6 @@ export default function SignupPage() {
     },
   });
 
-  const { login } = useAuth();
   const { mutate, isPending } = useSignUpMutation(); // custom hook to handle sign-up mutation, isPending is a boolean that indicates if the mutation is in progress
 
   // async function onSubmit(values: SignUpFormData) {
@@ -77,22 +74,29 @@ export default function SignupPage() {
         form.reset(); // reset the form after successful submission
         // navigate("/verify-email"); // redirect to email verification page
       },
-      onError: (error) => {
-        toast.error(error.message || "Something went wrong during sign-up.");
+      onError: (error: any) => {
+        const msg =
+          error?.response?.data?.message ||
+          error?.message ||
+          "Something went wrong during sign-up.";
+        toast.error(msg);
         console.error("Error during sign-up:", error);
       },
     });
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-muted/40 p-4">
-      <Card className="max-w-md w-full shadow-xl">
-        <CardHeader className="mb-4 text-center space-y-1">
-          <CardTitle className="text-2xl font-bold">
-            Create your account
+    <div className="relative min-h-screen flex flex-col items-center justify-center bg-background p-4">
+      {/* Subtle radial glow background */}
+      <div className="pointer-events-none absolute inset-0 [background:radial-gradient(ellipse_at_center,rgba(0,0,0,0.08),transparent_55%)] dark:[background:radial-gradient(ellipse_at_center,rgba(255,255,255,0.06),transparent_55%)]" />
+
+      <Card className="relative max-w-md w-full shadow-xl border-0 ring-1 ring-border/60">
+        <CardHeader className="mb-2 text-center space-y-1">
+          <CardTitle className="text-2xl font-extrabold tracking-tight">
+            IFFA CMS Hub
           </CardTitle>
           <CardDescription className="text-sm text-muted-foreground">
-            Please fill in your details to sign up
+            Request access to continue.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -108,7 +112,25 @@ export default function SignupPage() {
                   <FormItem>
                     <FormLabel>Full name</FormLabel>
                     <FormControl>
-                      <Input type="text" placeholder="Jane Doe" {...field} />
+                      <div className="relative">
+                        <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-muted-foreground">
+                          {/* user icon */}
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                            className="size-4"
+                          >
+                            <path d="M12 2a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 12c4.418 0 8 2.239 8 5v1.25a.75.75 0 0 1-1.5 0V19c0-2.071-3.028-3.5-6.5-3.5S5.5 16.929 5.5 19v1.25a.75.75 0 0 1-1.5 0V19c0-2.761 3.582-5 8-5Z" />
+                          </svg>
+                        </div>
+                        <Input
+                          type="text"
+                          placeholder="Jane Doe"
+                          className="pl-10"
+                          {...field}
+                        />
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -121,11 +143,25 @@ export default function SignupPage() {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input
-                        type="email"
-                        placeholder="you@example.com"
-                        {...field}
-                      />
+                      <div className="relative">
+                        <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-muted-foreground">
+                          {/* mail icon */}
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                            className="size-4"
+                          >
+                            <path d="M2 6.75A2.75 2.75 0 0 1 4.75 4h14.5A2.75 2.75 0 0 1 22 6.75v10.5A2.75 2.75 0 0 1 19.25 20H4.75A2.75 2.75 0 0 1 2 17.25V6.75Zm2.75-.25a.25.25 0 0 0-.25.25v.383l7.25 4.531 7.25-4.53V6.75a.25.25 0 0 0-.25-.25H4.75Zm14.5 3.367-6.773 4.235a.75.75 0 0 1-.804 0L4.9 9.867V17.25c0 .138.112.25.25.25h14.5a.25.25 0 0 0 .25-.25V9.867Z" />
+                          </svg>
+                        </div>
+                        <Input
+                          type="email"
+                          placeholder="you@example.com"
+                          className="pl-10"
+                          {...field}
+                        />
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -138,11 +174,25 @@ export default function SignupPage() {
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input
-                        type="password"
-                        placeholder="********"
-                        {...field}
-                      />
+                      <div className="relative">
+                        <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-muted-foreground">
+                          {/* lock icon */}
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                            className="size-4"
+                          >
+                            <path d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5Zm-3 8V7a3 3 0 1 1 6 0v3H9Zm3 4a1.5 1.5 0 0 1 .75 2.805V18a.75.75 0 0 1-1.5 0v-1.195A1.5 1.5 0 0 1 12 14Z" />
+                          </svg>
+                        </div>
+                        <Input
+                          type="password"
+                          placeholder="Create a strong password"
+                          className="pl-10"
+                          {...field}
+                        />
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -155,21 +205,39 @@ export default function SignupPage() {
                   <FormItem>
                     <FormLabel>Confirm Password</FormLabel>
                     <FormControl>
-                      <Input
-                        type="password"
-                        placeholder="********"
-                        {...field}
-                      />
+                      <div className="relative">
+                        <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-muted-foreground">
+                          {/* lock icon */}
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                            className="size-4"
+                          >
+                            <path d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5Zm-3 8V7a3 3 0 1 1 6 0v3H9Zm3 4a1.5 1.5 0 0 1 .75 2.805V18a.75.75 0 0 1-1.5 0v-1.195A1.5 1.5 0 0 1 12 14Z" />
+                          </svg>
+                        </div>
+                        <Input
+                          type="password"
+                          placeholder="Re-enter your password"
+                          className="pl-10"
+                          {...field}
+                        />
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={isPending}>
+              <Button
+                type="submit"
+                className="w-full bg-amber-500 text-black hover:bg-amber-500/90"
+                disabled={isPending}
+              >
                 {isPending ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 ) : (
-                  "Create account"
+                  "Request Access"
                 )}
               </Button>
             </form>
@@ -183,7 +251,7 @@ export default function SignupPage() {
                 href="/login"
                 className="text-primary hover:underline font-medium"
               >
-                Log in
+                Sign in
               </Link>
             </p>
           </div>

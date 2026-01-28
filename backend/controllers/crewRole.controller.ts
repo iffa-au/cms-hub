@@ -2,7 +2,9 @@ import CrewRole from "../models/crewRole.model.ts";
 
 export const getCrewRoles = async (req, res) => {
   try {
-    const items = await CrewRole.find();
+    const items = await CrewRole.find()
+      .collation({ locale: "en", strength: 2 })
+      .sort({ name: 1 });
     res.status(200).json({
       success: true,
       message: "Crew roles fetched successfully",

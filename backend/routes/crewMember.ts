@@ -12,10 +12,13 @@ const router = e.Router();
 
 router.get("/", getCrewMembers);
 router.get("/:id", getCrewMember);
-router.post("/", requireAuth, requireRole("admin"), createCrewMember);
-router.put("/:id", requireAuth, requireRole("admin"), updateCrewMember);
-router.delete("/:id", requireAuth, requireRole("admin"), deleteCrewMember);
+// router.post("/", requireAuth, requireRole("admin"), createCrewMember);
+// router.put("/:id", requireAuth, requireRole("admin"), updateCrewMember);
+// router.delete("/:id", requireAuth, requireRole("admin"), deleteCrewMember);
 
+router.post("/",requireAuth, createCrewMember);
+router.put("/:id", requireAuth, updateCrewMember);
+router.delete("/:id", requireAuth, deleteCrewMember);
 export default router;
 
 

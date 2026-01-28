@@ -15,17 +15,22 @@ export const register = async (req, res) => {
   try {
     const { name, email, password } = req.body;
     const decision = await aj.protect(req, { email });
-
+console.log(req.body)
     if (decision.isDenied()) {
       if (decision.reason.isEmail()) {
-        return res.status(403).json({ message: "Invalid Email Address" });
+        return res
+          .status(403)
+          .json({ success: false, message: "Invalid Email Address" });
       }
     } // Handle other denial reasons if needed
 
     // check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser)
-      return res.status(400).json({ message: "User already exists" });
+
+      return res
+        .status(400)
+        .json({ success: false, message: "User already exists" });
 
     const newUser = new User({ fullName: name, email, password });
     await newUser.save();
@@ -37,6 +42,7 @@ export const register = async (req, res) => {
     res.cookie("refreshToken", refreshToken, refreshCookieOptions);
 
     res.status(201).json({
+      success: true,
       message: "User registered successfully",
       user: {
         id: newUser._id,
@@ -48,7 +54,7 @@ export const register = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
 
@@ -56,12 +62,23 @@ export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    if (!email || !password) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Email and password are required" });
+    }
+
     const user = await User.findOne({ email }).select("+password");
-    if (!user) return res.status(401).json({ message: "Invalid credentials" });
+    if (!user)
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid credentials" });
 
     const isPasswordCorrect = await user.comparePassword(password);
     if (!isPasswordCorrect)
-      return res.status(401).json({ message: "Invalid credentials" });
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid credentials" });
 
     const { accessToken, refreshToken } = generateToken({
       _id: user._id.toString(),
@@ -70,6 +87,7 @@ export const login = async (req, res) => {
     res.cookie("refreshToken", refreshToken, refreshCookieOptions);
 
     res.status(200).json({
+      success: true,
       message: "User signed in successfully",
       user: {
         id: user._id,
@@ -81,13 +99,16 @@ export const login = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
 
 export const refresh = async (req, res) => {
   const token = req.cookies?.refreshToken;
-  if (!token) return res.status(401).json({ message: "Missing refresh token" });
+  if (!token)
+    return res
+      .status(401)
+      .json({ success: false, message: "Missing refresh token" });
 
   try {
     const payload = verifyRefreshToken(token);
@@ -97,16 +118,19 @@ export const refresh = async (req, res) => {
     });
     res.cookie("refreshToken", refreshToken, refreshCookieOptions);
     res.status(200).json({
+      success: true,
       message: "Token refreshed successfully",
       accessToken,
     });
   } catch (error) {
     console.error(error);
-    res.status(401).json({ message: "Invalid/Expired refresh token" });
+    res
+      .status(401)
+      .json({ success: false, message: "Invalid/Expired refresh token" });
   }
 };
 
 export const logout = async (req, res) => {
   res.clearCookie("refreshToken", { path: "/" });
-  res.status(200).json({ message: "Logged out successfully" });
+  res.status(200).json({ success: true, message: "Logged out successfully" });
 };

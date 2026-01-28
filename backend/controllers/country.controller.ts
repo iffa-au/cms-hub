@@ -2,7 +2,7 @@ import Country from "../models/country.model.ts";
 
 export const getCountries = async (req, res) => {
   try {
-    const items = await Country.find();
+    const items = await Country.find().sort({ name: 1 });
     res.status(200).json({
       success: true,
       message: "Countries fetched successfully",

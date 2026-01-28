@@ -2,7 +2,7 @@ import Genre from "../models/genre.model.ts";
 
 export const getGenres = async (req, res) => {
   try {
-    const items = await Genre.find();
+    const items = await Genre.find().sort({ name: 1 });
     res.status(200).json({
       success: true,
       message: "Genres fetched successfully",

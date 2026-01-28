@@ -8,7 +8,7 @@ import { connectDB } from "./config/db.ts";
 import routes from "./routes/index.ts";
 
 dotenv.config();
-console.log(process.env.CLIENT);
+console.log("CLIENT_URL", process.env.CLIENT_URL);
 const app = express();
 
 app.use(express.json());

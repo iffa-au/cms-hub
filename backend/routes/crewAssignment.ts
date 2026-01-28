@@ -6,14 +6,14 @@ import {
   updateCrewAssignment,
   deleteCrewAssignment,
 } from "../controllers/crewAssignment.controller.ts";
-import { requireAuth } from "../middlewares/auth.middleware.ts";
+import { requireAuth, requireRole } from "../middlewares/auth.middleware.ts";
 
 const router = e.Router();
 
 router.get("/", getCrewAssignments);
 router.get("/:id", getCrewAssignment);
-router.post("/", requireAuth, createCrewAssignment);
-router.put("/:id", requireAuth, updateCrewAssignment);
-router.delete("/:id", requireAuth, deleteCrewAssignment);
+router.post("/", requireAuth, requireRole("admin"), createCrewAssignment);
+router.put("/:id", requireAuth, requireRole("admin"), updateCrewAssignment);
+router.delete("/:id", requireAuth, requireRole("admin"),  deleteCrewAssignment);
 
 export default router;

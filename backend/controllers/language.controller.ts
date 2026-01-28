@@ -2,7 +2,7 @@ import Language from "../models/language.model.ts";
 
 export const getLanguages = async (req, res) => {
   try {
-    const languages = await Language.find();
+    const languages = await Language.find().sort({ name: 1 });
     res.status(200).json({
       success: true,
       message: "Languages fetched successfully",

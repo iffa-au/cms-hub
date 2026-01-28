@@ -2,7 +2,7 @@ import AwardCategory from "../models/awardCategory.model.ts";
 
 export const getAwardCategories = async (req, res) => {
   try {
-    const items = await AwardCategory.find();
+    const items = await AwardCategory.find().sort({ name: 1 });
     res.status(200).json({
       success: true,
       message: "Award categories fetched successfully",

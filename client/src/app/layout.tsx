@@ -1,10 +1,10 @@
-"use client";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ReactQueryProvider from "@/providers/react-query-provider";
-import { useAuth } from "@/providers/auth-context";
-import { redirect } from "next/navigation";
+import Navbar from "@/components/navbar";
+import RouteGuard from "@/components/route-guard";
+import Footer from "@/components/footer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,17 +26,18 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const { isAuthenticated, isLoading } = useAuth();
-  if (!isAuthenticated) {
-    return redirect("/login");
-  }
-
   return (
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <ReactQueryProvider>{children}</ReactQueryProvider>
+        <ReactQueryProvider>
+          <Navbar />
+          <main className="pt-20">
+            <RouteGuard>{children}</RouteGuard>
+          </main>
+          <Footer />
+        </ReactQueryProvider>
       </body>
     </html>
   );
