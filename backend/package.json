@@ -2,11 +2,11 @@
   "name": "backend",
   "version": "1.0.0",
   "type": "module",
-  "main": "dist/index.js",
+  "main": "index.ts",
   "scripts": {
     "dev": "nodemon --exec ts-node --esm index.ts",
-    "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node --loader ts-node/esm index.ts",
+    "build": "tsc"
   },
   "dependencies": {
     "@arcjet/inspect": "^1.0.0-beta.15",
