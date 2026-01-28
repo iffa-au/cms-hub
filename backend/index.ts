@@ -8,24 +8,48 @@ import { connectDB } from "./config/db.ts";
 import routes from "./routes/index.ts";
 
 dotenv.config();
-console.log("CLIENT_URL", process.env.CLIENT_URL);
+
 const app = express();
 
+// ---------- basic middleware ----------
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(helmet());
-app.use(
-  cors({
-    origin: process.env.CLIENT_URL,
-    credentials: true,
-  })
-);
 app.use(morgan("dev"));
 
+// ---------- CORS ----------
+const allowlist = [
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+];
+
+const clientUrl = process.env.CLIENT_URL;
+console.log("CLIENT_URL =", clientUrl);
+
+app.use(
+  cors({
+    origin: (origin, cb) => {
+      // allow non-browser requests (health checks, curl, server-to-server)
+      if (!origin) return cb(null, true);
+
+      // if no CLIENT_URL yet, allow local dev only
+      if (!clientUrl) return cb(null, allowlist.includes(origin));
+
+      // if CLIENT_URL exists, allow only that + local dev
+      const ok = origin === clientUrl || allowlist.includes(origin);
+
+      if (!ok) return cb(new Error(`CORS blocked for origin: ${origin}`), false);
+      return cb(null, true);
+    },
+    credentials: true, // keep true if you use cookies/session
+  })
+);
+
+// ---------- DB ----------
 connectDB();
 
-// routes
+// ---------- routes ----------
 app.get("/api/v1/health", (req, res) => {
   res.status(200).json({
     success: true,
@@ -35,17 +59,20 @@ app.get("/api/v1/health", (req, res) => {
 
 app.use("/api/v1", routes);
 
-// error not found
-app.use((req, res, next) => {
+// ---------- 404 ----------
+app.use((req, res) => {
   res.status(404).json({ message: "Not Found" });
 });
 
-// error handler
-app.use((err, req, res, next) => {
-  console.error(err.stack);
+// ---------- error handler ----------
+app.use((err: any, req: any, res: any, next: any) => {
+  console.error(err);
   res.status(500).json({ message: "Internal Server Error" });
 });
 
-app.listen(process.env.PORT, () => {
-  console.log(`Server is running on port ${process.env.PORT}`);
+// ---------- start ----------
+const port = Number(process.env.PORT) || 3001; // backend default should not clash with Next.js
+
+app.listen(port, "0.0.0.0", () => {
+  console.log(`Server is running on port ${port}`);
 });
