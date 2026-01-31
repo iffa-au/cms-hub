@@ -23,6 +23,12 @@ type SubmissionDetail = {
   trailerUrl?: string;
   genreId?: string;
   genreIds?: string[];
+  crew?: {
+    actors: Array<{ fullName: string; role: string; imageUrl?: string; biography?: string }>;
+    directors: Array<{ fullName: string; role: string; imageUrl?: string; biography?: string }>;
+    producers: Array<{ fullName: string; role: string; imageUrl?: string; biography?: string }>;
+    other: Array<{ fullName: string; role: string; imageUrl?: string; biography?: string }>;
+  };
 };
 
 export default function EditSubmissionPage() {
@@ -53,6 +59,12 @@ export default function EditSubmissionPage() {
   const [countryId, setCountryId] = useState<string>('');
   const [contentTypeId, setContentTypeId] = useState<string>('');
   const [genreIds, setGenreIds] = useState<string[]>([]);
+  const [proposedCrew, setProposedCrew] = useState<NonNullable<SubmissionDetail['crew']>>({
+    actors: [],
+    directors: [],
+    producers: [],
+    other: [],
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -90,6 +102,12 @@ export default function EditSubmissionPage() {
                     ? [d.genreId]
                     : [];
             setGenreIds(genreIdList);
+            setProposedCrew({
+              actors: Array.isArray(d.crew?.actors) ? d.crew.actors : [],
+              directors: Array.isArray(d.crew?.directors) ? d.crew.directors : [],
+              producers: Array.isArray(d.crew?.producers) ? d.crew.producers : [],
+              other: Array.isArray(d.crew?.other) ? d.crew.other : [],
+            });
           }
         } catch {
           // Fallback: fetch lists individually if meta not included/failed
@@ -120,6 +138,12 @@ export default function EditSubmissionPage() {
             setCountryId(d2.countryId || '');
             setContentTypeId(d2.contentTypeId || '');
             setGenreIds(d2.genreIds && d2.genreIds.length > 0 ? d2.genreIds : d2.genreId ? [d2.genreId] : []);
+            setProposedCrew({
+              actors: Array.isArray(d2.crew?.actors) ? d2.crew.actors : [],
+              directors: Array.isArray(d2.crew?.directors) ? d2.crew.directors : [],
+              producers: Array.isArray(d2.crew?.producers) ? d2.crew.producers : [],
+              other: Array.isArray(d2.crew?.other) ? d2.crew.other : [],
+            });
           }
         }
       } catch (e: any) {
@@ -321,6 +345,71 @@ export default function EditSubmissionPage() {
               </div>
             </div>
           </section>
+
+          {(
+            proposedCrew.actors.length ||
+            proposedCrew.directors.length ||
+            proposedCrew.producers.length ||
+            proposedCrew.other.length
+          ) ? (
+            <section className='rounded-xl border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50'>
+              <div className='px-8 py-6 border-b border-border flex justify-between items-center bg-surface-dark'>
+                <div className='flex items-center gap-4'>
+                  <h3 className='text-white text-lg font-bold tracking-widest uppercase font-serif'>
+                    Proposed Crew (Public Submission)
+                  </h3>
+                </div>
+                <div className='text-xs uppercase tracking-widest text-[#bab29c]'>Read-only</div>
+              </div>
+              <div className='p-8 space-y-10'>
+                {([
+                  ['Directors', proposedCrew.directors],
+                  ['Producers', proposedCrew.producers],
+                  ['Actors', proposedCrew.actors],
+                  ['Other', proposedCrew.other],
+                ] as const).map(([label, list]) =>
+                  list.length ? (
+                    <div key={label} className='space-y-4'>
+                      <h4 className='text-white font-semibold tracking-widest uppercase text-sm'>{label}</h4>
+                      <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
+                        {list.map((p, idx) => (
+                          <div
+                            key={`${label}-${idx}-${p.fullName}-${p.role}`}
+                            className='rounded border border-[#393528] p-4 bg-[#0b0b0b]'
+                          >
+                            <div className='flex flex-col gap-2'>
+                              <div className='flex items-baseline justify-between'>
+                                <div className='text-white font-medium'>{p.fullName || '—'}</div>
+                                <div className='text-xs uppercase tracking-widest text-[#bab29c]'>{p.role || '—'}</div>
+                              </div>
+                              <div className='text-xs text-[#8a845f] break-all'>
+                                Image URL:{' '}
+                                {p.imageUrl ? (
+                                  <a
+                                    href={p.imageUrl}
+                                    target='_blank'
+                                    rel='noreferrer'
+                                    className='text-primary underline break-all'
+                                  >
+                                    {p.imageUrl}
+                                  </a>
+                                ) : (
+                                  '—'
+                                )}
+                              </div>
+                              <div className='text-sm text-[#d0c6a5] whitespace-pre-wrap'>
+                                {p.biography || '—'}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null
+                )}
+              </div>
+            </section>
+          ) : null}
 
           <section className='rounded-xl border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50'>
             <div className='px-8 py-6 border-b border-border flex justify-between items-center bg-surface-dark'>

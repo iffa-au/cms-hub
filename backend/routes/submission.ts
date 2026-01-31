@@ -1,6 +1,7 @@
 import e from "express";
 import {
   createSubmission,
+  createSubmissionPublic,
   getMySubmissions,
   getSubmission,
   getSubmissionOverview,
@@ -8,6 +9,7 @@ import {
   approveSubmission,
   rejectSubmission,
   updateSubmission,
+  deleteSubmission,
 } from "../controllers/submission.controller.ts";
 import { requireAuth, requireRole } from "../middlewares/auth.middleware.ts";
 
@@ -16,15 +18,22 @@ const router = e.Router();
 // Public
 router.get("/:id/overview", getSubmissionOverview);
 router.get("/:id", getSubmission);
+router.post("/public", createSubmissionPublic);
 
 // User
 
-router.post("/", requireAuth, createSubmission);
+router.post("/", requireAuth, requireRole("admin", "staff"), createSubmission);
 router.get("/my/list", requireAuth, getMySubmissions);
 router.put("/:id", requireAuth, updateSubmission);
 
 // Admin/Staff review and listing
 router.get("/", requireAuth, requireRole("admin", "staff"), adminListSubmissions);
+router.delete(
+  "/:id",
+  requireAuth,
+  requireRole("admin", "staff"),
+  deleteSubmission
+);
 router.patch(
   "/:id/approve",
   requireAuth,

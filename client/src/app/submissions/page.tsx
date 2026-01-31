@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getData } from '@/lib/fetch-util';
+import { getData, deleteData, patchData } from '@/lib/fetch-util';
 
 type Submission = {
   _id: string;
@@ -13,6 +13,7 @@ type Submission = {
   genreId?: string;
   contentTypeName?: string | null;
   genreNames?: string[];
+  status?: 'SUBMITTED' | 'APPROVED' | 'REJECTED';
 };
 
 type ListResponse = {
@@ -25,16 +26,19 @@ type ListResponse = {
 export default function SubmissionsPage() {
   const router = useRouter();
   const [query, setQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'ALL'>('APPROVED');
   const [items, setItems] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pageMeta, setPageMeta] = useState<{ page: number; limit: number; total: number } | null>(null);
 
-  async function load(q?: string) {
+  async function load(q?: string, status?: 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'ALL') {
     try {
       setLoading(true);
       setError(null);
-      const parts = [`page=1`, `limit=20`, `status=APPROVED`];
+      const parts = [`page=1`, `limit=20`];
+      const s = status ?? statusFilter;
+      if (s && s !== 'ALL') parts.push(`status=${encodeURIComponent(s)}`);
       if (q && q.trim()) parts.push(`q=${encodeURIComponent(q.trim())}`);
       const res = await getData<ListResponse>(`/submissions?${parts.join('&')}`);
       setItems(res?.data ?? []);
@@ -50,7 +54,7 @@ export default function SubmissionsPage() {
     let mounted = true;
     (async () => {
       if (!mounted) return;
-      await load();
+      await load('', statusFilter);
     })();
     return () => {
       mounted = false;
@@ -60,6 +64,27 @@ export default function SubmissionsPage() {
   const showingStart = items.length === 0 ? 0 : 1;
   const showingEnd = items.length;
   const total = pageMeta?.total ?? items.length;
+
+  async function remove(id: string) {
+    if (!id) return;
+    const ok = typeof window !== 'undefined' ? window.confirm('Delete this submission? This cannot be undone.') : true;
+    if (!ok) return;
+    try {
+      await deleteData(`/submissions/${id}`);
+      await load(query);
+    } catch (e: any) {
+      setError(e?.message || 'Failed to delete submission');
+    }
+  }
+
+  async function approve(id: string) {
+    try {
+      await patchData(`/submissions/${id}/approve`, {});
+      await load(query, statusFilter);
+    } catch (e: any) {
+      setError(e?.message || 'Failed to approve submission');
+    }
+  }
 
   return (
     <main className='flex-1 py-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full'>
@@ -81,7 +106,7 @@ export default function SubmissionsPage() {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
-                void load(query);
+                void load(query, statusFilter);
               }
             }}
             className='w-full bg-transparent border-none focus:ring-0 pl-3 text-sm text-foreground placeholder:text-muted-foreground/70 py-3'
@@ -89,17 +114,34 @@ export default function SubmissionsPage() {
             type='text'
           />
         </div>
+        <div className='flex items-center gap-2 pl-2 border-l border-border'>
+          <label className='text-xs text-muted-foreground tracking-widest uppercase'>Status</label>
+          <select
+            value={statusFilter}
+            onChange={(e) => {
+              const val = e.target.value as 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'ALL';
+              setStatusFilter(val);
+              void load(query, val);
+            }}
+            className='bg-transparent text-sm px-2 py-2 rounded border border-border text-foreground'
+          >
+            <option value='ALL'>All</option>
+            <option value='SUBMITTED'>Submitted</option>
+            <option value='APPROVED'>Approved</option>
+            <option value='REJECTED'>Rejected</option>
+          </select>
+        </div>
         <button
           onClick={() => {
             setQuery('');
-            void load('');
+            void load('', statusFilter);
           }}
           className='px-4 py-2 text-muted-foreground hover:text-primary transition-colors border-l border-border text-xs font-semibold tracking-widest'
         >
           CLEAR
         </button>
         <button
-          onClick={() => void load(query)}
+          onClick={() => void load(query, statusFilter)}
           className='bg-foreground text-background px-6 py-2.5 rounded text-xs font-bold tracking-widest hover:opacity-90 transition-opacity'
         >
           SEARCH
@@ -192,7 +234,20 @@ export default function SubmissionsPage() {
                         >
                           NOMINATE
                         </button>
-                        <button className='text-red-500 hover:text-red-400 transition-colors text-[10px] font-bold tracking-widest'>DELETE</button>
+                        {item.status === 'REJECTED' ? (
+                          <button
+                            onClick={() => void approve(item._id)}
+                            className='text-green-500 hover:text-green-400 transition-colors text-[10px] font-bold tracking-widest'
+                          >
+                            APPROVE
+                          </button>
+                        ) : null}
+                        <button
+                          onClick={() => void remove(item._id)}
+                          className='text-red-500 hover:text-red-400 transition-colors text-[10px] font-bold tracking-widest'
+                        >
+                          DELETE
+                        </button>
                       </div>
                     </td>
                   </tr>

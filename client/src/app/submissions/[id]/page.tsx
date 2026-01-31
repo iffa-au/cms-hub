@@ -26,6 +26,33 @@ type Submission = {
   trailerUrl?: string;
   genreId: string;
   status: "SUBMITTED" | "APPROVED" | "REJECTED";
+  crew?: {
+    actors: Array<{
+      fullName: string;
+      role: string;
+      imageUrl?: string;
+      biography?: string;
+      order?: number;
+    }>;
+    directors: Array<{
+      fullName: string;
+      role: string;
+      imageUrl?: string;
+      biography?: string;
+    }>;
+    producers: Array<{
+      fullName: string;
+      role: string;
+      imageUrl?: string;
+      biography?: string;
+    }>;
+    other: Array<{
+      fullName: string;
+      role: string;
+      imageUrl?: string;
+      biography?: string;
+    }>;
+  };
 };
 
 export default function SubmissionDetailPage() {
@@ -56,6 +83,12 @@ export default function SubmissionDetailPage() {
   const [languageId, setLanguageId] = useState<string>("");
   const [contentTypeId, setContentTypeId] = useState<string>("");
   const [status, setStatus] = useState<Submission["status"]>("SUBMITTED");
+  const [proposedCrew, setProposedCrew] = useState<NonNullable<Submission["crew"]>>({
+    actors: [],
+    directors: [],
+    producers: [],
+    other: [],
+  });
 
   // Load metadata and submission
   useEffect(() => {
@@ -104,6 +137,12 @@ export default function SubmissionDetailPage() {
           setLanguageId(s.languageId ?? "");
           setContentTypeId(s.contentTypeId ?? "");
           setStatus(s.status ?? "SUBMITTED");
+          setProposedCrew({
+            actors: Array.isArray(s.crew?.actors) ? s.crew!.actors : [],
+            directors: Array.isArray(s.crew?.directors) ? s.crew!.directors : [],
+            producers: Array.isArray(s.crew?.producers) ? s.crew!.producers : [],
+            other: Array.isArray(s.crew?.other) ? s.crew!.other : [],
+          });
         } else {
           setError(res?.message || "Failed to load submission");
         }
@@ -156,6 +195,12 @@ export default function SubmissionDetailPage() {
           setLanguageId(s.languageId ?? "");
           setContentTypeId(s.contentTypeId ?? "");
           setStatus(s.status ?? "SUBMITTED");
+          setProposedCrew({
+            actors: Array.isArray(s.crew?.actors) ? s.crew!.actors : [],
+            directors: Array.isArray(s.crew?.directors) ? s.crew!.directors : [],
+            producers: Array.isArray(s.crew?.producers) ? s.crew!.producers : [],
+            other: Array.isArray(s.crew?.other) ? s.crew!.other : [],
+          });
         }
       } finally {
         setIsLoading(false);
@@ -454,6 +499,77 @@ export default function SubmissionDetailPage() {
                 </div>
               </div>
             </section>
+
+            {/* Proposed Crew (from public submission) */}
+            {(proposedCrew.actors.length ||
+              proposedCrew.directors.length ||
+              proposedCrew.producers.length ||
+              proposedCrew.other.length) ? (
+              <section className="rounded-xl border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50">
+                <div className="px-8 py-6 border-b border-border flex justify-between items-center bg-surface-dark">
+                  <div className="flex items-center gap-4">
+                    <h3 className="text-white text-lg font-bold tracking-widest uppercase font-serif">
+                      Proposed Crew (Public Submission)
+                    </h3>
+                  </div>
+                  <div className="text-xs uppercase tracking-widest text-[#bab29c]">
+                    Read-only
+                  </div>
+                </div>
+                <div className="p-8 space-y-10">
+                  {([
+                    ["Directors", proposedCrew.directors],
+                    ["Producers", proposedCrew.producers],
+                    ["Actors", proposedCrew.actors],
+                    ["Other", proposedCrew.other],
+                  ] as const).map(([label, list]) =>
+                    list.length ? (
+                      <div key={label} className="space-y-4">
+                        <h4 className="text-white font-semibold tracking-widest uppercase text-sm">
+                          {label}
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {list.map((p, idx) => (
+                            <div
+                              key={`${label}-${idx}-${p.fullName}-${p.role}`}
+                              className="rounded border border-[#393528] p-4 bg-[#0b0b0b]"
+                            >
+                              <div className="flex flex-col gap-2">
+                                <div className="flex items-baseline justify-between">
+                                  <div className="text-white font-medium">
+                                    {p.fullName || "—"}
+                                  </div>
+                                  <div className="text-xs uppercase tracking-widest text-[#bab29c]">
+                                    {p.role || "—"}
+                                  </div>
+                                </div>
+                                <div className="text-xs text-[#8a845f] break-all">
+                                  Image URL: {p.imageUrl ? (
+                                    <a
+                                      href={p.imageUrl}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="text-primary underline break-all"
+                                    >
+                                      {p.imageUrl}
+                                    </a>
+                                  ) : (
+                                    "—"
+                                  )}
+                                </div>
+                                <div className="text-sm text-[#d0c6a5] whitespace-pre-wrap">
+                                  {p.biography || "—"}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null
+                  )}
+                </div>
+              </section>
+            ) : null}
 
             {/* Footer actions */}
             {error ? <p className="text-red-500 mt-2">{error}</p> : null}

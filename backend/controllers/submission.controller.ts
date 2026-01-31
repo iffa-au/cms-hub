@@ -1,6 +1,43 @@
 import Submission from "../models/submission.model.ts";
 import type { AuthedRequest } from "../middlewares/auth.middleware.ts";
 import { Types } from "mongoose";
+import SubmissionGenre from "../models/submissionGenre.model.ts";
+
+// Delete a submission (admin/staff). Removes related mappings and nominations.
+export const deleteSubmission = async (req: AuthedRequest, res) => {
+  try {
+    const { id } = req.params;
+    const existing = await Submission.findById(id);
+    if (!existing) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Submission not found" });
+    }
+    // Best-effort cascading deletes
+    try {
+      const CrewAssignment =
+        (await import("../models/crewAssignment.model.ts")).default;
+      const Nomination =
+        (await import("../models/nomination.model.ts")).default;
+      await Promise.all([
+        SubmissionGenre.deleteMany({ submissionId: existing._id }),
+        CrewAssignment.deleteMany({ submissionId: existing._id }),
+        Nomination.deleteMany({ submissionId: existing._id }),
+      ]);
+    } catch (e) {
+      console.error("Related cleanup failed during submission delete:", e);
+      // continue; not fatal
+    }
+    await Submission.findByIdAndDelete(existing._id);
+    return res.status(200).json({
+      success: true,
+      message: "Submission deleted successfully",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
 
 export const createSubmission = async (req: AuthedRequest, res) => {
   try {
@@ -10,24 +47,33 @@ export const createSubmission = async (req: AuthedRequest, res) => {
       releaseDate,
       potraitImageUrl = "",
       landscapeImageUrl = "",
+      imdbUrl = "",
+      trailerUrl = "",
       languageId,
       countryId,
       contentTypeId,
       genreId,
+      genreIds,
     } = req.body || {};
 
-    if (
-      !title ||
-      !releaseDate ||
-      !languageId ||
-      !countryId ||
-      !contentTypeId ||
-      !genreId
-    ) {
+    const providedGenreIds: string[] = Array.isArray(genreIds)
+      ? genreIds.filter(Boolean)
+      : [];
+    const primaryGenreId: string | undefined =
+      genreId || providedGenreIds[0] || undefined;
+
+    if (!title || !releaseDate || !languageId || !countryId || !contentTypeId) {
       return res.status(400).json({
         success: false,
         message:
-          "Missing required fields: title, releaseDate, languageId, countryId, contentTypeId, genreId",
+          "Missing required fields: title, releaseDate, languageId, countryId, contentTypeId",
+      });
+    }
+    if (!primaryGenreId) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "At least one genre (genreId or genreIds[]) is required",
       });
     }
     const creatorId = req.user?.sub;
@@ -42,12 +88,143 @@ export const createSubmission = async (req: AuthedRequest, res) => {
       releaseDate: new Date(releaseDate),
       potraitImageUrl,
       landscapeImageUrl,
+      imdbUrl,
+      trailerUrl,
+      languageId,
+      countryId,
+      contentTypeId,
+      genreId: primaryGenreId,
+    });
+
+    // Map many-to-many genres for internal CMS submissions as well
+    try {
+      const uniqueGenreIds = Array.from(
+        new Set([primaryGenreId, ...providedGenreIds].filter(Boolean))
+      ) as string[];
+      if (uniqueGenreIds.length > 0) {
+        await SubmissionGenre.insertMany(
+          uniqueGenreIds.map((gId) => ({
+            submissionId: created._id,
+            genreId: new Types.ObjectId(gId),
+          })),
+          { ordered: false }
+        );
+      }
+    } catch (e) {
+      console.error("Failed to create SubmissionGenre mappings (internal):", e);
+      // non-fatal
+    }
+
+    res.status(201).json({
+      success: true,
+      message: "Submission created successfully",
+      data: created,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+// Public endpoint for external submission forms (no auth required).
+// Minimal spam protection recommended at the edge (reCAPTCHA/Arcjet on the site).
+export const createSubmissionPublic = async (req, res) => {
+  try {
+    const {
+      title,
+      synopsis = "",
+      releaseDate,
+      potraitImageUrl = "",
+      landscapeImageUrl = "",
+      imdbUrl = "",
+      trailerUrl = "",
       languageId,
       countryId,
       contentTypeId,
       genreId,
+      genreIds,
+      crew,
+    } = req.body || {};
+
+    const providedGenreIds: string[] = Array.isArray(genreIds)
+      ? genreIds.filter(Boolean)
+      : [];
+    const primaryGenreId: string | undefined =
+      genreId || providedGenreIds[0] || undefined;
+
+    if (!title || !releaseDate || !languageId || !countryId || !contentTypeId) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Missing required fields: title, releaseDate, languageId, countryId, contentTypeId",
+      });
+    }
+    if (!primaryGenreId) {
+      return res
+        .status(400)
+        .json({ success: false, message: "At least one genre (genreId or genreIds[]) is required" });
+    }
+
+    // Create anonymous creator id for public submission
+    const creatorId = new Types.ObjectId();
+
+    // Normalize crew payload if present
+    const normalizeGroup = (arr: any) =>
+      Array.isArray(arr)
+        ? arr
+            .slice(0, 200)
+            .map((x) => ({
+              fullName: String(x?.fullName || "").trim(),
+              role: String(x?.role || "").trim(),
+              imageUrl: String(x?.imageUrl || "").trim(),
+              biography: String(x?.biography || "").trim(),
+              order: Number.isFinite(x?.order) ? Number(x.order) : 0,
+            }))
+            .filter((x) => x.fullName)
+        : [];
+    const crewGroups =
+      crew && typeof crew === "object"
+        ? {
+            actors: normalizeGroup((crew as any).actors),
+            directors: normalizeGroup((crew as any).directors),
+            producers: normalizeGroup((crew as any).producers),
+            other: normalizeGroup((crew as any).other),
+          }
+        : { actors: [], directors: [], producers: [], other: [] };
+
+    const created = await Submission.create({
+      creatorId,
+      title,
+      synopsis,
+      releaseDate: new Date(releaseDate),
+      potraitImageUrl,
+      landscapeImageUrl,
+      imdbUrl,
+      trailerUrl,
+      languageId,
+      countryId,
+      contentTypeId,
+      genreId: primaryGenreId,
+      crew: crewGroups,
     });
 
+    // Map many-to-many genres (public)
+    try {
+      const uniqueGenreIds = Array.from(
+        new Set([primaryGenreId, ...providedGenreIds].filter(Boolean))
+      ) as string[];
+      if (uniqueGenreIds.length > 0) {
+        await SubmissionGenre.insertMany(
+          uniqueGenreIds.map((gId) => ({
+            submissionId: created._id,
+            genreId: new Types.ObjectId(gId),
+          })),
+          { ordered: false }
+        );
+      }
+    } catch (e) {
+      console.error("Failed to create SubmissionGenre mappings (public):", e);
+    }
     res.status(201).json({
       success: true,
       message: "Submission created successfully",
@@ -95,10 +272,14 @@ export const updateSubmission = async (req: AuthedRequest, res) => {
       releaseDate,
       potraitImageUrl,
       landscapeImageUrl,
+      imdbUrl,
+      trailerUrl,
       languageId,
       countryId,
       contentTypeId,
       isFeatured,
+      genreId,
+      genreIds,
     } = req.body || {};
 
     const updates: Record<string, unknown> = {};
@@ -120,16 +301,60 @@ export const updateSubmission = async (req: AuthedRequest, res) => {
       updates.potraitImageUrl = potraitImageUrl;
     if (landscapeImageUrl !== undefined)
       updates.landscapeImageUrl = landscapeImageUrl;
+    if (imdbUrl !== undefined) updates.imdbUrl = imdbUrl;
+    if (trailerUrl !== undefined) updates.trailerUrl = trailerUrl;
     if (languageId !== undefined) updates.languageId = languageId;
     if (countryId !== undefined) updates.countryId = countryId;
     if (contentTypeId !== undefined) updates.contentTypeId = contentTypeId;
     if (isAdmin && isFeatured !== undefined) updates.isFeatured = !!isFeatured;
 
-    const updated = await Submission.findByIdAndUpdate(
-      id,
-      { $set: updates },
-      { new: true }
-    );
+    // Handle genres update if provided
+    const updatingGenres =
+      genreId !== undefined || Array.isArray(genreIds);
+    let uniqueGenreIds: string[] | null = null;
+    if (updatingGenres) {
+      const providedGenreIds: string[] = Array.isArray(genreIds)
+        ? genreIds.filter(Boolean)
+        : [];
+      const primaryGenreId: string | undefined =
+        (genreId as string | undefined) || providedGenreIds[0] || undefined;
+      if (!primaryGenreId) {
+        return res.status(400).json({
+          success: false,
+          message: "At least one genre (genreId or genreIds[]) is required",
+        });
+      }
+      updates.genreId = primaryGenreId;
+      uniqueGenreIds = Array.from(
+        new Set([primaryGenreId, ...providedGenreIds].filter(Boolean))
+      ) as string[];
+    }
+
+    const updated = await Submission.findByIdAndUpdate(id, { $set: updates }, { new: true });
+    if (!updated) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Submission not found" });
+    }
+
+    // Replace genre mappings if we updated genres
+    if (updatingGenres && uniqueGenreIds) {
+      try {
+        await SubmissionGenre.deleteMany({ submissionId: updated._id });
+        if (uniqueGenreIds.length > 0) {
+          await SubmissionGenre.insertMany(
+            uniqueGenreIds.map((gId) => ({
+              submissionId: updated._id,
+              genreId: new Types.ObjectId(gId),
+            })),
+            { ordered: false }
+          );
+        }
+      } catch (e) {
+        console.error("Failed to update SubmissionGenre mappings (update):", e);
+        // do not fail the whole request; mappings can be retried
+      }
+    }
 
     res.status(200).json({
       success: true,
@@ -244,6 +469,7 @@ export const getSubmissionOverview = async (req, res) => {
           imdbUrl: 1,
           trailerUrl: 1,
           isFeatured: 1,
+          crew: 1,
           createdAt: 1,
           updatedAt: 1,
           contentType: {
