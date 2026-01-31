@@ -2,9 +2,11 @@ version: 1.0
 runtime: nodejs22
 build:
   commands:
+    pre-build:
+      - cd backend && npm ci --include=dev
     build:
-      - npm ci --include=dev
+      - echo "Using ts-node at runtime; no compile step needed"
 run:
-  command: npm start
+  command: cd backend && npm start
   network:
     port: 8000
