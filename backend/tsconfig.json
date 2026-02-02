@@ -2,12 +2,19 @@
     "compilerOptions": {
         "rootDir": ".",
         "outDir": "./dist",
-        "allowJs": true,
-        "esModuleInterop": true,
+        "target": "ES2022",
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
         "allowImportingTsExtensions": true,
-        "declaration": true,
-        "emitDeclarationOnly": true
+        "noEmit": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true
     },
-    "include": ["**/*.ts"],
-    "exclude": ["node_modules"]
+    "include": [
+        "**/*.ts"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist"
+    ]
 }
