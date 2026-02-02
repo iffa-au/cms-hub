@@ -5,8 +5,8 @@ import {
   createCrewMember,
   updateCrewMember,
   deleteCrewMember,
-} from "../controllers/crewMember.controller.ts";
-import { requireAuth, requireRole } from "../middlewares/auth.middleware.ts";
+} from "../controllers/crewMember.controller.js";
+import { requireAuth, requireRole } from "../middlewares/auth.middleware.js";
 
 const router = e.Router();
 

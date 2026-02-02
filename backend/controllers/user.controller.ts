@@ -1,5 +1,5 @@
-import type { AuthedRequest } from "../middlewares/auth.middleware.ts";
-import User from "../models/user.model.ts";
+import type { AuthedRequest } from "../middlewares/auth.middleware.js";
+import User from "../models/user.model.js";
 
 export const getMe = async (req: AuthedRequest, res) => {
   try {

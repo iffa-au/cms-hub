@@ -1,6 +1,6 @@
 import e from "express";
-import { requireAuth } from "../middlewares/auth.middleware.ts";
-import { getMe, updateMe } from "../controllers/user.controller.ts";
+import { requireAuth } from "../middlewares/auth.middleware.js";
+import { getMe, updateMe } from "../controllers/user.controller.js";
 
 const router = e.Router();
 

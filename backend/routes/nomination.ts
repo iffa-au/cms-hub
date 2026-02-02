@@ -5,8 +5,8 @@ import {
   createNomination,
   updateNomination,
   deleteNomination,
-} from "../controllers/nomination.controller.ts";
-import { requireAuth, requireRole } from "../middlewares/auth.middleware.ts";
+} from "../controllers/nomination.controller.js";
+import { requireAuth, requireRole } from "../middlewares/auth.middleware.js";
 
 const router = e.Router();
 

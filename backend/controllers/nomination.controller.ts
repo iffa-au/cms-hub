@@ -1,5 +1,5 @@
-import Nomination from "../models/nomination.model.ts";
-import Submission from "../models/submission.model.ts";
+import Nomination from "../models/nomination.model.js";
+import Submission from "../models/submission.model.js";
 import { Types } from "mongoose";
 
 export const getNominations = async (req, res) => {

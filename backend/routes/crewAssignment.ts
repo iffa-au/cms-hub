@@ -5,8 +5,8 @@ import {
   createCrewAssignment,
   updateCrewAssignment,
   deleteCrewAssignment,
-} from "../controllers/crewAssignment.controller.ts";
-import { requireAuth, requireRole } from "../middlewares/auth.middleware.ts";
+} from "../controllers/crewAssignment.controller.js";
+import { requireAuth, requireRole } from "../middlewares/auth.middleware.js";
 
 const router = e.Router();
 

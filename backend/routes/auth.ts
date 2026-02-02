@@ -1,12 +1,12 @@
 import e from "express";
-import { signUpSchema, signInSchema } from "../libs/validateSchema.ts";
-import { validateData } from "../middlewares/validate.middleware.ts";
+import { signUpSchema, signInSchema } from "../libs/validateSchema.js";
+import { validateData } from "../middlewares/validate.middleware.js";
 import {
   login,
   logout,
   refresh,
   register,
-} from "../controllers/auth.controller.ts";
+} from "../controllers/auth.controller.js";
 const router = e.Router();
 
 router.post("/register", validateData(signUpSchema), register);

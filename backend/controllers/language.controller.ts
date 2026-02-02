@@ -1,4 +1,4 @@
-import Language from "../models/language.model.ts";
+import Language from "../models/language.model.js";
 
 export const getLanguages = async (req, res) => {
   try {

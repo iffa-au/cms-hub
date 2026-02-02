@@ -1,7 +1,7 @@
-import User from "../models/user.model.ts";
+import User from "../models/user.model.js";
 import jwt from "jsonwebtoken";
-import aj from "../libs/arcjet.ts";
-import { generateToken, verifyRefreshToken } from "../utils/token.ts";
+import aj from "../libs/arcjet.js";
+import { generateToken, verifyRefreshToken } from "../utils/token.js";
 
 const refreshCookieOptions = {
   httpOnly: true,

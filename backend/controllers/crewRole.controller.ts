@@ -1,4 +1,4 @@
-import CrewRole from "../models/crewRole.model.ts";
+import CrewRole from "../models/crewRole.model.js";
 
 export const getCrewRoles = async (req, res) => {
   try {

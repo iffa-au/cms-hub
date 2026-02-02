@@ -1,4 +1,4 @@
-import ContentType from "../models/contentType.model.ts";
+import ContentType from "../models/contentType.model.js";
 
 export const getContentTypes = async (req, res) => {
   try {

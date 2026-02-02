@@ -10,8 +10,8 @@ import {
   rejectSubmission,
   updateSubmission,
   deleteSubmission,
-} from "../controllers/submission.controller.ts";
-import { requireAuth, requireRole } from "../middlewares/auth.middleware.ts";
+} from "../controllers/submission.controller.js";
+import { requireAuth, requireRole } from "../middlewares/auth.middleware.js";
 
 const router = e.Router();
 

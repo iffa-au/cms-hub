@@ -1,4 +1,4 @@
-import AwardCategory from "../models/awardCategory.model.ts";
+import AwardCategory from "../models/awardCategory.model.js";
 
 export const getAwardCategories = async (req, res) => {
   try {

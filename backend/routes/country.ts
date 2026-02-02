@@ -5,7 +5,7 @@ import {
   createCountry,
   updateCountry,
   deleteCountry,
-} from "../controllers/country.controller.ts";
+} from "../controllers/country.controller.js";
 
 const router = e.Router();
 

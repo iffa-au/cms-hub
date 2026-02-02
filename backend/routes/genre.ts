@@ -5,7 +5,7 @@ import {
   createGenre,
   updateGenre,
   deleteGenre,
-} from "../controllers/genre.controller.ts";
+} from "../controllers/genre.controller.js";
 
 const router = e.Router();
 

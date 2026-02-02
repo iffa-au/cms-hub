@@ -5,7 +5,7 @@ import {
   createLanguage,
   updateLanguage,
   deleteLanguage,
-} from "../controllers/language.controller.ts";
+} from "../controllers/language.controller.js";
 
 const router = e.Router();
 

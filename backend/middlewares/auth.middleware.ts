@@ -1,6 +1,6 @@
-import { verifyAccessToken } from "../utils/token.ts";
+import { verifyAccessToken } from "../utils/token.js";
 import type { Request, Response, NextFunction } from "express";
-import type { JwtPayload } from "../utils/token.ts";
+import type { JwtPayload } from "../utils/token.js";
 
 export interface AuthedRequest extends Request {
   user?: JwtPayload;

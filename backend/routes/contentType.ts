@@ -5,7 +5,7 @@ import {
   createContentType,
   updateContentType,
   deleteContentType,
-} from "../controllers/contentType.controller.ts";
+} from "../controllers/contentType.controller.js";
 
 const router = e.Router();
 

@@ -5,8 +5,7 @@
         "target": "ES2022",
         "module": "NodeNext",
         "moduleResolution": "NodeNext",
-        "allowImportingTsExtensions": true,
-        "noEmit": true,
+        "noEmit": false,
         "esModuleInterop": true,
         "skipLibCheck": true
     },

@@ -1,4 +1,4 @@
-import CrewMember from "../models/crewMember.model.ts";
+import CrewMember from "../models/crewMember.model.js";
 
 export const getCrewMembers = async (req, res) => {
   try {

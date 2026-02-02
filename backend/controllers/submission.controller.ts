@@ -1,7 +1,7 @@
-import Submission from "../models/submission.model.ts";
-import type { AuthedRequest } from "../middlewares/auth.middleware.ts";
+import Submission from "../models/submission.model.js";
+import type { AuthedRequest } from "../middlewares/auth.middleware.js";
 import { Types } from "mongoose";
-import SubmissionGenre from "../models/submissionGenre.model.ts";
+import SubmissionGenre from "../models/submissionGenre.model.js";
 
 // Delete a submission (admin/staff). Removes related mappings and nominations.
 export const deleteSubmission = async (req: AuthedRequest, res) => {
@@ -16,9 +16,9 @@ export const deleteSubmission = async (req: AuthedRequest, res) => {
     // Best-effort cascading deletes
     try {
       const CrewAssignment =
-        (await import("../models/crewAssignment.model.ts")).default;
+        (await import("../models/crewAssignment.model.js")).default;
       const Nomination =
-        (await import("../models/nomination.model.ts")).default;
+        (await import("../models/nomination.model.js")).default;
       await Promise.all([
         SubmissionGenre.deleteMany({ submissionId: existing._id }),
         CrewAssignment.deleteMany({ submissionId: existing._id }),
@@ -504,10 +504,10 @@ export const getSubmissionOverview = async (req, res) => {
     if (includeCrew) {
       try {
         const CrewAssignment =
-          (await import("../models/crewAssignment.model.ts")).default;
+          (await import("../models/crewAssignment.model.js")).default;
         const CrewMember =
-          (await import("../models/crewMember.model.ts")).default;
-        const CrewRole = (await import("../models/crewRole.model.ts")).default;
+          (await import("../models/crewMember.model.js")).default;
+        const CrewRole = (await import("../models/crewRole.model.js")).default;
         const assigns = await CrewAssignment.find({ submissionId: oid });
         const memberIds = assigns.map((a) => a.crewMemberId);
         const roleIds = assigns.map((a) => a.crewRoleId);
@@ -537,11 +537,11 @@ export const getSubmissionOverview = async (req, res) => {
     // Optionally include metadata lists for dropdowns in editors
     if (includeMeta) {
       try {
-        const Genre = (await import("../models/genre.model.ts")).default;
-        const Country = (await import("../models/country.model.ts")).default;
-        const Language = (await import("../models/language.model.ts")).default;
+        const Genre = (await import("../models/genre.model.js")).default;
+        const Country = (await import("../models/country.model.js")).default;
+        const Language = (await import("../models/language.model.js")).default;
         const ContentType =
-          (await import("../models/contentType.model.ts")).default;
+          (await import("../models/contentType.model.js")).default;
         const [genres, countries, languages, contentTypes] = await Promise.all([
           Genre.find({}, { _id: 1, name: 1 }).collation({ locale: "en", strength: 2 }).sort({ name: 1 }),
           Country.find({}, { _id: 1, name: 1 }).collation({ locale: "en", strength: 2 }).sort({ name: 1 }),

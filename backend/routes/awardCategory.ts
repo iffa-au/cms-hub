@@ -5,7 +5,7 @@ import {
   createAwardCategory,
   updateAwardCategory,
   deleteAwardCategory,
-} from "../controllers/awardCategory.controller.ts";
+} from "../controllers/awardCategory.controller.js";
 
 const router = e.Router();
 

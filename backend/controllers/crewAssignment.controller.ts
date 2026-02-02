@@ -1,6 +1,6 @@
-import type { AuthedRequest } from "../middlewares/auth.middleware.ts";
-import CrewAssignment from "../models/crewAssignment.model.ts";
-import Submission from "../models/submission.model.ts";
+import type { AuthedRequest } from "../middlewares/auth.middleware.js";
+import CrewAssignment from "../models/crewAssignment.model.js";
+import Submission from "../models/submission.model.js";
 
 export const getCrewAssignments = async (req, res) => {
   try {
