@@ -1,6 +1,5 @@
 version: 1
 applications:
-  - appRoot: client
     frontend:
       phases:
         preBuild:
