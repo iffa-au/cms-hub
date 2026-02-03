@@ -23,10 +23,25 @@ const allowlist = [
   "http://localhost:3000",
   "http://127.0.0.1:3000",
   "http://localhost:5173",
+
 ];
 
 const clientUrl = process.env.CLIENT_URL;
-console.log("CLIENT_URL =", clientUrl);
+const extraOriginsEnv = process.env.ALLOWED_ORIGINS; // comma-separated list
+const extraOrigins = (extraOriginsEnv || "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+const effectiveAllowlist = Array.from(
+  new Set([
+    ...allowlist,
+    ...(clientUrl ? [clientUrl] : []),
+    ...extraOrigins,
+  ])
+);
+
+console.log("CORS allowlist =", effectiveAllowlist);
 
 app.use(
   cors({
@@ -34,11 +49,8 @@ app.use(
       // allow non-browser requests (health checks, curl, server-to-server)
       if (!origin) return cb(null, true);
 
-      // if no CLIENT_URL yet, allow local dev only
-      if (!clientUrl) return cb(null, allowlist.includes(origin));
-
-      // if CLIENT_URL exists, allow only that + local dev
-      const ok = origin === clientUrl || allowlist.includes(origin);
+      // allow if origin is in the computed allowlist
+      const ok = effectiveAllowlist.includes(origin);
 
       if (!ok) return cb(new Error(`CORS blocked for origin: ${origin}`), false);
       return cb(null, true);
