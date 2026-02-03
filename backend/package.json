@@ -11,6 +11,7 @@
   "dependencies": {
     "@arcjet/inspect": "^1.0.0-beta.15",
     "@arcjet/node": "^1.0.0-beta.15",
+    "@mailchimp/mailchimp_transactional": "^1.1.2",
     "@sendgrid/mail": "^8.1.6",
     "bcryptjs": "^3.0.3",
     "connect-redis": "^9.0.0",

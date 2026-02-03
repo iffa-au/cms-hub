@@ -2,6 +2,7 @@ import Submission from "../models/submission.model.js";
 import type { AuthedRequest } from "../middlewares/auth.middleware.js";
 import { Types } from "mongoose";
 import SubmissionGenre from "../models/submissionGenre.model.js";
+import { sendSubmissionReceipt } from "../libs/mailer.js";
 
 // Delete a submission (admin/staff). Removes related mappings and nominations.
 export const deleteSubmission = async (req: AuthedRequest, res) => {
@@ -144,6 +145,7 @@ export const createSubmissionPublic = async (req, res) => {
       genreId,
       genreIds,
       crew,
+      contactEmail,
     } = req.body || {};
 
     const providedGenreIds: string[] = Array.isArray(genreIds)
@@ -207,6 +209,23 @@ export const createSubmissionPublic = async (req, res) => {
       genreId: primaryGenreId,
       crew: crewGroups,
     });
+
+    // Send submission receipt email (fire-and-forget; do not block response)
+    if (contactEmail) {
+      const safeEmail = String(contactEmail).trim().toLowerCase();
+      const submissionDate = new Intl.DateTimeFormat("en-GB", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }).format((created as any).createdAt ?? new Date());
+      void sendSubmissionReceipt(safeEmail, {
+        title,
+        id: created._id.toString(),
+        submissionDate,
+      }).catch((e) => {
+        console.error("Mail send failed:", e);
+      });
+    }
 
     // Map many-to-many genres (public)
     try {
