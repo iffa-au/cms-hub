@@ -3,8 +3,11 @@ import axios from "axios";
 // this file is used to create an axios instance with default headers and base URL
 // also it will handle the token management and error handling globally
 
+// const BASE_URL =
+//   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000/api/v1";
+
 const BASE_URL =
-  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000/api/v1";
+  process.env.NEXT_PUBLIC_BACKEND_URL || "https://guh4nzpet5.ap-southeast-2.awsapprunner.com/api/v1";
 
 const api = axios.create({
   headers: {
