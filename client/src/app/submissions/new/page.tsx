@@ -56,6 +56,8 @@ export default function NewSubmissionPage() {
   >(undefined);
   const [imdbUrl, setImdbUrl] = useState<string | undefined>(undefined);
   const [trailerUrl, setTrailerUrl] = useState<string | undefined>(undefined);
+  const [productionHouse, setProductionHouse] = useState<string>("");
+  const [distributor, setDistributor] = useState<string>("");
   useEffect(() => {
     void (async () => {
       try {
@@ -97,6 +99,8 @@ export default function NewSubmissionPage() {
         // For backward compatibility, send both a primary genreId and the full list
         genreId: genreIds[0],
         genreIds,
+        productionHouse: productionHouse.trim(),
+        distributor: distributor.trim(),
       };
       if (
         !payload.title ||
@@ -241,31 +245,7 @@ export default function NewSubmissionPage() {
                 </select>
               </div>
 
-              {/* genres */}
-              <div className="space-y-2">
-                <label htmlFor="genre" className={LABEL}>
-                  Genres<span className="text-primary">*</span>
-                </label>
-                <select
-                  multiple
-                  className={INPUT}
-                  id="genre"
-                  value={genreIds}
-                  onChange={(e) =>
-                    setGenreIds(
-                      Array.from(e.currentTarget.selectedOptions).map((o) => o.value)
-                    )
-                  }
-                  required
-                >
-                  {genres.map((item) => (
-                    <option key={item._id} value={item._id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-[#8a845f]">Hold Cmd/Ctrl to select multiple.</p>
-              </div>
+
 
               {/* country of origin */}
               <div className="space-y-2">
@@ -311,6 +291,60 @@ export default function NewSubmissionPage() {
                     </option>
                   ))}
                 </select>
+              </div>
+              {/* production house */}
+              <div className="space-y-2">
+                <label htmlFor="productionHouse" className={LABEL}>
+                  Production House
+                </label>
+                <input
+                  className={INPUT}
+                  id="productionHouse"
+                  type="text"
+                  placeholder="e.g. Universal Pictures"
+                  value={productionHouse}
+                  onChange={(e) => setProductionHouse(e.target.value)}
+                />
+              </div>
+              {/* distributor */}
+              <div className="space-y-2">
+                <label htmlFor="distributor" className={LABEL}>
+                  Distributor
+                </label>
+                <input
+                  className={INPUT}
+                  id="distributor"
+                  type="text"
+                  placeholder="e.g. Netflix"
+                  value={distributor}
+                  onChange={(e) => setDistributor(e.target.value)}
+                />
+              </div>
+
+              {/* genres */}
+              <div className="space-y-2">
+                <label htmlFor="genre" className={LABEL}>
+                  Genres<span className="text-primary">*</span>
+                </label>
+                <select
+                  multiple
+                  className={INPUT}
+                  id="genre"
+                  value={genreIds}
+                  onChange={(e) =>
+                    setGenreIds(
+                      Array.from(e.currentTarget.selectedOptions).map((o) => o.value)
+                    )
+                  }
+                  required
+                >
+                  {genres.map((item) => (
+                    <option key={item._id} value={item._id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-[#8a845f]">Hold Cmd/Ctrl to select multiple.</p>
               </div>
             </div>
           </section>

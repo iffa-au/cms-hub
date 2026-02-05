@@ -47,6 +47,7 @@ export const createCrewMember = async (req, res) => {
       name,
       biography = "",
       profilePicture = "",
+      instagramUrl = "",
       description = "",
     } = req.body || {};
     if (!name || typeof name !== "string") {
@@ -58,6 +59,7 @@ export const createCrewMember = async (req, res) => {
       name,
       biography,
       profilePicture,
+      instagramUrl,
       description,
     });
     res.status(201).json({
@@ -77,7 +79,7 @@ export const createCrewMember = async (req, res) => {
 export const updateCrewMember = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, biography, profilePicture, description } = req.body || {};
+    const { name, biography, profilePicture, instagramUrl, description } = req.body || {};
     const updated = await CrewMember.findByIdAndUpdate(
       id,
       {
@@ -85,6 +87,7 @@ export const updateCrewMember = async (req, res) => {
           ...(name !== undefined ? { name } : {}),
           ...(biography !== undefined ? { biography } : {}),
           ...(profilePicture !== undefined ? { profilePicture } : {}),
+          ...(instagramUrl !== undefined ? { instagramUrl } : {}),
           ...(description !== undefined ? { description } : {}),
         },
       },

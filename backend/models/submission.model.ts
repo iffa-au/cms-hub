@@ -16,6 +16,8 @@ export interface ISubmission {
   imdbUrl?: string;
   trailerUrl?: string;
   genreId?: Types.ObjectId;
+  productionHouse?: String; // production house name (e.g. "Universal Pictures")
+  distributor?: String; // distributor name (e.g. "Netflix")
   // User-proposed crew grouped by category (public form payload)
   crew?: {
     actors: Array<{
@@ -23,24 +25,28 @@ export interface ISubmission {
       role: string;
       imageUrl?: string;
       biography?: string;
+      instagramUrl?: string;
       order?: number;
     }>;
     directors: Array<{
       fullName: string;
       role: string;
       imageUrl?: string;
+      instagramUrl?: string;
       biography?: string;
     }>;
     producers: Array<{
       fullName: string;
       role: string;
       imageUrl?: string;
+      instagramUrl?: string;
       biography?: string;
     }>;
     other: Array<{
       fullName: string;
       role: string;
       imageUrl?: string;
+      instagramUrl?: string;
       biography?: string;
     }>;
   };
@@ -105,6 +111,14 @@ const submissionSchema = new Schema<ISubmission>(
       type: Boolean,
       default: false,
     },
+    productionHouse: {
+      type: String,
+      default: "",
+    },
+    distributor: {
+      type: String,
+      default: "",
+    },
     imdbUrl: {
       type: String,
       default: "",
@@ -117,10 +131,21 @@ const submissionSchema = new Schema<ISubmission>(
       actors: {
         type: [
           {
-            fullName: { type: String, required: true, trim: true, maxLength: 120 },
+            fullName: {
+              type: String,
+              required: true,
+              trim: true,
+              maxLength: 120,
+            },
             role: { type: String, default: "", trim: true, maxLength: 120 },
             imageUrl: { type: String, default: "", trim: true },
-            biography: { type: String, default: "", trim: true, maxLength: 2000 },
+            biography: {
+              type: String,
+              default: "",
+              trim: true,
+              maxLength: 2000,
+            },
+            instagramUrl: { type: String, default: "", trim: true },
           },
         ],
         default: [],
@@ -128,10 +153,21 @@ const submissionSchema = new Schema<ISubmission>(
       directors: {
         type: [
           {
-            fullName: { type: String, required: true, trim: true, maxLength: 120 },
+            fullName: {
+              type: String,
+              required: true,
+              trim: true,
+              maxLength: 120,
+            },
             role: { type: String, default: "", trim: true, maxLength: 120 },
             imageUrl: { type: String, default: "", trim: true },
-            biography: { type: String, default: "", trim: true, maxLength: 2000 },
+            instagramUrl: { type: String, default: "", trim: true },
+            biography: {
+              type: String,
+              default: "",
+              trim: true,
+              maxLength: 2000,
+            },
           },
         ],
         default: [],
@@ -139,10 +175,21 @@ const submissionSchema = new Schema<ISubmission>(
       producers: {
         type: [
           {
-            fullName: { type: String, required: true, trim: true, maxLength: 120 },
+            fullName: {
+              type: String,
+              required: true,
+              trim: true,
+              maxLength: 120,
+            },
             role: { type: String, default: "", trim: true, maxLength: 120 },
             imageUrl: { type: String, default: "", trim: true },
-            biography: { type: String, default: "", trim: true, maxLength: 2000 },
+            instagramUrl: { type: String, default: "", trim: true },
+            biography: {
+              type: String,
+              default: "",
+              trim: true,
+              maxLength: 2000,
+            },
           },
         ],
         default: [],
@@ -150,17 +197,28 @@ const submissionSchema = new Schema<ISubmission>(
       other: {
         type: [
           {
-            fullName: { type: String, required: true, trim: true, maxLength: 120 },
+            fullName: {
+              type: String,
+              required: true,
+              trim: true,
+              maxLength: 120,
+            },
             role: { type: String, default: "", trim: true, maxLength: 120 },
             imageUrl: { type: String, default: "", trim: true },
-            biography: { type: String, default: "", trim: true, maxLength: 2000 },
+            instagramUrl: { type: String, default: "", trim: true },
+            biography: {
+              type: String,
+              default: "",
+              trim: true,
+              maxLength: 2000,
+            },
           },
         ],
         default: [],
       },
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 const Submission = model("Submission", submissionSchema);

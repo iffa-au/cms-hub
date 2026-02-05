@@ -4,6 +4,7 @@ export interface ICrewMember {
   name: string;
   biography?: string;
   profilePicture?: string;
+  instagramUrl?: string;
   description?: string;
 }
 
@@ -20,6 +21,10 @@ const CrewMemberSchema = new Schema<ICrewMember>({
     maxLength: 2000,
   },
   profilePicture: {
+    type: String,
+    default: "",
+  },
+  instagramUrl: {
     type: String,
     default: "",
   },

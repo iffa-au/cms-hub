@@ -12,7 +12,6 @@ export default function Navbar() {
   const { user, isAuthenticated, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const router = useRouter();
-  console.log("user in nav bar", user);
   // Base links for all authenticated users
   const commonLinks: { href: string; label: string }[] = [
     { href: "/dashboard", label: "Dashboard" },

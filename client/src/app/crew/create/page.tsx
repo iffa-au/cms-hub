@@ -22,6 +22,7 @@ export default function CreateCrewMemberPage() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [profilePicture, setProfilePicture] = useState("");
+  const [instagramUrl, setInstagramUrl] = useState("");
   const [biography, setBiography] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +38,7 @@ export default function CreateCrewMemberPage() {
           setName(d.name ?? '');
           setDescription(d.description ?? '');
           setProfilePicture(d.profilePicture ?? '');
+          setInstagramUrl(d.instagramUrl ?? '');
           setBiography(d.biography ?? '');
         }
       } catch {
@@ -71,6 +73,7 @@ export default function CreateCrewMemberPage() {
           name: name.trim(),
           description: description.trim(),
           profilePicture: profilePicture.trim(),
+          instagramUrl: instagramUrl.trim(),
           biography: biography.trim(),
         });
         ok = !!(res as any)?.success;
@@ -85,6 +88,7 @@ export default function CreateCrewMemberPage() {
           name: name.trim(),
           description: description.trim(),
           profilePicture: profilePicture.trim(),
+          instagramUrl: instagramUrl.trim(),
           biography: biography.trim(),
         });
         ok = !!(res as any)?.success;
@@ -152,17 +156,31 @@ export default function CreateCrewMemberPage() {
                 onChange={(e) => setDescription(e.target.value)}
               />
             </div>
-            <div className="space-y-2">
-              <label className={LABEL}>Profile Image URL</label>
-              <input
-                className={INPUT}
-                placeholder="https://example.com/image.jpg"
-                value={profilePicture}
-                onChange={(e) => setProfilePicture(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                Direct link to the image file (JPG, PNG)
-              </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className={LABEL}>Profile Image URL</label>
+                <input
+                  className={INPUT}
+                  placeholder="https://example.com/image.jpg"
+                  value={profilePicture}
+                  onChange={(e) => setProfilePicture(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Direct link to the image file (JPG, PNG)
+                </p>
+              </div>
+              <div className="space-y-2">
+                <label className={LABEL}>Instagram URL</label>
+                <input
+                  className={INPUT}
+                  placeholder="https://instagram.com/username"
+                  value={instagramUrl}
+                  onChange={(e) => setInstagramUrl(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Public profile link (optional)
+                </p>
+              </div>
             </div>
             <div className="space-y-2">
               <label className={LABEL}>Biography</label>

@@ -16,10 +16,10 @@ export const deleteSubmission = async (req: AuthedRequest, res) => {
     }
     // Best-effort cascading deletes
     try {
-      const CrewAssignment =
-        (await import("../models/crewAssignment.model.js")).default;
-      const Nomination =
-        (await import("../models/nomination.model.js")).default;
+      const CrewAssignment = (await import("../models/crewAssignment.model.js"))
+        .default;
+      const Nomination = (await import("../models/nomination.model.js"))
+        .default;
       await Promise.all([
         SubmissionGenre.deleteMany({ submissionId: existing._id }),
         CrewAssignment.deleteMany({ submissionId: existing._id }),
@@ -55,6 +55,8 @@ export const createSubmission = async (req: AuthedRequest, res) => {
       contentTypeId,
       genreId,
       genreIds,
+      productionHouse = "",
+      distributor = "",
     } = req.body || {};
 
     const providedGenreIds: string[] = Array.isArray(genreIds)
@@ -73,8 +75,7 @@ export const createSubmission = async (req: AuthedRequest, res) => {
     if (!primaryGenreId) {
       return res.status(400).json({
         success: false,
-        message:
-          "At least one genre (genreId or genreIds[]) is required",
+        message: "At least one genre (genreId or genreIds[]) is required",
       });
     }
     const creatorId = req.user?.sub;
@@ -95,12 +96,14 @@ export const createSubmission = async (req: AuthedRequest, res) => {
       countryId,
       contentTypeId,
       genreId: primaryGenreId,
+      productionHouse: String(productionHouse || "").trim(),
+      distributor: String(distributor || "").trim(),
     });
 
     // Map many-to-many genres for internal CMS submissions as well
     try {
       const uniqueGenreIds = Array.from(
-        new Set([primaryGenreId, ...providedGenreIds].filter(Boolean))
+        new Set([primaryGenreId, ...providedGenreIds].filter(Boolean)),
       ) as string[];
       if (uniqueGenreIds.length > 0) {
         await SubmissionGenre.insertMany(
@@ -108,7 +111,7 @@ export const createSubmission = async (req: AuthedRequest, res) => {
             submissionId: created._id,
             genreId: new Types.ObjectId(gId),
           })),
-          { ordered: false }
+          { ordered: false },
         );
       }
     } catch (e) {
@@ -146,6 +149,8 @@ export const createSubmissionPublic = async (req, res) => {
       genreIds,
       crew,
       contactEmail,
+      productionHouse = "",
+      distributor = "",
     } = req.body || {};
 
     const providedGenreIds: string[] = Array.isArray(genreIds)
@@ -162,9 +167,10 @@ export const createSubmissionPublic = async (req, res) => {
       });
     }
     if (!primaryGenreId) {
-      return res
-        .status(400)
-        .json({ success: false, message: "At least one genre (genreId or genreIds[]) is required" });
+      return res.status(400).json({
+        success: false,
+        message: "At least one genre (genreId or genreIds[]) is required",
+      });
     }
 
     // Create anonymous creator id for public submission
@@ -180,6 +186,7 @@ export const createSubmissionPublic = async (req, res) => {
               role: String(x?.role || "").trim(),
               imageUrl: String(x?.imageUrl || "").trim(),
               biography: String(x?.biography || "").trim(),
+              instagramUrl: String(x?.instagramUrl || "").trim(),
               order: Number.isFinite(x?.order) ? Number(x.order) : 0,
             }))
             .filter((x) => x.fullName)
@@ -208,8 +215,10 @@ export const createSubmissionPublic = async (req, res) => {
       contentTypeId,
       genreId: primaryGenreId,
       crew: crewGroups,
+      productionHouse: String(productionHouse || "").trim(),
+      distributor: String(distributor || "").trim(),
     });
-
+    console.log("sending submission receipt email to", contactEmail);
     // Send submission receipt email (fire-and-forget; do not block response)
     if (contactEmail) {
       const safeEmail = String(contactEmail).trim().toLowerCase();
@@ -230,7 +239,7 @@ export const createSubmissionPublic = async (req, res) => {
     // Map many-to-many genres (public)
     try {
       const uniqueGenreIds = Array.from(
-        new Set([primaryGenreId, ...providedGenreIds].filter(Boolean))
+        new Set([primaryGenreId, ...providedGenreIds].filter(Boolean)),
       ) as string[];
       if (uniqueGenreIds.length > 0) {
         await SubmissionGenre.insertMany(
@@ -238,7 +247,7 @@ export const createSubmissionPublic = async (req, res) => {
             submissionId: created._id,
             genreId: new Types.ObjectId(gId),
           })),
-          { ordered: false }
+          { ordered: false },
         );
       }
     } catch (e) {
@@ -299,6 +308,8 @@ export const updateSubmission = async (req: AuthedRequest, res) => {
       isFeatured,
       genreId,
       genreIds,
+      productionHouse,
+      distributor,
     } = req.body || {};
 
     const updates: Record<string, unknown> = {};
@@ -326,10 +337,13 @@ export const updateSubmission = async (req: AuthedRequest, res) => {
     if (countryId !== undefined) updates.countryId = countryId;
     if (contentTypeId !== undefined) updates.contentTypeId = contentTypeId;
     if (isAdmin && isFeatured !== undefined) updates.isFeatured = !!isFeatured;
+    if (productionHouse !== undefined)
+      updates.productionHouse = String(productionHouse || "").trim();
+    if (distributor !== undefined)
+      updates.distributor = String(distributor || "").trim();
 
     // Handle genres update if provided
-    const updatingGenres =
-      genreId !== undefined || Array.isArray(genreIds);
+    const updatingGenres = genreId !== undefined || Array.isArray(genreIds);
     let uniqueGenreIds: string[] | null = null;
     if (updatingGenres) {
       const providedGenreIds: string[] = Array.isArray(genreIds)
@@ -345,11 +359,15 @@ export const updateSubmission = async (req: AuthedRequest, res) => {
       }
       updates.genreId = primaryGenreId;
       uniqueGenreIds = Array.from(
-        new Set([primaryGenreId, ...providedGenreIds].filter(Boolean))
+        new Set([primaryGenreId, ...providedGenreIds].filter(Boolean)),
       ) as string[];
     }
 
-    const updated = await Submission.findByIdAndUpdate(id, { $set: updates }, { new: true });
+    const updated = await Submission.findByIdAndUpdate(
+      id,
+      { $set: updates },
+      { new: true },
+    );
     if (!updated) {
       return res
         .status(404)
@@ -366,7 +384,7 @@ export const updateSubmission = async (req: AuthedRequest, res) => {
               submissionId: updated._id,
               genreId: new Types.ObjectId(gId),
             })),
-            { ordered: false }
+            { ordered: false },
           );
         }
       } catch (e) {
@@ -488,6 +506,8 @@ export const getSubmissionOverview = async (req, res) => {
           imdbUrl: 1,
           trailerUrl: 1,
           isFeatured: 1,
+          productionHouse: 1,
+          distributor: 1,
           crew: 1,
           createdAt: 1,
           updatedAt: 1,
@@ -522,10 +542,11 @@ export const getSubmissionOverview = async (req, res) => {
     // Optionally expand crew assignments
     if (includeCrew) {
       try {
-        const CrewAssignment =
-          (await import("../models/crewAssignment.model.js")).default;
-        const CrewMember =
-          (await import("../models/crewMember.model.js")).default;
+        const CrewAssignment = (
+          await import("../models/crewAssignment.model.js")
+        ).default;
+        const CrewMember = (await import("../models/crewMember.model.js"))
+          .default;
         const CrewRole = (await import("../models/crewRole.model.js")).default;
         const assigns = await CrewAssignment.find({ submissionId: oid });
         const memberIds = assigns.map((a) => a.crewMemberId);
@@ -559,13 +580,21 @@ export const getSubmissionOverview = async (req, res) => {
         const Genre = (await import("../models/genre.model.js")).default;
         const Country = (await import("../models/country.model.js")).default;
         const Language = (await import("../models/language.model.js")).default;
-        const ContentType =
-          (await import("../models/contentType.model.js")).default;
+        const ContentType = (await import("../models/contentType.model.js"))
+          .default;
         const [genres, countries, languages, contentTypes] = await Promise.all([
-          Genre.find({}, { _id: 1, name: 1 }).collation({ locale: "en", strength: 2 }).sort({ name: 1 }),
-          Country.find({}, { _id: 1, name: 1 }).collation({ locale: "en", strength: 2 }).sort({ name: 1 }),
-          Language.find({}, { _id: 1, name: 1 }).collation({ locale: "en", strength: 2 }).sort({ name: 1 }),
-          ContentType.find({}, { _id: 1, name: 1 }).collation({ locale: "en", strength: 2 }).sort({ name: 1 }),
+          Genre.find({}, { _id: 1, name: 1 })
+            .collation({ locale: "en", strength: 2 })
+            .sort({ name: 1 }),
+          Country.find({}, { _id: 1, name: 1 })
+            .collation({ locale: "en", strength: 2 })
+            .sort({ name: 1 }),
+          Language.find({}, { _id: 1, name: 1 })
+            .collation({ locale: "en", strength: 2 })
+            .sort({ name: 1 }),
+          ContentType.find({}, { _id: 1, name: 1 })
+            .collation({ locale: "en", strength: 2 })
+            .sort({ name: 1 }),
         ]);
         overview.meta = {
           genres,
@@ -577,6 +606,7 @@ export const getSubmissionOverview = async (req, res) => {
         // ignore meta expansion errors
       }
     }
+    console.log("overview", overview);
     return res.status(200).json({
       success: true,
       message: "Submission overview fetched successfully",
@@ -609,7 +639,7 @@ export const adminListSubmissions = async (req, res) => {
     const pageNum = Math.max(parseInt(page || "1", 10) || 1, 1);
     const limitNum = Math.min(
       Math.max(parseInt(limit || "20", 10) || 20, 1),
-      100
+      100,
     );
     const skip = (pageNum - 1) * limitNum;
 
@@ -660,9 +690,13 @@ export const adminListSubmissions = async (req, res) => {
             imdbUrl: 1,
             trailerUrl: 1,
             isFeatured: 1,
+            productionHouse: 1,
+            distributor: 1,
             createdAt: 1,
             updatedAt: 1,
-            contentTypeName: { $ifNull: [{ $arrayElemAt: ["$contentType.name", 0] }, null] },
+            contentTypeName: {
+              $ifNull: [{ $arrayElemAt: ["$contentType.name", 0] }, null],
+            },
             genreNames: {
               $map: { input: "$genres", as: "g", in: "$$g.name" },
             },
@@ -690,7 +724,7 @@ export const approveSubmission = async (req, res) => {
     const updated = await Submission.findByIdAndUpdate(
       id,
       { $set: { status: "APPROVED" } },
-      { new: true }
+      { new: true },
     );
     if (!updated) {
       return res
@@ -714,7 +748,7 @@ export const rejectSubmission = async (req, res) => {
     const updated = await Submission.findByIdAndUpdate(
       id,
       { $set: { status: "REJECTED" } },
-      { new: true }
+      { new: true },
     );
     if (!updated) {
       return res

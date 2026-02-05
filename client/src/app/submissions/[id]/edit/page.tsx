@@ -23,11 +23,13 @@ type SubmissionDetail = {
   trailerUrl?: string;
   genreId?: string;
   genreIds?: string[];
+  productionHouse?: string;
+  distributor?: string;
   crew?: {
-    actors: Array<{ fullName: string; role: string; imageUrl?: string; biography?: string }>;
-    directors: Array<{ fullName: string; role: string; imageUrl?: string; biography?: string }>;
-    producers: Array<{ fullName: string; role: string; imageUrl?: string; biography?: string }>;
-    other: Array<{ fullName: string; role: string; imageUrl?: string; biography?: string }>;
+    actors: Array<{ fullName: string; role: string; imageUrl?: string; instagramUrl?: string; biography?: string }>;
+    directors: Array<{ fullName: string; role: string; imageUrl?: string; instagramUrl?: string; biography?: string }>;
+    producers: Array<{ fullName: string; role: string; imageUrl?: string; instagramUrl?: string; biography?: string }>;
+    other: Array<{ fullName: string; role: string; imageUrl?: string; instagramUrl?: string; biography?: string }>;
   };
 };
 
@@ -59,6 +61,8 @@ export default function EditSubmissionPage() {
   const [countryId, setCountryId] = useState<string>('');
   const [contentTypeId, setContentTypeId] = useState<string>('');
   const [genreIds, setGenreIds] = useState<string[]>([]);
+  const [productionHouse, setProductionHouse] = useState<string>('');
+  const [distributor, setDistributor] = useState<string>('');
   const [proposedCrew, setProposedCrew] = useState<NonNullable<SubmissionDetail['crew']>>({
     actors: [],
     directors: [],
@@ -93,6 +97,8 @@ export default function EditSubmissionPage() {
             setLanguageId(d.language?._id || d.languageId || '');
             setCountryId(d.country?._id || d.countryId || '');
             setContentTypeId(d.contentType?._id || d.contentTypeId || '');
+            setProductionHouse(d.productionHouse || '');
+            setDistributor(d.distributor || '');
             const genreIdList =
               Array.isArray(d.genres) && d.genres.length > 0
                 ? d.genres.map((g: any) => g?._id).filter(Boolean)
@@ -137,6 +143,8 @@ export default function EditSubmissionPage() {
             setLanguageId(d2.languageId || '');
             setCountryId(d2.countryId || '');
             setContentTypeId(d2.contentTypeId || '');
+            setProductionHouse(d2.productionHouse || '');
+            setDistributor(d2.distributor || '');
             setGenreIds(d2.genreIds && d2.genreIds.length > 0 ? d2.genreIds : d2.genreId ? [d2.genreId] : []);
             setProposedCrew({
               actors: Array.isArray(d2.crew?.actors) ? d2.crew.actors : [],
@@ -176,6 +184,8 @@ export default function EditSubmissionPage() {
         genreIds,
         imdbUrl,
         trailerUrl,
+        productionHouse: productionHouse.trim(),
+        distributor: distributor.trim(),
       };
       const res = await updateData<{ success: boolean; data?: SubmissionDetail; message?: string }>(
         `/submissions/${id}`,
@@ -277,28 +287,7 @@ export default function EditSubmissionPage() {
                 </select>
               </div>
 
-              <div className='space-y-2'>
-                <label htmlFor='genre' className={LABEL}>
-                  Genres<span className='text-primary'>*</span>
-                </label>
-                <select
-                  id='genre'
-                  multiple
-                  className={INPUT}
-                  value={genreIds}
-                  onChange={(e) =>
-                    setGenreIds(Array.from(e.currentTarget.selectedOptions).map((o) => o.value))
-                  }
-                  required
-                >
-                  {genres.map((item) => (
-                    <option key={item._id} value={item._id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
-                <p className='text-xs text-[#8a845f]'>Hold Cmd/Ctrl to select multiple.</p>
-              </div>
+
 
               <div className='space-y-2'>
                 <label htmlFor='country' className={LABEL}>
@@ -321,7 +310,7 @@ export default function EditSubmissionPage() {
                   ))}
                 </select>
               </div>
-
+              {/* primary language */}
               <div className='space-y-2'>
                 <label htmlFor='language' className={LABEL}>
                   Primary Language<span className='text-primary'>*</span>
@@ -342,6 +331,60 @@ export default function EditSubmissionPage() {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              {/* production house */}
+              <div className='space-y-2'>
+                <label htmlFor='productionHouse' className={LABEL}>
+                  Production House
+                </label>
+                <input
+                  id='productionHouse'
+                  className={INPUT}
+                  type='text'
+                  placeholder='e.g. Universal Pictures'
+                  value={productionHouse}
+                  onChange={(e) => setProductionHouse(e.target.value)}
+                />
+              </div>
+
+              {/* distributor */}
+              <div className='space-y-2'>
+                <label htmlFor='distributor' className={LABEL}>
+                  Distributor
+                </label>
+                <input
+                  id='distributor'
+                  className={INPUT}
+                  type='text'
+                  placeholder='e.g. Netflix'
+                  value={distributor}
+                  onChange={(e) => setDistributor(e.target.value)}
+                />
+              </div>
+
+              {/* genres */}
+              <div className='space-y-2'>
+                <label htmlFor='genre' className={LABEL}>
+                  Genres<span className='text-primary'>*</span>
+                </label>
+                <select
+                  id='genre'
+                  multiple
+                  className={INPUT}
+                  value={genreIds}
+                  onChange={(e) =>
+                    setGenreIds(Array.from(e.currentTarget.selectedOptions).map((o) => o.value))
+                  }
+                  required
+                >
+                  {genres.map((item) => (
+                    <option key={item._id} value={item._id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+                <p className='text-xs text-[#8a845f]'>Hold Cmd/Ctrl to select multiple.</p>
               </div>
             </div>
           </section>
@@ -392,6 +435,21 @@ export default function EditSubmissionPage() {
                                     className='text-primary underline break-all'
                                   >
                                     {p.imageUrl}
+                                  </a>
+                                ) : (
+                                  '—'
+                                )}
+                              </div>
+                              <div className='text-xs text-[#8a845f] break-all'>
+                                Instagram:{' '}
+                                {p.instagramUrl ? (
+                                  <a
+                                    href={p.instagramUrl}
+                                    target='_blank'
+                                    rel='noreferrer'
+                                    className='text-primary underline break-all'
+                                  >
+                                    {p.instagramUrl}
                                   </a>
                                 ) : (
                                   '—'
