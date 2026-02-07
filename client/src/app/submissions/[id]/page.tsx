@@ -24,7 +24,7 @@ type Submission = {
   contentTypeId: string;
   imdbUrl?: string;
   trailerUrl?: string;
-  genreId: string;
+  genreIds: string[] | { _id: string; name?: string }[];
   status: "SUBMITTED" | "APPROVED" | "REJECTED";
   crew?: {
     actors: Array<{
@@ -78,7 +78,7 @@ export default function SubmissionDetailPage() {
   const [landscapeImageUrl, setLandscapeImageUrl] = useState("");
   const [imdbUrl, setImdbUrl] = useState("");
   const [trailerUrl, setTrailerUrl] = useState("");
-  const [genreId, setGenreId] = useState<string>("");
+  const [genreIds, setGenreIds] = useState<string[]>([]);
   const [countryId, setCountryId] = useState<string>("");
   const [languageId, setLanguageId] = useState<string>("");
   const [contentTypeId, setContentTypeId] = useState<string>("");
@@ -132,7 +132,11 @@ export default function SubmissionDetailPage() {
           setLandscapeImageUrl(s.landscapeImageUrl ?? "");
           setImdbUrl(s.imdbUrl ?? "");
           setTrailerUrl(s.trailerUrl ?? "");
-          setGenreId(s.genreId ?? "");
+          setGenreIds(
+            Array.isArray(s.genreIds)
+              ? (s.genreIds as any[]).map((g: any) => (typeof g === "string" ? g : g?._id)).filter(Boolean)
+              : []
+          );
           setCountryId(s.countryId ?? "");
           setLanguageId(s.languageId ?? "");
           setContentTypeId(s.contentTypeId ?? "");
@@ -190,7 +194,11 @@ export default function SubmissionDetailPage() {
           setLandscapeImageUrl(s.landscapeImageUrl ?? "");
           setImdbUrl(s.imdbUrl ?? "");
           setTrailerUrl(s.trailerUrl ?? "");
-          setGenreId(s.genreId ?? "");
+          setGenreIds(
+            Array.isArray(s.genreIds)
+              ? (s.genreIds as any[]).map((g: any) => (typeof g === "string" ? g : g?._id)).filter(Boolean)
+              : []
+          );
           setCountryId(s.countryId ?? "");
           setLanguageId(s.languageId ?? "");
           setContentTypeId(s.contentTypeId ?? "");
@@ -223,7 +231,7 @@ export default function SubmissionDetailPage() {
         languageId,
         countryId,
         contentTypeId,
-        genreId,
+        genreIds: genreIds.length > 0 ? genreIds : undefined,
         imdbUrl,
         trailerUrl,
       };
@@ -350,7 +358,7 @@ export default function SubmissionDetailPage() {
                   </select>
                 </div>
 
-                {/* genre */}
+                {/* genre (single select; use genreIds[0]; full multi in edit page) */}
                 <div className="space-y-2">
                   <label htmlFor="genre" className={LABEL}>
                     Genre<span className="text-primary">*</span>
@@ -358,8 +366,8 @@ export default function SubmissionDetailPage() {
                   <select
                     className={INPUT}
                     id="genre"
-                    value={genreId ?? ""}
-                    onChange={(e) => setGenreId(e.target.value)}
+                    value={genreIds[0] ?? ""}
+                    onChange={(e) => setGenreIds(e.target.value ? [e.target.value] : [])}
                     required
                     disabled={!isEditing}
                   >

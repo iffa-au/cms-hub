@@ -53,7 +53,6 @@ export const createSubmission = async (req: AuthedRequest, res) => {
       languageId,
       countryId,
       contentTypeId,
-      genreId,
       genreIds,
       productionHouse = "",
       distributor = "",
@@ -62,8 +61,6 @@ export const createSubmission = async (req: AuthedRequest, res) => {
     const providedGenreIds: string[] = Array.isArray(genreIds)
       ? genreIds.filter(Boolean)
       : [];
-    const primaryGenreId: string | undefined =
-      genreId || providedGenreIds[0] || undefined;
 
     if (!title || !releaseDate || !languageId || !countryId || !contentTypeId) {
       return res.status(400).json({
@@ -72,16 +69,18 @@ export const createSubmission = async (req: AuthedRequest, res) => {
           "Missing required fields: title, releaseDate, languageId, countryId, contentTypeId",
       });
     }
-    if (!primaryGenreId) {
+    if (providedGenreIds.length === 0) {
       return res.status(400).json({
         success: false,
-        message: "At least one genre (genreId or genreIds[]) is required",
+        message: "At least one genre (genreIds[]) is required",
       });
     }
     const creatorId = req.user?.sub;
     if (!creatorId) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
+
+    const uniqueGenreIds = Array.from(new Set(providedGenreIds)) as string[];
 
     const created = await Submission.create({
       creatorId,
@@ -95,16 +94,13 @@ export const createSubmission = async (req: AuthedRequest, res) => {
       languageId,
       countryId,
       contentTypeId,
-      genreId: primaryGenreId,
+      genreIds: uniqueGenreIds.map((gId) => new Types.ObjectId(gId)),
       productionHouse: String(productionHouse || "").trim(),
       distributor: String(distributor || "").trim(),
     });
 
     // Map many-to-many genres for internal CMS submissions as well
     try {
-      const uniqueGenreIds = Array.from(
-        new Set([primaryGenreId, ...providedGenreIds].filter(Boolean)),
-      ) as string[];
       if (uniqueGenreIds.length > 0) {
         await SubmissionGenre.insertMany(
           uniqueGenreIds.map((gId) => ({
@@ -145,7 +141,6 @@ export const createSubmissionPublic = async (req, res) => {
       languageId,
       countryId,
       contentTypeId,
-      genreId,
       genreIds,
       crew,
       contactEmail,
@@ -156,8 +151,6 @@ export const createSubmissionPublic = async (req, res) => {
     const providedGenreIds: string[] = Array.isArray(genreIds)
       ? genreIds.filter(Boolean)
       : [];
-    const primaryGenreId: string | undefined =
-      genreId || providedGenreIds[0] || undefined;
 
     if (!title || !releaseDate || !languageId || !countryId || !contentTypeId) {
       return res.status(400).json({
@@ -166,10 +159,10 @@ export const createSubmissionPublic = async (req, res) => {
           "Missing required fields: title, releaseDate, languageId, countryId, contentTypeId",
       });
     }
-    if (!primaryGenreId) {
+    if (providedGenreIds.length === 0) {
       return res.status(400).json({
         success: false,
-        message: "At least one genre (genreId or genreIds[]) is required",
+        message: "At least one genre (genreIds[]) is required",
       });
     }
 
@@ -201,6 +194,8 @@ export const createSubmissionPublic = async (req, res) => {
           }
         : { actors: [], directors: [], producers: [], other: [] };
 
+    const uniqueGenreIds = Array.from(new Set(providedGenreIds)) as string[];
+
     const created = await Submission.create({
       creatorId,
       title,
@@ -213,7 +208,7 @@ export const createSubmissionPublic = async (req, res) => {
       languageId,
       countryId,
       contentTypeId,
-      genreId: primaryGenreId,
+      genreIds: uniqueGenreIds.map((gId) => new Types.ObjectId(gId)),
       crew: crewGroups,
       productionHouse: String(productionHouse || "").trim(),
       distributor: String(distributor || "").trim(),
@@ -238,9 +233,6 @@ export const createSubmissionPublic = async (req, res) => {
 
     // Map many-to-many genres (public)
     try {
-      const uniqueGenreIds = Array.from(
-        new Set([primaryGenreId, ...providedGenreIds].filter(Boolean)),
-      ) as string[];
       if (uniqueGenreIds.length > 0) {
         await SubmissionGenre.insertMany(
           uniqueGenreIds.map((gId) => ({
@@ -306,7 +298,6 @@ export const updateSubmission = async (req: AuthedRequest, res) => {
       countryId,
       contentTypeId,
       isFeatured,
-      genreId,
       genreIds,
       productionHouse,
       distributor,
@@ -343,24 +334,18 @@ export const updateSubmission = async (req: AuthedRequest, res) => {
       updates.distributor = String(distributor || "").trim();
 
     // Handle genres update if provided
-    const updatingGenres = genreId !== undefined || Array.isArray(genreIds);
+    const updatingGenres = Array.isArray(genreIds);
     let uniqueGenreIds: string[] | null = null;
     if (updatingGenres) {
-      const providedGenreIds: string[] = Array.isArray(genreIds)
-        ? genreIds.filter(Boolean)
-        : [];
-      const primaryGenreId: string | undefined =
-        (genreId as string | undefined) || providedGenreIds[0] || undefined;
-      if (!primaryGenreId) {
+      const providedGenreIds: string[] = genreIds.filter(Boolean);
+      if (providedGenreIds.length === 0) {
         return res.status(400).json({
           success: false,
-          message: "At least one genre (genreId or genreIds[]) is required",
+          message: "At least one genre (genreIds[]) is required",
         });
       }
-      updates.genreId = primaryGenreId;
-      uniqueGenreIds = Array.from(
-        new Set([primaryGenreId, ...providedGenreIds].filter(Boolean)),
-      ) as string[];
+      uniqueGenreIds = Array.from(new Set(providedGenreIds)) as string[];
+      updates.genreIds = uniqueGenreIds.map((gId) => new Types.ObjectId(gId));
     }
 
     const updated = await Submission.findByIdAndUpdate(
@@ -410,7 +395,9 @@ export const getMySubmissions = async (req: AuthedRequest, res) => {
     if (!creatorId) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
-    const items = await Submission.find({ creatorId }).sort({ createdAt: -1 });
+    const items = await Submission.find({ creatorId })
+      .sort({ createdAt: -1 })
+      .populate("genreIds");
     res.status(200).json({
       success: true,
       message: "My submissions fetched successfully",
@@ -425,7 +412,7 @@ export const getMySubmissions = async (req: AuthedRequest, res) => {
 export const getSubmission = async (req, res) => {
   try {
     const { id } = req.params;
-    const item = await Submission.findById(id);
+    const item = await Submission.findById(id).populate("genreIds");
     if (!item) {
       return res
         .status(404)

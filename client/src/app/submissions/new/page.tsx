@@ -96,8 +96,6 @@ export default function NewSubmissionPage() {
         languageId,
         countryId,
         contentTypeId,
-        // For backward compatibility, send both a primary genreId and the full list
-        genreId: genreIds[0],
         genreIds,
         productionHouse: productionHouse.trim(),
         distributor: distributor.trim(),

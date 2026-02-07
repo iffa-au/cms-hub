@@ -31,6 +31,7 @@ export default function Navbar() {
     // Admins can manage metadata
     const insertAfterCrew = 4;
     commonLinks.splice(insertAfterCrew, 0, { href: "/admin/metadata", label: "Metadata" });
+    commonLinks.splice(insertAfterCrew + 1, 0, { href: "/admin/film-enquiry", label: "Film Enquiry" });
   }
   // Staff and Admin can access the review queue
   if (user?.role === "admin" || user?.role === "staff") {

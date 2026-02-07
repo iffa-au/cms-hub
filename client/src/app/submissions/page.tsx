@@ -10,7 +10,7 @@ type Submission = {
   synopsis?: string;
   releaseDate?: string;
   contentTypeId?: string;
-  genreId?: string;
+  genreIds?: string[];
   contentTypeName?: string | null;
   genreNames?: string[];
   status?: 'SUBMITTED' | 'APPROVED' | 'REJECTED';

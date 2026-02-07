@@ -21,8 +21,7 @@ type SubmissionDetail = {
   contentTypeId: string;
   imdbUrl?: string;
   trailerUrl?: string;
-  genreId?: string;
-  genreIds?: string[];
+  genreIds?: string[] | { _id: string; name?: string }[];
   productionHouse?: string;
   distributor?: string;
   crew?: {
@@ -103,10 +102,8 @@ export default function EditSubmissionPage() {
               Array.isArray(d.genres) && d.genres.length > 0
                 ? d.genres.map((g: any) => g?._id).filter(Boolean)
                 : Array.isArray(d.genreIds)
-                  ? d.genreIds
-                  : d.genreId
-                    ? [d.genreId]
-                    : [];
+                  ? (d.genreIds as any[]).map((g: any) => (typeof g === "string" ? g : g?._id)).filter(Boolean)
+                  : [];
             setGenreIds(genreIdList);
             setProposedCrew({
               actors: Array.isArray(d.crew?.actors) ? d.crew.actors : [],
@@ -145,7 +142,7 @@ export default function EditSubmissionPage() {
             setContentTypeId(d2.contentTypeId || '');
             setProductionHouse(d2.productionHouse || '');
             setDistributor(d2.distributor || '');
-            setGenreIds(d2.genreIds && d2.genreIds.length > 0 ? d2.genreIds : d2.genreId ? [d2.genreId] : []);
+            setGenreIds(d2.genreIds && d2.genreIds.length > 0 ? (d2.genreIds as any[]).map((g: any) => typeof g === "string" ? g : g?._id).filter(Boolean) : []);
             setProposedCrew({
               actors: Array.isArray(d2.crew?.actors) ? d2.crew.actors : [],
               directors: Array.isArray(d2.crew?.directors) ? d2.crew.directors : [],
@@ -180,7 +177,6 @@ export default function EditSubmissionPage() {
         languageId,
         countryId,
         contentTypeId,
-        genreId: genreIds[0],
         genreIds,
         imdbUrl,
         trailerUrl,

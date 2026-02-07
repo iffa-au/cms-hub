@@ -15,7 +15,7 @@ export interface ISubmission {
   contentTypeId: Types.ObjectId;
   imdbUrl?: string;
   trailerUrl?: string;
-  genreId?: Types.ObjectId;
+  genreIds: Types.ObjectId[];
   productionHouse?: String; // production house name (e.g. "Universal Pictures")
   distributor?: String; // distributor name (e.g. "Netflix")
   // User-proposed crew grouped by category (public form payload)
@@ -67,7 +67,7 @@ const submissionSchema = new Schema<ISubmission>(
     },
     synopsis: {
       type: String,
-      trim: true,
+
       maxLength: 2000,
     },
     releaseDate: {
@@ -97,10 +97,9 @@ const submissionSchema = new Schema<ISubmission>(
       ref: "Country",
       required: true,
     },
-    genreId: {
-      type: Schema.Types.ObjectId,
-      ref: "Genre",
-      required: true,
+    genreIds: {
+      type: [{ type: Schema.Types.ObjectId, ref: "Genre" }],
+      default: [],
     },
     contentTypeId: {
       type: Schema.Types.ObjectId,
