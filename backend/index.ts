@@ -59,9 +59,6 @@ app.use(
   })
 );
 
-// ---------- DB ----------
-connectDB();
-
 // ---------- routes ----------
 app.get("/api/v1/health", (req, res) => {
   res.status(200).json({
@@ -83,9 +80,19 @@ app.use((err: any, req: any, res: any, next: any) => {
   res.status(500).json({ message: "Internal Server Error" });
 });
 
-// ---------- start ----------
-const port = Number(process.env.PORT) || 8000; // backend default should not clash with Next.js
+// ---------- start: connect DB first, then listen ----------
+const port = Number(process.env.PORT) || 8000;
 
-app.listen(port, "0.0.0.0", () => {
-  console.log(`Server is running on port ${port}`);
-});
+async function start() {
+  try {
+    await connectDB();
+    app.listen(port, "0.0.0.0", () => {
+      console.log(`Server is running on port ${port}`);
+    });
+  } catch (err) {
+    console.error("Failed to start server:", err);
+    process.exit(1);
+  }
+}
+
+start();
