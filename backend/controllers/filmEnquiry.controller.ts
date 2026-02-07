@@ -1,14 +1,14 @@
 import { Types } from "mongoose";
 import FilmEnquiry from "../models/filmEnquiry.model.js";
 
-const requiredRefFields = [
-  "contentType",
-  "country",
-  "language",
-] as const;
+const requiredRefFields = ["contentType", "country", "language"] as const;
 
 function isValidObjectId(value: unknown): value is string {
-  return typeof value === "string" && value.length > 0 && Types.ObjectId.isValid(value);
+  return (
+    typeof value === "string" &&
+    value.length > 0 &&
+    Types.ObjectId.isValid(value)
+  );
 }
 
 export const getFilmEnquiries = async (req, res) => {
@@ -34,7 +34,7 @@ export const getFilmEnquiryById = async (req, res) => {
   try {
     const { id } = req.params;
     const item = await FilmEnquiry.findById(id).populate(
-      "contentType genreIds country language"
+      "contentType genreIds country language",
     );
     if (!item) {
       return res.status(404).json({
@@ -85,7 +85,11 @@ export const createFilmEnquiryPublic = async (req, res) => {
     ] as const;
     for (const key of requiredStrings) {
       const value = req.body[key];
-      if (value === undefined || value === null || String(value).trim() === "") {
+      if (
+        value === undefined ||
+        value === null ||
+        String(value).trim() === ""
+      ) {
         return res.status(400).json({
           success: false,
           message: `Missing or empty required field: ${key}`,
@@ -134,7 +138,10 @@ export const createFilmEnquiryPublic = async (req, res) => {
       title: String(title).trim(),
       synopsis: String(synopsis).trim(),
       productionHouse: String(productionHouse).trim(),
-      distributor: distributor !== undefined && distributor !== null ? String(distributor).trim() : "",
+      distributor:
+        distributor !== undefined && distributor !== null
+          ? String(distributor).trim()
+          : "",
       releaseDate: releaseDateObj,
       trailerUrl: String(trailerUrl).trim(),
       contentType,
@@ -227,7 +234,9 @@ export const updateFilmEnquiry = async (req, res) => {
             });
           }
           updateFields[key] = arr;
-        } else if (requiredRefFields.includes(key as (typeof requiredRefFields)[number])) {
+        } else if (
+          requiredRefFields.includes(key as (typeof requiredRefFields)[number])
+        ) {
           if (!isValidObjectId(body[key])) {
             return res.status(400).json({
               success: false,
@@ -236,7 +245,8 @@ export const updateFilmEnquiry = async (req, res) => {
           }
           updateFields[key] = body[key];
         } else {
-          updateFields[key] = typeof body[key] === "string" ? body[key].trim() : body[key];
+          updateFields[key] =
+            typeof body[key] === "string" ? body[key].trim() : body[key];
         }
       }
     }
