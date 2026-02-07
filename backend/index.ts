@@ -23,7 +23,6 @@ const allowlist = [
   "http://localhost:3000",
   "http://127.0.0.1:3000",
   "http://localhost:5173",
-
 ];
 
 const clientUrl = process.env.CLIENT_URL;
@@ -34,11 +33,7 @@ const extraOrigins = (extraOriginsEnv || "")
   .filter(Boolean);
 
 const effectiveAllowlist = Array.from(
-  new Set([
-    ...allowlist,
-    ...(clientUrl ? [clientUrl] : []),
-    ...extraOrigins,
-  ])
+  new Set([...allowlist, ...(clientUrl ? [clientUrl] : []), ...extraOrigins]),
 );
 
 console.log("CORS allowlist =", effectiveAllowlist);
@@ -52,11 +47,12 @@ app.use(
       // allow if origin is in the computed allowlist
       const ok = effectiveAllowlist.includes(origin);
 
-      if (!ok) return cb(new Error(`CORS blocked for origin: ${origin}`), false);
+      if (!ok)
+        return cb(new Error(`CORS blocked for origin: ${origin}`), false);
       return cb(null, true);
     },
     credentials: true, // keep true if you use cookies/session
-  })
+  }),
 );
 
 // ---------- routes ----------

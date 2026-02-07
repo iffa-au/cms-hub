@@ -51,9 +51,29 @@ const postData = async <T>(path: string, data: unknown): Promise<T> => {
   return response.data;
 };
 
+const RETRY_DELAY_MS = 1500;
+const MAX_RETRIES = 2;
+
+/** Retry GET on 500 or network error (e.g. backend cold start). */
 const getData = async <T>(path: string): Promise<T> => {
-  const response = await api.get(path);
-  return response.data;
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const response = await api.get(path);
+      return response.data;
+    } catch (err: any) {
+      lastError = err;
+      const status = err?.response?.status;
+      const isRetryable =
+        status === 500 || status === 502 || status === 503 || !status;
+      if (attempt < MAX_RETRIES && isRetryable) {
+        await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastError;
 };
 
 const updateData = async <T>(path: string, data: unknown): Promise<T> => {
