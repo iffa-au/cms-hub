@@ -1,5 +1,6 @@
 import { Types } from "mongoose";
 import FilmEnquiry from "../models/filmEnquiry.model.js";
+import { sendFilmEnquiryReceipt } from "../libs/mailer.js";
 
 const requiredRefFields = ["contentType", "country", "language"] as const;
 
@@ -148,6 +149,12 @@ export const createFilmEnquiryPublic = async (req, res) => {
       genreIds: providedGenreIds,
       country,
       language,
+    });
+    await sendFilmEnquiryReceipt(email, {
+      name,
+      email,
+      role,
+      title,
     });
     res.status(201).json({
       success: true,

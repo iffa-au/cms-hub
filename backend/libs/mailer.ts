@@ -5,7 +5,11 @@ type MailConfig = {
   fromEmail: string;
   fromName: string;
   adminEmail: string;
-  template: string;
+};
+
+export const TEMPLATE_SLUGS = {
+  MC_TEMPLATE_SLUG: "film-enquiry-received",
+  MC_FILM_ENQUIRY_TEMPLATE_SLUG: "filmenquiry-thankyou",
 };
 
 let cachedClient: ReturnType<typeof Mailchimp> | null = null;
@@ -18,7 +22,6 @@ function loadConfig(): MailConfig {
     MAIL_FROM_EMAIL,
     MAIL_FROM_NAME,
     MAILCHIMP_TO_IFFA_EMAIL,
-    MC_TEMPLATE_SLUG,
   } = process.env;
 
   if (!MAILCHIMP_TX_API_KEY || !MAIL_FROM_EMAIL || !MAILCHIMP_TO_IFFA_EMAIL) {
@@ -31,7 +34,6 @@ function loadConfig(): MailConfig {
     fromEmail: MAIL_FROM_EMAIL,
     fromName: MAIL_FROM_NAME || "IFFA",
     adminEmail: MAILCHIMP_TO_IFFA_EMAIL,
-    template: MC_TEMPLATE_SLUG || "SubmitFilm-Thankyou",
   };
   return cachedConfig;
 }
@@ -53,7 +55,7 @@ export async function sendSubmissionReceipt(
 
   // 1) Send submission email to user (template)
   const userRes = await client.messages.sendTemplate({
-    template_name: cfg.template,
+    template_name: TEMPLATE_SLUGS.MC_TEMPLATE_SLUG,
     template_content: [],
     message: {
       subject: `We received your submission: ${vars.title}`,
@@ -113,3 +115,33 @@ export async function sendSubmissionReceipt(
   console.log("Mailchimp send result:", result);
   return result;
 }
+
+export const sendFilmEnquiryReceipt = async (
+  toEmail: string,
+  vars: { name: string; email: string; role: string; title: string },
+) => {
+  const cfg = loadConfig();
+  const client = getClient();
+
+  const res = await client.messages.sendTemplate({
+    template_name: TEMPLATE_SLUGS.MC_FILM_ENQUIRY_TEMPLATE_SLUG,
+    template_content: [],
+    message: {
+      subject: `Thank you for your film enquiry`,
+      from_email: cfg.fromEmail,
+      from_name: cfg.fromName,
+      to: [{ email: toEmail, type: "to" }], // ✅ REQUIRED
+      merge: true, // ✅ ensure merge tags work reliably
+      tags: ["film-enquiry-receipt-user"],
+      global_merge_vars: [
+        { name: "NAME", content: vars.name },
+        { name: "EMAIL", content: vars.email },
+        { name: "ROLE", content: vars.role },
+        { name: "TITLE", content: vars.title },
+      ],
+    },
+  });
+
+  console.log("Mailchimp film enquiry user response:", res);
+  return res;
+};
