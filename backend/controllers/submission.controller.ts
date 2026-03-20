@@ -444,6 +444,7 @@ export const getSubmissionOverview = async (req, res) => {
           localField: "contentTypeId",
           foreignField: "_id",
           as: "contentType",
+          pipeline: [{ $project: { _id: 1, name: 1 } }],
         },
       },
       {
@@ -452,6 +453,7 @@ export const getSubmissionOverview = async (req, res) => {
           localField: "languageId",
           foreignField: "_id",
           as: "language",
+          pipeline: [{ $project: { _id: 1, name: 1 } }],
         },
       },
       {
@@ -460,6 +462,7 @@ export const getSubmissionOverview = async (req, res) => {
           localField: "countryId",
           foreignField: "_id",
           as: "country",
+          pipeline: [{ $project: { _id: 1, name: 1 } }],
         },
       },
       {
@@ -498,18 +501,9 @@ export const getSubmissionOverview = async (req, res) => {
           crew: 1,
           createdAt: 1,
           updatedAt: 1,
-          contentType: {
-            _id: { $arrayElemAt: ["$contentType._id", 0] },
-            name: { $arrayElemAt: ["$contentType.name", 0] },
-          },
-          language: {
-            _id: { $arrayElemAt: ["$language._id", 0] },
-            name: { $arrayElemAt: ["$language.name", 0] },
-          },
-          country: {
-            _id: { $arrayElemAt: ["$country._id", 0] },
-            name: { $arrayElemAt: ["$country.name", 0] },
-          },
+          contentType: { $arrayElemAt: ["$contentType", 0] },
+          language: { $arrayElemAt: ["$language", 0] },
+          country: { $arrayElemAt: ["$country", 0] },
           genres: {
             $map: {
               input: "$genres",
