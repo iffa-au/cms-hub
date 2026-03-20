@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { getData, patchData } from '@/lib/fetch-util';
 import { useRouter } from 'next/navigation';
+import DownloadPdfButton from '@/components/review-queue/download-pdf-button';
 
 type Submission = {
   _id: string;
@@ -26,9 +27,23 @@ export default function ReviewQueuePage() {
   const [items, setItems] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [pageMeta, setPageMeta] = useState<{ page: number; limit: number; total: number } | null>(null);
 
-  async function load(q?: string) {
+  const getErrorMessage = (value: unknown, fallback: string) => {
+    if (value instanceof Error && value.message) return value.message;
+    if (
+      typeof value === 'object' &&
+      value &&
+      'message' in value &&
+      typeof (value as { message?: unknown }).message === 'string'
+    ) {
+      return String((value as { message?: string }).message);
+    }
+    return fallback;
+  };
+
+  const load = useCallback(async (q?: string) => {
     try {
       setLoading(true);
       setError(null);
@@ -37,16 +52,16 @@ export default function ReviewQueuePage() {
       const res = await getData<ListResponse>(`/submissions?${parts.join('&')}`);
       setItems(res?.data ?? []);
       setPageMeta(res?.meta ?? null);
-    } catch (e: any) {
-      setError(e?.message || 'Failed to load submissions');
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Failed to load submissions'));
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [load]);
 
   const showingStart = items.length === 0 ? 0 : 1;
   const showingEnd = items.length;
@@ -77,6 +92,7 @@ export default function ReviewQueuePage() {
           <p className='text-accent-foreground text-sm'>Pending submissions awaiting review.</p>
         </div>
       </div>
+      {actionError && <p className='text-red-400 text-sm mb-4'>{actionError}</p>}
 
       {/* Search bar */}
       <div className='bg-card p-2 rounded border border-border mb-8 flex items-center gap-2'>
@@ -192,6 +208,7 @@ export default function ReviewQueuePage() {
                         >
                           REJECT
                         </button>
+                        <DownloadPdfButton submissionId={item._id} onError={setActionError} />
                       </div>
                     </td>
                   </tr>
