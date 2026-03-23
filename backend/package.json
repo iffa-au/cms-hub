@@ -4,10 +4,10 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "nodemon --exec ts-node --esm index.ts",
-    "start": "node dist/index.js",
-    "build": "tsc"
-  },
+  "dev": "tsx watch index.ts",
+  "start": "node dist/index.js",
+  "build": "tsc"
+ },
   "dependencies": {
     "@arcjet/inspect": "^1.0.0-beta.15",
     "@arcjet/node": "^1.0.0-beta.15",
@@ -28,10 +28,12 @@
     "zod": "^4.1.13"
   },
   "devDependencies": {
-    "@types/express": "^5.0.5",
-    "@types/node": "^24.10.1",
+    "@types/express": "^5.0.6",
+    "@types/mongoose": "^5.11.96",
+    "@types/node": "^24.12.0",
     "nodemon": "^3.1.11",
     "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }
 }
