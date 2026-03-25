@@ -18,7 +18,6 @@ const CrewMemberSchema = new Schema<ICrewMember>({
   biography: {
     type: String,
     trim: true,
-    maxLength: 2000,
   },
   profilePicture: {
     type: String,
