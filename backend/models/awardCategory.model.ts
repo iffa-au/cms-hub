@@ -13,7 +13,6 @@ const awardCategorySchema = new Schema<IAwardCategory>({
   },
   description: {
     type: String,
-    maxLength: 500,
     trim: true,
   },
 });

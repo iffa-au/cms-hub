@@ -30,7 +30,6 @@ const CrewMemberSchema = new Schema<ICrewMember>({
   description: {
     type: String,
     trim: true,
-    maxLength: 500,
   },
 });
 

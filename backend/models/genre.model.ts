@@ -13,7 +13,6 @@ const genreSchema = new Schema<IGenre>({
   },
   description: {
     type: String,
-    maxLength: 500,
     trim: true,
   },
 });
