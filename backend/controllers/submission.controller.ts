@@ -606,16 +606,23 @@ export const adminListSubmissions = async (req, res) => {
       languageId,
       countryId,
       contentTypeId,
+      q,
       featured,
       page = "1",
       limit = "20",
     } = req.query as Record<string, string>;
     const filter: Record<string, unknown> = {};
+    const escapeRegex = (value: string) =>
+      value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const trimmedQuery = String(q || "").trim();
     if (status) filter.status = status;
     if (languageId) filter.languageId = languageId;
     if (countryId) filter.countryId = countryId;
     if (contentTypeId) filter.contentTypeId = contentTypeId;
     if (featured !== undefined) filter.isFeatured = featured === "true";
+    if (trimmedQuery) {
+      filter.title = { $regex: escapeRegex(trimmedQuery), $options: "i" };
+    }
 
     const pageNum = Math.max(parseInt(page || "1", 10) || 1, 1);
     const limitNum = Math.min(
