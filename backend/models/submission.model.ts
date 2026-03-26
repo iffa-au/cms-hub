@@ -67,8 +67,6 @@ const submissionSchema = new Schema<ISubmission>(
     },
     synopsis: {
       type: String,
-
-      maxLength: 2000,
     },
     releaseDate: {
       type: Date,
@@ -142,7 +140,6 @@ const submissionSchema = new Schema<ISubmission>(
               type: String,
               default: "",
               trim: true,
-              maxLength: 2000,
             },
             instagramUrl: { type: String, default: "", trim: true },
           },
@@ -165,7 +162,6 @@ const submissionSchema = new Schema<ISubmission>(
               type: String,
               default: "",
               trim: true,
-              maxLength: 2000,
             },
           },
         ],
@@ -187,7 +183,6 @@ const submissionSchema = new Schema<ISubmission>(
               type: String,
               default: "",
               trim: true,
-              maxLength: 2000,
             },
           },
         ],
@@ -209,7 +204,6 @@ const submissionSchema = new Schema<ISubmission>(
               type: String,
               default: "",
               trim: true,
-              maxLength: 2000,
             },
           },
         ],

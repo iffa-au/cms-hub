@@ -13,7 +13,6 @@ const countrySchema = new Schema<ICountry>({
   },
   description: {
     type: String,
-    maxLength: 500,
     trim: true,
   },
 });
