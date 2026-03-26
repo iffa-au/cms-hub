@@ -817,9 +817,12 @@ export const adminListSubmissions = async (req, res) => {
       languageId,
       countryId,
       contentTypeId,
+<<<<<<< HEAD
       contentTypeIds,
       genreIds,
       year,
+=======
+>>>>>>> 022cfb6 (searching bar for submissions)
       q,
       featured,
       page = "1",
@@ -828,15 +831,6 @@ export const adminListSubmissions = async (req, res) => {
     const filter: Record<string, unknown> = {};
     const escapeRegex = (value: string) =>
       value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const parseObjectId = (value?: string) =>
-      value && Types.ObjectId.isValid(value) ? new Types.ObjectId(value) : null;
-    const parseObjectIdCsv = (value?: string) =>
-      String(value || "")
-        .split(",")
-        .map((v) => v.trim())
-        .filter(Boolean)
-        .filter((v) => Types.ObjectId.isValid(v))
-        .map((v) => new Types.ObjectId(v));
     const trimmedQuery = String(q || "").trim();
     if (status) filter.status = status;
     const languageOid = parseObjectId(languageId);
@@ -872,10 +866,6 @@ export const adminListSubmissions = async (req, res) => {
     if (featured !== undefined) filter.isFeatured = featured === "true";
     if (trimmedQuery) {
       filter.title = { $regex: escapeRegex(trimmedQuery), $options: "i" };
-    }
-    const yearNum = parseInt(String(year || ""), 10);
-    if (!Number.isNaN(yearNum) && yearNum >= 1900 && yearNum <= 3000) {
-      filter.submission_year = yearNum;
     }
 
     const pageNum = Math.max(parseInt(page || "1", 10) || 1, 1);
