@@ -20,14 +20,13 @@ export const fetchSubmission = async (req: Request, res: Response) => {
 
     const yearNum = parseInt(year, 10);
     const featuredOnly = req.query.featured === "true";
+    const start = new Date(Date.UTC(yearNum, 0, 1, 0, 0, 0, 0));
+    const end = new Date(Date.UTC(yearNum + 1, 0, 1, 0, 0, 0, 0));
 
     const matchStage: any = {
-      submission_year: yearNum,
+      releaseDate: { $gte: start, $lt: end },
+      status: "APPROVED",
     };
-
-    // If on the official website we only want approved, keep this. 
-    // But for testing while items are "SUBMITTED", you might want to comment this out.
-    // matchStage.status = "APPROVED";
 
     if (featuredOnly) {
       matchStage.isFeatured = true;
