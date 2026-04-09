@@ -13,7 +13,6 @@ const crewRoleSchema = new Schema<ICrewRole>({
   },
   description: {
     type: String,
-    maxLength: 500,
     trim: true,
   },
 });

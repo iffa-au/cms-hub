@@ -10,24 +10,30 @@ import {
   rejectSubmission,
   updateSubmission,
   deleteSubmission,
+  fetchSubmission,
+  fetchWinner,
+  fetchWinnerDetailed,
 } from "../controllers/submission.controller.js";
 import { requireAuth, requireRole } from "../middlewares/auth.middleware.js";
 
 const router = e.Router();
 
 // Public
+router.get("/fetchSubmission", fetchSubmission);
+router.get("/fetchWinner", fetchWinner);
+router.get("/fetchWinnerDetailed", fetchWinnerDetailed);
+router.get("/", (req, res, next) => {
+  if (req.query.year) {
+    return fetchSubmission(req, res);
+  }
+  next();
+}, (req, res, next) => {
+  // If it's the admin/staff list, it will require auth
+  requireAuth(req as any, res, next);
+}, requireRole("admin", "staff"), adminListSubmissions);
+
 router.get("/:id/overview", getSubmissionOverview);
 router.get("/:id", getSubmission);
-router.post("/public", createSubmissionPublic);
-
-// User
-
-router.post("/", requireAuth, requireRole("admin", "staff"), createSubmission);
-router.get("/my/list", requireAuth, getMySubmissions);
-router.put("/:id", requireAuth, updateSubmission);
-
-// Admin/Staff review and listing
-router.get("/", requireAuth, requireRole("admin", "staff"), adminListSubmissions);
 router.delete(
   "/:id",
   requireAuth,

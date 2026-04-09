@@ -13,7 +13,6 @@ const languageSchema = new Schema<ILanguage>({
   },
   description: {
     type: String,
-    maxLength: 500,
     trim: true,
   },
 });

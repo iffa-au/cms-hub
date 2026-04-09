@@ -1,3 +1,4 @@
+import { Request, Response } from "express";
 import Submission from "../models/submission.model.js";
 import type { AuthedRequest } from "../middlewares/auth.middleware.js";
 import { Types } from "mongoose";
@@ -5,6 +6,210 @@ import SubmissionGenre from "../models/submissionGenre.model.js";
 import { sendSubmissionReceipt } from "../libs/mailer.js";
 
 // Delete a submission (admin/staff). Removes related mappings and nominations.
+/**
+ * Public API: Fetches submissions for a specific release year.
+ * Returns simplified film data (title, images, directors) matching the structure expected by the website.
+ * Used by the Submissions page (e.g., /api/submissions?year=2024).
+ */
+export const fetchSubmission = async (req: Request, res: Response) => {
+  try {
+    const { year } = req.query as Record<string, string>;
+    if (!year) {
+      return res.status(400).json({ success: false, message: "Year is required" });
+    }
+
+    const yearNum = parseInt(year, 10);
+    const featuredOnly = req.query.featured === "true";
+    const start = new Date(Date.UTC(yearNum, 0, 1, 0, 0, 0, 0));
+    const end = new Date(Date.UTC(yearNum + 1, 0, 1, 0, 0, 0, 0));
+
+    const matchStage: any = {
+      releaseDate: { $gte: start, $lt: end },
+      status: "APPROVED",
+    };
+
+    if (featuredOnly) {
+      matchStage.isFeatured = true;
+    }
+
+    const submissions = await Submission.aggregate([
+      {
+        $match: matchStage,
+      },
+      {
+        $lookup: {
+          from: "crewassignments",
+          localField: "_id",
+          foreignField: "submissionId",
+          as: "crewAssignments",
+        },
+      },
+      {
+        $lookup: {
+          from: "crewmembers",
+          localField: "crewAssignments.crewMemberId",
+          foreignField: "_id",
+          as: "crewMembers",
+        },
+      },
+      {
+        $project: {
+          id: "$_id",
+          title: 1,
+          portraitImageUrl: "$potraitImageUrl",
+          landscapeImageUrl: "$landscapeImageUrl",
+          directors: {
+            $map: {
+              input: "$crewMembers",
+              as: "cm",
+              in: "$$cm.name",
+            },
+          },
+        },
+      },
+    ]);
+
+    res.status(200).json(submissions);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+/**
+ * Public API: Fetches winners for a specific year.
+ * Returns simplified film data (id, title, images, directors) designed for the IFFA website.
+ * Used by the Winners page (e.g., /api/submissions/fetchWinner?year=2024).
+ */
+export const fetchWinner = async (req: Request, res: Response) => {
+  try {
+    const { year } = req.query as Record<string, string>;
+    if (!year) {
+      return res.status(400).json({ success: false, message: "Year is required" });
+    }
+
+    const yearNum = parseInt(year, 10);
+    const Nomination = (await import("../models/nomination.model.js")).default;
+    
+    const winners = await Nomination.aggregate([
+      { 
+        $match: { 
+          year: yearNum,
+          isWinner: true 
+        } 
+      },
+      {
+        $lookup: {
+          from: "submissions",
+          localField: "submissionId",
+          foreignField: "_id",
+          as: "submission",
+        },
+      },
+      { $unwind: "$submission" },
+      {
+        $lookup: {
+          from: "crewassignments",
+          localField: "submissionId",
+          foreignField: "submissionId",
+          as: "crewAssignments",
+        },
+      },
+      {
+        $lookup: {
+          from: "crewmembers",
+          localField: "crewAssignments.crewMemberId",
+          foreignField: "_id",
+          as: "crewMembers",
+        },
+      },
+      {
+        $project: {
+          id: "$submission._id",
+          title: "$submission.title",
+          portraitImageUrl: "$submission.potraitImageUrl",
+          landscapeImageUrl: "$submission.landscapeImageUrl",
+          directors: {
+            $map: {
+              input: "$crewMembers",
+              as: "cm",
+              in: "$$cm.name",
+            },
+          },
+        },
+      },
+    ]);
+
+    res.status(200).json(winners);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+/**
+ * Public API: Fetches detailed winner information including category.
+ * Used by the Cast/Detailed Winners page (e.g., /api/submissions/fetchWinnerDetailed?year=2024).
+ */
+export const fetchWinnerDetailed = async (req: Request, res: Response) => {
+  try {
+    const { year } = req.query as Record<string, string>;
+    if (!year) {
+      return res.status(400).json({ success: false, message: "Year is required" });
+    }
+
+    const yearNum = parseInt(year, 10);
+    const Nomination = (await import("../models/nomination.model.js")).default;
+
+    const detailedWinners = await Nomination.aggregate([
+      { 
+        $match: { 
+          year: yearNum,
+          isWinner: true 
+        } 
+      },
+      {
+        $lookup: {
+          from: "submissions",
+          localField: "submissionId",
+          foreignField: "_id",
+          as: "submission",
+        },
+      },
+      { $unwind: "$submission" },
+      {
+        $lookup: {
+          from: "awardcategories",
+          localField: "awardCategoryId",
+          foreignField: "_id",
+          as: "awardCategory",
+        },
+      },
+      { $unwind: { path: "$awardCategory", preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          id: "$submission._id",
+          editionYear: "$year",
+          contentId: "$submission._id",
+          title: "$submission.title",
+          portraitImageUrl: "$submission.potraitImageUrl",
+          awardCategoryId: "$awardCategory._id",
+          awardCategoryName: "$awardCategory.name",
+        },
+      },
+    ]);
+
+    res.status(200).json(detailedWinners);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+/**
+ * Admin API: Deletes a submission and cascades removal of related data (genres, nominations, etc.).
+ * Restricted to authenticated Admin/Staff only.
+ */
 export const deleteSubmission = async (req: AuthedRequest, res) => {
   try {
     const { id } = req.params;
@@ -409,20 +614,25 @@ export const getMySubmissions = async (req: AuthedRequest, res) => {
   }
 };
 
-export const getSubmission = async (req, res) => {
+/**
+ * Public API: Fetches full details for a specific submission (movie) by ID.
+ * Returns the object directly (no 'data' wrapper) as expected by SynopsisPage.jsx.
+ * Includes populated genres and the internal crew object for display.
+ */
+export const getSubmission = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    if (!Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid ID" });
+    }
     const item = await Submission.findById(id).populate("genreIds");
     if (!item) {
       return res
         .status(404)
         .json({ success: false, message: "Submission not found" });
     }
-    res.status(200).json({
-      success: true,
-      message: "Submission fetched successfully",
-      data: item,
-    });
+    // Return the object directly for the Synopsis component
+    res.status(200).json(item);
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: "Internal server error" });
@@ -444,6 +654,7 @@ export const getSubmissionOverview = async (req, res) => {
           localField: "contentTypeId",
           foreignField: "_id",
           as: "contentType",
+          pipeline: [{ $project: { _id: 1, name: 1 } }],
         },
       },
       {
@@ -452,6 +663,7 @@ export const getSubmissionOverview = async (req, res) => {
           localField: "languageId",
           foreignField: "_id",
           as: "language",
+          pipeline: [{ $project: { _id: 1, name: 1 } }],
         },
       },
       {
@@ -460,6 +672,7 @@ export const getSubmissionOverview = async (req, res) => {
           localField: "countryId",
           foreignField: "_id",
           as: "country",
+          pipeline: [{ $project: { _id: 1, name: 1 } }],
         },
       },
       {
@@ -498,18 +711,9 @@ export const getSubmissionOverview = async (req, res) => {
           crew: 1,
           createdAt: 1,
           updatedAt: 1,
-          contentType: {
-            _id: { $arrayElemAt: ["$contentType._id", 0] },
-            name: { $arrayElemAt: ["$contentType.name", 0] },
-          },
-          language: {
-            _id: { $arrayElemAt: ["$language._id", 0] },
-            name: { $arrayElemAt: ["$language.name", 0] },
-          },
-          country: {
-            _id: { $arrayElemAt: ["$country._id", 0] },
-            name: { $arrayElemAt: ["$country.name", 0] },
-          },
+          contentType: { $arrayElemAt: ["$contentType", 0] },
+          language: { $arrayElemAt: ["$language", 0] },
+          country: { $arrayElemAt: ["$country", 0] },
           genres: {
             $map: {
               input: "$genres",
@@ -612,16 +816,68 @@ export const adminListSubmissions = async (req, res) => {
       languageId,
       countryId,
       contentTypeId,
+      contentTypeIds,
+      genreIds,
+      year,
+      q,
       featured,
       page = "1",
       limit = "20",
     } = req.query as Record<string, string>;
     const filter: Record<string, unknown> = {};
+    const escapeRegex = (value: string) =>
+      value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const parseObjectId = (value?: string) =>
+      value && Types.ObjectId.isValid(value) ? new Types.ObjectId(value) : null;
+    const parseObjectIdCsv = (value?: string) =>
+      String(value || "")
+        .split(",")
+        .map((v) => v.trim())
+        .filter(Boolean)
+        .filter((v) => Types.ObjectId.isValid(v))
+        .map((v) => new Types.ObjectId(v));
+    const trimmedQuery = String(q || "").trim();
     if (status) filter.status = status;
-    if (languageId) filter.languageId = languageId;
-    if (countryId) filter.countryId = countryId;
-    if (contentTypeId) filter.contentTypeId = contentTypeId;
+    const languageOid = parseObjectId(languageId);
+    const countryOid = parseObjectId(countryId);
+    const singleContentTypeOid = parseObjectId(contentTypeId);
+    const contentTypeOidList = parseObjectIdCsv(contentTypeIds);
+    const genreOidList = parseObjectIdCsv(genreIds);
+    if (languageId && !languageOid) {
+      return res.status(200).json({
+        success: true,
+        message: "Submissions fetched successfully",
+        data: [],
+        meta: { page: 1, limit: 20, total: 0 },
+      });
+    }
+    if (countryId && !countryOid) {
+      return res.status(200).json({
+        success: true,
+        message: "Submissions fetched successfully",
+        data: [],
+        meta: { page: 1, limit: 20, total: 0 },
+      });
+    }
+    if (languageOid) filter.languageId = languageOid;
+    if (countryOid) filter.countryId = countryOid;
+    // Backward compatibility: keep singular contentTypeId param working.
+    // If both are provided, prioritize the multi-select contentTypeIds.
+    if (contentTypeOidList.length > 0) {
+      filter.contentTypeId = { $in: contentTypeOidList };
+    } else if (singleContentTypeOid) {
+      filter.contentTypeId = singleContentTypeOid;
+    }
     if (featured !== undefined) filter.isFeatured = featured === "true";
+    if (trimmedQuery) {
+      filter.title = { $regex: escapeRegex(trimmedQuery), $options: "i" };
+    }
+    const yearNum = parseInt(String(year || ""), 10);
+    if (!Number.isNaN(yearNum) && yearNum >= 1900 && yearNum <= 3000) {
+      const start = new Date(Date.UTC(yearNum, 0, 1, 0, 0, 0, 0));
+      const end = new Date(Date.UTC(yearNum + 1, 0, 1, 0, 0, 0, 0));
+      filter.releaseDate = { $gte: start, $lt: end };
+    }
 
     const pageNum = Math.max(parseInt(page || "1", 10) || 1, 1);
     const limitNum = Math.min(
@@ -629,69 +885,96 @@ export const adminListSubmissions = async (req, res) => {
       100,
     );
     const skip = (pageNum - 1) * limitNum;
+    const hasGenreFilter = genreOidList.length > 0;
+    const genreMatchStage = hasGenreFilter
+      ? ({
+          $match: {
+            "genreLinks.genreId": { $in: genreOidList },
+          },
+        } as const)
+      : null;
 
-    const [items, total] = await Promise.all([
-      Submission.aggregate([
-        { $match: filter },
-        { $sort: { createdAt: -1 } },
-        { $skip: skip },
-        { $limit: limitNum },
-        // Join genres via mapping table
-        {
-          $lookup: {
-            from: "submissiongenres",
-            localField: "_id",
-            foreignField: "submissionId",
-            as: "genreLinks",
+    const itemsPipeline: any[] = [
+      { $match: filter },
+      // Join genres via mapping table
+      {
+        $lookup: {
+          from: "submissiongenres",
+          localField: "_id",
+          foreignField: "submissionId",
+          as: "genreLinks",
+        },
+      },
+      ...(genreMatchStage ? [genreMatchStage] : []),
+      {
+        $lookup: {
+          from: "genres",
+          localField: "genreLinks.genreId",
+          foreignField: "_id",
+          as: "genres",
+        },
+      },
+      // Join content type
+      {
+        $lookup: {
+          from: "contenttypes",
+          localField: "contentTypeId",
+          foreignField: "_id",
+          as: "contentType",
+        },
+      },
+      { $sort: { createdAt: -1 } },
+      { $skip: skip },
+      { $limit: limitNum },
+      {
+        $project: {
+          creatorId: 1,
+          title: 1,
+          synopsis: 1,
+          releaseDate: 1,
+          potraitImageUrl: 1,
+          landscapeImageUrl: 1,
+          status: 1,
+          languageId: 1,
+          countryId: 1,
+          contentTypeId: 1,
+          imdbUrl: 1,
+          trailerUrl: 1,
+          isFeatured: 1,
+          productionHouse: 1,
+          distributor: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          contentTypeName: {
+            $ifNull: [{ $arrayElemAt: ["$contentType.name", 0] }, null],
+          },
+          genreNames: {
+            $map: { input: "$genres", as: "g", in: "$$g.name" },
           },
         },
-        {
-          $lookup: {
-            from: "genres",
-            localField: "genreLinks.genreId",
-            foreignField: "_id",
-            as: "genres",
-          },
-        },
-        // Join content type
-        {
-          $lookup: {
-            from: "contenttypes",
-            localField: "contentTypeId",
-            foreignField: "_id",
-            as: "contentType",
-          },
-        },
-        {
-          $project: {
-            creatorId: 1,
-            title: 1,
-            synopsis: 1,
-            releaseDate: 1,
-            potraitImageUrl: 1,
-            landscapeImageUrl: 1,
-            status: 1,
-            languageId: 1,
-            countryId: 1,
-            contentTypeId: 1,
-            imdbUrl: 1,
-            trailerUrl: 1,
-            isFeatured: 1,
-            productionHouse: 1,
-            distributor: 1,
-            createdAt: 1,
-            updatedAt: 1,
-            contentTypeName: {
-              $ifNull: [{ $arrayElemAt: ["$contentType.name", 0] }, null],
+      },
+    ];
+    const totalPromise = hasGenreFilter
+      ? Submission.aggregate([
+          { $match: filter },
+          {
+            $lookup: {
+              from: "submissiongenres",
+              localField: "_id",
+              foreignField: "submissionId",
+              as: "genreLinks",
             },
-            genreNames: {
-              $map: { input: "$genres", as: "g", in: "$$g.name" },
-            },
           },
-        },
-      ]),
-      Submission.countDocuments(filter),
+          genreMatchStage!,
+          { $count: "total" },
+        ])
+      : Submission.countDocuments(filter);
+
+    const [items, totalRaw] = await Promise.all([
+      Submission.aggregate(itemsPipeline),
+      totalPromise,
     ]);
+    const total = Array.isArray(totalRaw) ? (totalRaw[0]?.total ?? 0) : totalRaw;
 
     res.status(200).json({
       success: true,

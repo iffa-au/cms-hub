@@ -13,7 +13,6 @@ const contentTypeSchema = new Schema<IContentType>({
   },
   description: {
     type: String,
-    maxLength: 500,
     trim: true,
   },
 });
