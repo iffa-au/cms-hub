@@ -41,11 +41,23 @@ export type SubmissionOverview = {
   };
 };
 
+export type SubmissionListRow = {
+  title?: string;
+  createdAt?: string;
+};
+
 const formatDate = (value?: string) => {
   if (!value) return '—';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
   return date.toLocaleDateString();
+};
+
+const formatSubmissionDate = (value?: string) => {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleDateString('en-GB');
 };
 
 const valueOrDash = (value?: string | null) => {
@@ -295,4 +307,49 @@ export const buildSubmissionPdf = (doc: jsPDF, details: SubmissionOverview) => {
       ((doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable
         ?.finalY || y) + 14;
   }
+};
+
+export const buildSubmissionListPdf = (doc: jsPDF, rows: SubmissionListRow[]) => {
+  const margin = 40;
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const maxWidth = pageWidth - margin * 2;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.text('Review Queue Submissions', margin, margin);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text(`Exported: ${new Date().toLocaleString()}`, margin, margin + 18);
+
+  const body =
+    rows.length > 0
+      ? rows.map((row, idx) => [String(idx + 1), valueOrDash(row.title), formatSubmissionDate(row.createdAt)])
+      : [['—', 'No submissions found', '—']];
+
+  autoTable(doc, {
+    startY: margin + 34,
+    margin: { left: margin, right: margin },
+    head: [['No.', 'Film Title', 'Submission Date']],
+    body,
+    theme: 'grid',
+    tableWidth: maxWidth,
+    styles: {
+      fontSize: 10,
+      cellPadding: 6,
+      overflow: 'linebreak',
+      lineColor: [215, 220, 228],
+      lineWidth: 0.35,
+    },
+    headStyles: {
+      fontStyle: 'bold',
+      fillColor: [40, 56, 86],
+      textColor: 255,
+    },
+    columnStyles: {
+      0: { cellWidth: 56, halign: 'center' },
+      1: { cellWidth: maxWidth - 170 },
+      2: { cellWidth: 114 },
+    },
+  });
 };
