@@ -4,12 +4,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { getData, patchData } from '@/lib/fetch-util';
 import { useRouter } from 'next/navigation';
 import DownloadPdfButton from '@/components/review-queue/download-pdf-button';
+import DownloadAllPdfButton from '@/components/review-queue/download-all-pdf-button';
 
 type Submission = {
   _id: string;
   title: string;
   synopsis?: string;
   releaseDate?: string;
+  createdAt?: string;
   contentTypeName?: string | null;
   genreNames?: string[];
 };
@@ -91,6 +93,7 @@ export default function ReviewQueuePage() {
           <h1 className='font-serif text-3xl md:text-4xl text-white mb-2'>Review Queue</h1>
           <p className='text-accent-foreground text-sm'>Pending submissions awaiting review.</p>
         </div>
+        <DownloadAllPdfButton query={query} onError={setActionError} />
       </div>
       {actionError && <p className='text-red-400 text-sm mb-4'>{actionError}</p>}
 
@@ -129,6 +132,7 @@ export default function ReviewQueuePage() {
         <table className='w-full text-left border-separate border-spacing-y-2'>
           <thead>
             <tr className='text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-bold'>
+              <th className='px-4 py-3 text-center'>No.</th>
               <th className='px-4 py-3'>Film Details</th>
               <th className='px-4 py-3'>Content Type</th>
               <th className='px-4 py-3 text-center'>Release Year</th>
@@ -139,7 +143,7 @@ export default function ReviewQueuePage() {
           <tbody className='text-sm'>
             {loading && (
               <tr className='bg-card/60'>
-                <td className='px-4 py-6' colSpan={5}>
+                <td className='px-4 py-6' colSpan={6}>
                   <div className='animate-pulse h-4 w-1/3 bg-border rounded mb-3' />
                   <div className='animate-pulse h-3 w-2/3 bg-border rounded' />
                 </td>
@@ -147,24 +151,25 @@ export default function ReviewQueuePage() {
             )}
             {!loading && error && (
               <tr className='bg-card/60'>
-                <td className='px-4 py-6' colSpan={5}>
+                <td className='px-4 py-6' colSpan={6}>
                   <span className='text-red-400 text-sm'>{error}</span>
                 </td>
               </tr>
             )}
             {!loading && !error && items.length === 0 && (
               <tr className='bg-card/60'>
-                <td className='px-4 py-6' colSpan={5}>
+                <td className='px-4 py-6' colSpan={6}>
                   <span className='text-muted-foreground text-sm'>No submissions found.</span>
                 </td>
               </tr>
             )}
             {!loading &&
               !error &&
-              items.map((item) => {
+              items.map((item, idx) => {
                 const release = item.releaseDate ? new Date(item.releaseDate).getFullYear().toString() : '—';
                 return (
                   <tr key={item._id} className='bg-card/60'>
+                    <td className='px-4 py-6 text-center text-muted-foreground font-semibold'>{idx + 1}</td>
                     <td className='px-4 py-6 border-l-2 border-primary'>
                       <h3 className='font-serif text-primary font-bold text-lg mb-1'>{item.title}</h3>
                       {item.synopsis ? (
