@@ -41,6 +41,7 @@ export type SubmissionOverview = {
   };
 };
 
+// Submission list PDF row
 export type SubmissionListRow = {
   title?: string;
   createdAt?: string;
@@ -53,6 +54,7 @@ const formatDate = (value?: string) => {
   return date.toLocaleDateString();
 };
 
+// parse submission date to ISO format
 const formatSubmissionDate = (value?: string) => {
   if (!value) return '—';
   const date = new Date(value);
@@ -309,6 +311,7 @@ export const buildSubmissionPdf = (doc: jsPDF, details: SubmissionOverview) => {
   }
 };
 
+// build submission list PDF
 export const buildSubmissionListPdf = (doc: jsPDF, rows: SubmissionListRow[]) => {
   const margin = 40;
   const pageWidth = doc.internal.pageSize.getWidth();
