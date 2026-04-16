@@ -20,13 +20,14 @@ export const fetchSubmission = async (req: Request, res: Response) => {
 
     const yearNum = parseInt(year, 10);
     const featuredOnly = req.query.featured === "true";
-    const start = new Date(Date.UTC(yearNum, 0, 1, 0, 0, 0, 0));
-    const end = new Date(Date.UTC(yearNum + 1, 0, 1, 0, 0, 0, 0));
 
     const matchStage: any = {
-      releaseDate: { $gte: start, $lt: end },
-      status: "APPROVED",
+      submission_year: yearNum,
     };
+
+    // If on the official website we only want approved, keep this. 
+    // But for testing while items are "SUBMITTED", you might want to comment this out.
+    // matchStage.status = "APPROVED";
 
     if (featuredOnly) {
       matchStage.isFeatured = true;
@@ -874,9 +875,7 @@ export const adminListSubmissions = async (req, res) => {
     }
     const yearNum = parseInt(String(year || ""), 10);
     if (!Number.isNaN(yearNum) && yearNum >= 1900 && yearNum <= 3000) {
-      const start = new Date(Date.UTC(yearNum, 0, 1, 0, 0, 0, 0));
-      const end = new Date(Date.UTC(yearNum + 1, 0, 1, 0, 0, 0, 0));
-      filter.releaseDate = { $gte: start, $lt: end };
+      filter.submission_year = yearNum;
     }
 
     const pageNum = Math.max(parseInt(page || "1", 10) || 1, 1);

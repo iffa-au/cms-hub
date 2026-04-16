@@ -19,6 +19,7 @@ export interface ISubmission {
   productionHouse?: String; // production house name (e.g. "Universal Pictures")
   distributor?: String; // distributor name (e.g. "Netflix")
   // User-proposed crew grouped by category (public form payload)
+  submission_year?: number; // Optional field to capture the year of submission for nomination purposes
   crew?: {
     actors: Array<{
       fullName: string;
