@@ -169,7 +169,7 @@ export default function ReviewQueuePage() {
                 const release = item.releaseDate ? new Date(item.releaseDate).getFullYear().toString() : '—';
                 return (
                   <tr key={item._id} className='bg-card/60'>
-                    <td className='px-4 py-6 text-center text-muted-foreground font-semibold'>{idx + 1}</td> //submission number
+                    <td className='px-4 py-6 text-center text-muted-foreground font-semibold'>{idx + 1}</td> {/* submission number */}
                     <td className='px-4 py-6 border-l-2 border-primary'>
                       <h3 className='font-serif text-primary font-bold text-lg mb-1'>{item.title}</h3>
                       {item.synopsis ? (
