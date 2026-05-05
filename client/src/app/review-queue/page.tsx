@@ -23,9 +23,12 @@ type ListResponse = {
   message?: string;
 };
 
+const PAGE_LIMIT = 20;
+
 export default function ReviewQueuePage() {
   const router = useRouter();
   const [query, setQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const [items, setItems] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,15 +48,19 @@ export default function ReviewQueuePage() {
     return fallback;
   };
 
-  const load = useCallback(async (q?: string) => {
+  const load = useCallback(async (q: string, page: number) => {
     try {
       setLoading(true);
       setError(null);
-      const parts = [`page=1`, `limit=20`, `status=SUBMITTED`];
-      if (q && q.trim()) parts.push(`q=${encodeURIComponent(q.trim())}`);
+      const safePage = Math.max(page, 1);
+      const safeQuery = q.trim();
+      const parts = [`page=${safePage}`, `limit=${PAGE_LIMIT}`, `status=SUBMITTED`];
+      if (safeQuery) parts.push(`q=${encodeURIComponent(safeQuery)}`);
       const res = await getData<ListResponse>(`/submissions?${parts.join('&')}`);
       setItems(res?.data ?? []);
-      setPageMeta(res?.meta ?? null);
+      const meta = res?.meta ?? { page: safePage, limit: PAGE_LIMIT, total: res?.data?.length ?? 0 };
+      setPageMeta(meta);
+      setCurrentPage(meta.page);
     } catch (e: unknown) {
       setError(getErrorMessage(e, 'Failed to load submissions'));
     } finally {
@@ -62,17 +69,29 @@ export default function ReviewQueuePage() {
   }, []);
 
   useEffect(() => {
-    void load();
+    void load('', 1);
   }, [load]);
 
-  const showingStart = items.length === 0 ? 0 : 1;
-  const showingEnd = items.length;
+  const activePage = pageMeta?.page ?? currentPage;
+  const activeLimit = pageMeta?.limit ?? PAGE_LIMIT;
   const total = pageMeta?.total ?? items.length;
+  const totalPages = Math.max(1, Math.ceil(total / activeLimit));
+  const showingStart = items.length === 0 ? 0 : (activePage - 1) * activeLimit + 1;
+  const showingEnd = items.length === 0 ? 0 : showingStart + items.length - 1;
+  const pageStart = Math.max(1, activePage - 2);
+  const pageEnd = Math.min(totalPages, activePage + 2);
+  const visiblePages = Array.from({ length: pageEnd - pageStart + 1 }, (_, idx) => pageStart + idx);
+
+  const goToPage = (targetPage: number) => {
+    if (loading || targetPage === activePage || targetPage < 1 || targetPage > totalPages) return;
+    setCurrentPage(targetPage);
+    void load(query, targetPage);
+  };
 
   const approve = async (id: string) => {
     try {
       await patchData(`/submissions/${id}/approve`, {});
-      await load(query);
+      await load(query, activePage);
     } catch {
       // ignore for now
     }
@@ -80,7 +99,7 @@ export default function ReviewQueuePage() {
   const reject = async (id: string) => {
     try {
       await patchData(`/submissions/${id}/reject`, {});
-      await load(query);
+      await load(query, activePage);
     } catch {
       // ignore for now
     }
@@ -104,7 +123,10 @@ export default function ReviewQueuePage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') void load(query);
+              if (e.key === 'Enter') {
+                setCurrentPage(1);
+                void load(query, 1);
+              }
             }}
             className='w-full bg-transparent border-none focus:ring-0 pl-3 text-sm text-foreground placeholder:text-muted-foreground/70 py-3'
             placeholder='Search by title...'
@@ -114,14 +136,18 @@ export default function ReviewQueuePage() {
         <button
           onClick={() => {
             setQuery('');
-            void load('');
+            setCurrentPage(1);
+            void load('', 1);
           }}
           className='px-4 py-2 text-muted-foreground hover:text-primary transition-colors border-l border-border text-xs font-semibold tracking-widest'
         >
           CLEAR
         </button>
         <button
-          onClick={() => void load(query)}
+          onClick={() => {
+            setCurrentPage(1);
+            void load(query, 1);
+          }}
           className='bg-foreground text-background px-6 py-2.5 rounded text-xs font-bold tracking-widest hover:opacity-90 transition-opacity'
         >
           SEARCH
@@ -169,7 +195,7 @@ export default function ReviewQueuePage() {
                 const release = item.releaseDate ? new Date(item.releaseDate).getFullYear().toString() : '—';
                 return (
                   <tr key={item._id} className='bg-card/60'>
-                    <td className='px-4 py-6 text-center text-muted-foreground font-semibold'>{idx + 1}</td> {/* submission number */}
+                    <td className='px-4 py-6 text-center text-muted-foreground font-semibold'>{showingStart + idx}</td>
                     <td className='px-4 py-6 border-l-2 border-primary'>
                       <h3 className='font-serif text-primary font-bold text-lg mb-1'>{item.title}</h3>
                       {item.synopsis ? (
@@ -227,6 +253,46 @@ export default function ReviewQueuePage() {
         <span className='text-xs text-muted-foreground tracking-wider'>
           {`SHOWING ${showingStart}-${showingEnd} OF ${total} SUBMISSIONS`}
         </span>
+        <div className='flex items-center gap-2'>
+          {pageStart > 1 && (
+            <>
+              <button
+                onClick={() => goToPage(1)}
+                disabled={loading}
+                className='h-8 min-w-8 px-2 rounded border border-border text-xs font-semibold text-foreground disabled:opacity-40 disabled:cursor-not-allowed hover:border-primary transition-colors'
+              >
+                1
+              </button>
+              <span className='text-muted-foreground text-xs px-1'>...</span>
+            </>
+          )}
+          {visiblePages.map((pageNum) => (
+            <button
+              key={pageNum}
+              onClick={() => goToPage(pageNum)}
+              disabled={loading}
+              className={`h-8 min-w-8 px-2 rounded border text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                pageNum === activePage
+                  ? 'border-primary bg-primary/15 text-primary'
+                  : 'border-border text-foreground hover:border-primary'
+              }`}
+            >
+              {pageNum}
+            </button>
+          ))}
+          {pageEnd < totalPages && (
+            <>
+              <span className='text-muted-foreground text-xs px-1'>...</span>
+              <button
+                onClick={() => goToPage(totalPages)}
+                disabled={loading}
+                className='h-8 min-w-8 px-2 rounded border border-border text-xs font-semibold text-foreground disabled:opacity-40 disabled:cursor-not-allowed hover:border-primary transition-colors'
+              >
+                {totalPages}
+              </button>
+            </>
+          )}
+        </div>
       </div>
     </main>
   );
