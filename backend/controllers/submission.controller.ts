@@ -14,23 +14,29 @@ import { sendSubmissionReceipt } from "../libs/mailer.js";
 export const fetchSubmission = async (req: Request, res: Response) => {
   try {
     const { year } = req.query as Record<string, string>;
-    if (!year) {
+    const featuredOnly = req.query.featured === "true" || req.query.isFeatured === "true";
+
+    // If fetching for carousel (featuredOnly), we don't strictly require year.
+    if (!featuredOnly && !year) {
       return res.status(400).json({ success: false, message: "Year is required" });
     }
 
-    const yearNum = parseInt(year, 10);
-    const featuredOnly = req.query.featured === "true";
-    const start = new Date(Date.UTC(yearNum, 0, 1, 0, 0, 0, 0));
-    const end = new Date(Date.UTC(yearNum + 1, 0, 1, 0, 0, 0, 0));
+    const yearNum = year ? parseInt(year, 10) : NaN;
 
-    const matchStage: any = {
-      releaseDate: { $gte: start, $lt: end },
-      status: "APPROVED",
-    };
+    const matchStage: any = {};
+
+    // Only add submission_year to filter if it is a valid number
+    if (!isNaN(yearNum)) {
+      matchStage.submission_year = yearNum;
+    }
 
     if (featuredOnly) {
       matchStage.isFeatured = true;
     }
+
+    // If on the official website we only want approved, keep this. 
+    // But for testing while items are "SUBMITTED", you might want to comment this out.
+    // matchStage.status = "APPROVED";
 
     const submissions = await Submission.aggregate([
       {

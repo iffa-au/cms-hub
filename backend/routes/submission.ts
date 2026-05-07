@@ -23,7 +23,8 @@ router.get("/fetchSubmission", fetchSubmission);
 router.get("/fetchWinner", fetchWinner);
 router.get("/fetchWinnerDetailed", fetchWinnerDetailed);
 router.get("/", (req, res, next) => {
-  if (req.query.year) {
+  // If year or featured=true or isFeatured=true is provided, it's a public fetch
+  if (req.query.year || req.query.featured === "true" || req.query.isFeatured === "true") {
     return fetchSubmission(req, res);
   }
   next();
