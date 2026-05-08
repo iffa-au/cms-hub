@@ -1,7 +1,76 @@
+import { Request, Response } from "express";
 import Nomination from "../models/nomination.model.js";
 import Submission from "../models/submission.model.js";
 import { Types } from "mongoose";
 
+/**
+ * Public API: Fetches nominations for a specific year.
+ * Returns a simplified structure (id, title, images, directors) designed for the IFFA website.
+ * Used by the Nominations page (e.g., /api/nominations?year=2024).
+ */
+export const fetchNomination = async (req: Request, res: Response) => {
+  try {
+    const { year } = req.query as Record<string, string>;
+    if (!year) {
+      return res.status(400).json({ success: false, message: "Year is required" });
+    }
+
+    const yearNum = parseInt(year, 10);
+    const nominations = await Nomination.aggregate([
+      { $match: { year: yearNum } },
+      {
+        $lookup: {
+          from: "submissions",
+          localField: "submissionId",
+          foreignField: "_id",
+          as: "submission",
+        },
+      },
+      { $unwind: "$submission" },
+      {
+        $lookup: {
+          from: "crewassignments",
+          localField: "submissionId",
+          foreignField: "submissionId",
+          as: "crewAssignments",
+        },
+      },
+      {
+        $lookup: {
+          from: "crewmembers",
+          localField: "crewAssignments.crewMemberId",
+          foreignField: "_id",
+          as: "crewMembers",
+        },
+      },
+      {
+        $project: {
+          id: "$submission._id",
+          title: "$submission.title",
+          portraitImageUrl: "$submission.potraitImageUrl",
+          landscapeImageUrl: "$submission.landscapeImageUrl",
+          directors: {
+             $map: {
+               input: "$crewMembers",
+               as: "cm",
+               in: "$$cm.name"
+             }
+          }
+        },
+      },
+    ]);
+
+    res.status(200).json(nominations);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+/**
+ * Admin API: Lists nominations with full metadata and pagination.
+ * Used by the CMS Dashboard for management (viewing/editing).
+ */
 export const getNominations = async (req, res) => {
   try {
     const {

@@ -1,3 +1,4 @@
+import { Request, Response } from "express";
 import Submission from "../models/submission.model.js";
 import type { AuthedRequest } from "../middlewares/auth.middleware.js";
 import { Types } from "mongoose";
@@ -5,6 +6,216 @@ import SubmissionGenre from "../models/submissionGenre.model.js";
 import { sendSubmissionReceipt } from "../libs/mailer.js";
 
 // Delete a submission (admin/staff). Removes related mappings and nominations.
+/**
+ * Public API: Fetches submissions for a specific release year.
+ * Returns simplified film data (title, images, directors) matching the structure expected by the website.
+ * Used by the Submissions page (e.g., /api/submissions?year=2024).
+ */
+export const fetchSubmission = async (req: Request, res: Response) => {
+  try {
+    const { year } = req.query as Record<string, string>;
+    const featuredOnly = req.query.featured === "true" || req.query.isFeatured === "true";
+
+    // If fetching for carousel (featuredOnly), we don't strictly require year.
+    if (!featuredOnly && !year) {
+      return res.status(400).json({ success: false, message: "Year is required" });
+    }
+
+    const yearNum = year ? parseInt(year, 10) : NaN;
+
+    const matchStage: any = {};
+
+    // Only add submission_year to filter if it is a valid number
+    if (!isNaN(yearNum)) {
+      matchStage.submission_year = yearNum;
+    }
+
+    if (featuredOnly) {
+      matchStage.isFeatured = true;
+    }
+
+    // If on the official website we only want approved, keep this. 
+    // But for testing while items are "SUBMITTED", you might want to comment this out.
+    // matchStage.status = "APPROVED";
+
+    const submissions = await Submission.aggregate([
+      {
+        $match: matchStage,
+      },
+      {
+        $lookup: {
+          from: "crewassignments",
+          localField: "_id",
+          foreignField: "submissionId",
+          as: "crewAssignments",
+        },
+      },
+      {
+        $lookup: {
+          from: "crewmembers",
+          localField: "crewAssignments.crewMemberId",
+          foreignField: "_id",
+          as: "crewMembers",
+        },
+      },
+      {
+        $project: {
+          id: "$_id",
+          title: 1,
+          portraitImageUrl: "$potraitImageUrl",
+          landscapeImageUrl: "$landscapeImageUrl",
+          directors: {
+            $map: {
+              input: "$crewMembers",
+              as: "cm",
+              in: "$$cm.name",
+            },
+          },
+        },
+      },
+    ]);
+
+    res.status(200).json(submissions);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+/**
+ * Public API: Fetches winners for a specific year.
+ * Returns simplified film data (id, title, images, directors) designed for the IFFA website.
+ * Used by the Winners page (e.g., /api/submissions/fetchWinner?year=2024).
+ */
+export const fetchWinner = async (req: Request, res: Response) => {
+  try {
+    const { year } = req.query as Record<string, string>;
+    if (!year) {
+      return res.status(400).json({ success: false, message: "Year is required" });
+    }
+
+    const yearNum = parseInt(year, 10);
+    const Nomination = (await import("../models/nomination.model.js")).default;
+    
+    const winners = await Nomination.aggregate([
+      { 
+        $match: { 
+          year: yearNum,
+          isWinner: true 
+        } 
+      },
+      {
+        $lookup: {
+          from: "submissions",
+          localField: "submissionId",
+          foreignField: "_id",
+          as: "submission",
+        },
+      },
+      { $unwind: "$submission" },
+      {
+        $lookup: {
+          from: "crewassignments",
+          localField: "submissionId",
+          foreignField: "submissionId",
+          as: "crewAssignments",
+        },
+      },
+      {
+        $lookup: {
+          from: "crewmembers",
+          localField: "crewAssignments.crewMemberId",
+          foreignField: "_id",
+          as: "crewMembers",
+        },
+      },
+      {
+        $project: {
+          id: "$submission._id",
+          title: "$submission.title",
+          portraitImageUrl: "$submission.potraitImageUrl",
+          landscapeImageUrl: "$submission.landscapeImageUrl",
+          directors: {
+            $map: {
+              input: "$crewMembers",
+              as: "cm",
+              in: "$$cm.name",
+            },
+          },
+        },
+      },
+    ]);
+
+    res.status(200).json(winners);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+/**
+ * Public API: Fetches detailed winner information including category.
+ * Used by the Cast/Detailed Winners page (e.g., /api/submissions/fetchWinnerDetailed?year=2024).
+ */
+export const fetchWinnerDetailed = async (req: Request, res: Response) => {
+  try {
+    const { year } = req.query as Record<string, string>;
+    if (!year) {
+      return res.status(400).json({ success: false, message: "Year is required" });
+    }
+
+    const yearNum = parseInt(year, 10);
+    const Nomination = (await import("../models/nomination.model.js")).default;
+
+    const detailedWinners = await Nomination.aggregate([
+      { 
+        $match: { 
+          year: yearNum,
+          isWinner: true 
+        } 
+      },
+      {
+        $lookup: {
+          from: "submissions",
+          localField: "submissionId",
+          foreignField: "_id",
+          as: "submission",
+        },
+      },
+      { $unwind: "$submission" },
+      {
+        $lookup: {
+          from: "awardcategories",
+          localField: "awardCategoryId",
+          foreignField: "_id",
+          as: "awardCategory",
+        },
+      },
+      { $unwind: { path: "$awardCategory", preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          id: "$submission._id",
+          editionYear: "$year",
+          contentId: "$submission._id",
+          title: "$submission.title",
+          portraitImageUrl: "$submission.potraitImageUrl",
+          awardCategoryId: "$awardCategory._id",
+          awardCategoryName: "$awardCategory.name",
+        },
+      },
+    ]);
+
+    res.status(200).json(detailedWinners);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+/**
+ * Admin API: Deletes a submission and cascades removal of related data (genres, nominations, etc.).
+ * Restricted to authenticated Admin/Staff only.
+ */
 export const deleteSubmission = async (req: AuthedRequest, res) => {
   try {
     const { id } = req.params;
@@ -409,20 +620,25 @@ export const getMySubmissions = async (req: AuthedRequest, res) => {
   }
 };
 
-export const getSubmission = async (req, res) => {
+/**
+ * Public API: Fetches full details for a specific submission (movie) by ID.
+ * Returns the object directly (no 'data' wrapper) as expected by SynopsisPage.jsx.
+ * Includes populated genres and the internal crew object for display.
+ */
+export const getSubmission = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    if (!Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid ID" });
+    }
     const item = await Submission.findById(id).populate("genreIds");
     if (!item) {
       return res
         .status(404)
         .json({ success: false, message: "Submission not found" });
     }
-    res.status(200).json({
-      success: true,
-      message: "Submission fetched successfully",
-      data: item,
-    });
+    // Return the object directly for the Synopsis component
+    res.status(200).json(item);
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: "Internal server error" });
