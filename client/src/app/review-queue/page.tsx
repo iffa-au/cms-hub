@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { getData, patchData } from '@/lib/fetch-util';
 import { useRouter } from 'next/navigation';
 import DownloadPdfButton from '@/components/review-queue/download-pdf-button';
+import DownloadAllPdfButton from '@/components/review-queue/download-all-pdf-button';
 
 type Submission = {
   _id: string;
@@ -47,7 +48,7 @@ export default function ReviewQueuePage() {
     return fallback;
   };
 
-  const load = useCallback(async (q?: string) => {
+  const load = useCallback(async (q: string, page: number) => {
     try {
       setLoading(true);
       setError(null);
@@ -57,17 +58,15 @@ export default function ReviewQueuePage() {
       if (safeQuery) parts.push(`q=${encodeURIComponent(safeQuery)}`);
       const res = await getData<ListResponse>(`/submissions?${parts.join('&')}`);
       setItems(res?.data ?? []);
-      setPageMeta(res?.meta ?? null);
+      const meta = res?.meta ?? { page: safePage, limit: PAGE_LIMIT, total: res?.data?.length ?? 0 };
+      setPageMeta(meta);
+      setCurrentPage(meta.page);
     } catch (e: unknown) {
       setError(getErrorMessage(e, 'Failed to load submissions'));
     } finally {
       setLoading(false);
     }
   }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
 
   useEffect(() => {
     void load('', 1);
