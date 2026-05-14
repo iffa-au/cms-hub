@@ -35,6 +35,7 @@ type LoadOverrides = {
   countryId?: string;
   languageId?: string;
   year?: string;
+  page?: number;
 };
 
 export default function SubmissionsPage() {
@@ -56,6 +57,7 @@ export default function SubmissionsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pageMeta, setPageMeta] = useState<{ page: number; limit: number; total: number } | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const yearOptions = useMemo(() => {
     const currentYear = new Date().getFullYear();
@@ -94,7 +96,8 @@ export default function SubmissionsPage() {
     try {
       setLoading(true);
       setError(null);
-      const parts = [`page=1`, `limit=20`];
+      const page = overrides.page ?? 1;
+      const parts = [`page=${page}`, `limit=20`];
       const s = overrides.status ?? statusFilter;
       const q = overrides.q ?? query;
       const contentTypeIds = overrides.contentTypeIds ?? selectedContentTypeIds;
@@ -116,6 +119,7 @@ export default function SubmissionsPage() {
       const res = await getData<ListResponse>(`/submissions?${parts.join('&')}`);
       setItems(res?.data ?? []);
       setPageMeta(res?.meta ?? null);
+      setCurrentPage(page);
     } catch (e: any) {
       setError(e?.message || 'Failed to load submissions');
     } finally {
@@ -153,9 +157,10 @@ export default function SubmissionsPage() {
     };
   }, []);
 
-  const showingStart = items.length === 0 ? 0 : 1;
-  const showingEnd = items.length;
+  const showingStart = items.length === 0 ? 0 : (currentPage - 1) * 20 + 1;
+  const showingEnd = items.length === 0 ? 0 : (currentPage - 1) * 20 + items.length;
   const total = pageMeta?.total ?? items.length;
+  const totalPages = pageMeta ? Math.ceil(pageMeta.total / pageMeta.limit) : 1;
 
   async function remove(id: string) {
     if (!id) return;
@@ -532,11 +537,34 @@ export default function SubmissionsPage() {
           {`SHOWING ${showingStart}-${showingEnd} OF ${total} SUBMISSIONS`}
         </span>
         <div className='flex space-x-2'>
-          <button className='w-8 h-8 rounded border border-border flex items-center justify-center text-muted-foreground hover:text-primary transition-colors'>‹</button>
-          <button className='w-8 h-8 rounded bg-primary text-black font-bold text-xs'>1</button>
-          <button className='w-8 h-8 rounded border border-border flex items-center justify-center text-muted-foreground hover:text-primary transition-colors text-xs font-bold'>2</button>
-          <button className='w-8 h-8 rounded border border-border flex items-center justify-center text-muted-foreground hover:text-primary transition-colors text-xs font-bold'>3</button>
-          <button className='w-8 h-8 rounded border border-border flex items-center justify-center text-muted-foreground hover:text-primary transition-colors'>›</button>
+          <button
+            onClick={() => void load({ page: currentPage - 1 })}
+            disabled={currentPage <= 1 || loading}
+            className='w-8 h-8 rounded border border-border flex items-center justify-center text-muted-foreground hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed'
+          >
+            ‹
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+            <button
+              key={p}
+              onClick={() => void load({ page: p })}
+              disabled={loading}
+              className={`w-8 h-8 rounded text-xs font-bold transition-colors disabled:cursor-not-allowed ${
+                p === currentPage
+                  ? 'bg-primary text-black'
+                  : 'border border-border text-muted-foreground hover:text-primary'
+              }`}
+            >
+              {p}
+            </button>
+          ))}
+          <button
+            onClick={() => void load({ page: currentPage + 1 })}
+            disabled={currentPage >= totalPages || loading}
+            className='w-8 h-8 rounded border border-border flex items-center justify-center text-muted-foreground hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed'
+          >
+            ›
+          </button>
         </div>
       </div>
     </main>
