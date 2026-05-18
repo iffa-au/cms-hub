@@ -47,8 +47,10 @@ app.use(
       // allow if origin is in the computed allowlist
       const ok = effectiveAllowlist.includes(origin);
 
-      if (!ok)
-        return cb(new Error(`CORS blocked for origin: ${origin}`), false);
+      if (!ok) {
+        console.error(`CORS blocked for origin: ${origin}`);
+        return cb(null, false);
+      }
       return cb(null, true);
     },
     credentials: true, // keep true if you use cookies/session
