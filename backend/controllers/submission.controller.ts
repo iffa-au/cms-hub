@@ -627,7 +627,7 @@ export const getMySubmissions = async (req: AuthedRequest, res) => {
  */
 export const getSubmission = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = String(req.params?.id || "");
     if (!Types.ObjectId.isValid(id)) {
       return res.status(400).json({ success: false, message: "Invalid ID" });
     }
@@ -647,7 +647,10 @@ export const getSubmission = async (req: Request, res: Response) => {
 
 export const getSubmissionOverview = async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = String(req.params?.id || "");
+    if (!Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid ID" });
+    }
     const expand = String((req.query?.expand as string) || "").toLowerCase();
     const includeCrew = expand.split(",").includes("crew");
     const includeMeta = expand.split(",").includes("meta");
