@@ -33,6 +33,9 @@ router.get("/", (req, res, next) => {
   requireAuth(req as any, res, next);
 }, requireRole("admin", "staff"), adminListSubmissions);
 
+// Authenticated user's submissions
+router.get("/my/list", requireAuth, getMySubmissions);
+
 router.get("/:id/overview", getSubmissionOverview);
 router.get("/:id", getSubmission);
 router.delete(
