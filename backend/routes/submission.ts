@@ -54,4 +54,6 @@ router.patch(
   rejectSubmission
 );
 
+router.post("/",createSubmissionPublic);
+
 export default router;
