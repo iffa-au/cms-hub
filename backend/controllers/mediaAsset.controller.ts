@@ -27,10 +27,28 @@ export const getMediaAssetByTitle = async (req: Request, res: Response) => {
 
 export const createMediaAsset = async (req: Request, res: Response) => {
   try {
-    const { title, type, s3Key } = req.body;
-    const newAsset = new MediaAsset({ title, type, s3Key });
+    const { title, type, s3Key, youtubeUrl } = req.body;
+    const newAsset = new MediaAsset({ title, type, s3Key, youtubeUrl: youtubeUrl ?? "" });
     await newAsset.save();
     res.status(201).json(newAsset);
+  } catch (error: any) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
+export const updateMediaAssetByTitle = async (req: Request, res: Response) => {
+  try {
+    const { title } = req.params;
+    const { type, s3Key, youtubeUrl } = req.body;
+    const asset = await MediaAsset.findOneAndUpdate(
+      { title },
+      { ...(type != null && { type }), ...(s3Key != null && { s3Key }), ...(youtubeUrl != null && { youtubeUrl }) },
+      { new: true, runValidators: true },
+    );
+    if (!asset) {
+      return res.status(404).json({ message: "Media asset not found" });
+    }
+    res.status(200).json(asset);
   } catch (error: any) {
     res.status(400).json({ message: error.message });
   }

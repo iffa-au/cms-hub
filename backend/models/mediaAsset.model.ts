@@ -23,7 +23,7 @@ const mediaAssetSchema = new Schema<IMediaAsset>({
   },
   youtubeUrl: {
     type: String,
-    required: true,
+    default: "",
   },
 }, {
   timestamps: true,
