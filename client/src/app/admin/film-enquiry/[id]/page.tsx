@@ -22,6 +22,8 @@ type FilmEnquiryItem = {
   genreIds?: PopulatedRef[] | { _id: string; name?: string }[];
   country: PopulatedRef;
   language: PopulatedRef;
+  releaseCountryIds?: PopulatedRef[];
+  watchFormats?: string[];
   createdAt?: string;
   updatedAt?: string;
 };
@@ -29,6 +31,14 @@ type FilmEnquiryItem = {
 const LABEL =
   "text-accent-foreground text-xs font-bold uppercase tracking-widest";
 const VALUE = "text-foreground mt-1";
+
+const WATCH_FORMAT_LABELS: Record<string, string> = {
+  theatrical: "Theatrical",
+  ott: "OTT / Streaming",
+  tv: "TV",
+  festival: "Festival only",
+  other: "Other",
+};
 
 export default function FilmEnquiryDetailPage() {
   const params = useParams<{ id: string }>();
@@ -195,8 +205,25 @@ export default function FilmEnquiryDetailPage() {
               </p>
             </div>
             <div>
-              <p className={LABEL}>Country</p>
+              <p className={LABEL}>Country of origin</p>
               <p className={VALUE}>{item.country?.name ?? "—"}</p>
+            </div>
+            <div>
+              <p className={LABEL}>Countries of release</p>
+              <p className={VALUE}>
+                {(Array.isArray(item.releaseCountryIds) ? item.releaseCountryIds : [])
+                  .map((c) => c?.name)
+                  .filter(Boolean)
+                  .join(", ") || "—"}
+              </p>
+            </div>
+            <div>
+              <p className={LABEL}>Watch formats</p>
+              <p className={VALUE}>
+                {(item.watchFormats || [])
+                  .map((format) => WATCH_FORMAT_LABELS[format] || format)
+                  .join(", ") || "—"}
+              </p>
             </div>
             <div>
               <p className={LABEL}>Language</p>
@@ -212,7 +239,7 @@ export default function FilmEnquiryDetailPage() {
           </section>
 
           <section>
-            <p className={LABEL}>Trailer URL</p>
+            <p className={LABEL}>Trailer download URL</p>
             <p className={VALUE}>
               {item.trailerUrl ? (
                 <a

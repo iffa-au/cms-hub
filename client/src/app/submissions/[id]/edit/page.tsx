@@ -8,6 +8,28 @@ const INPUT =
   'w-full bg-[#0a0a0a] border border-[#393528] rounded px-4 py-3 text-white placeholder-[#544e3b] focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all mt-2';
 const LABEL = 'text-accent-foreground text-xs font-bold uppercase tracking-widest';
 
+const WATCH_FORMAT_LABELS: Record<string, string> = {
+  theatrical: 'Theatrical',
+  ott: 'OTT / Streaming',
+  tv: 'TV',
+  festival: 'Festival only',
+  other: 'Other',
+};
+
+function formatSubmittedAt(value?: string) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).format(date);
+}
+
 type MetaItem = { _id: string; name: string; description?: string };
 type SubmissionDetail = {
   _id: string;
@@ -24,6 +46,11 @@ type SubmissionDetail = {
   genreIds?: string[] | { _id: string; name?: string }[];
   productionHouse?: string;
   distributor?: string;
+  releaseCountryIds?: string[];
+  watchFormats?: string[];
+  notes?: string;
+  createdAt?: string;
+  releaseCountries?: Array<{ _id: string; name: string }>;
   crew?: {
     actors: Array<{ fullName: string; role: string; imageUrl?: string; instagramUrl?: string; biography?: string }>;
     directors: Array<{ fullName: string; role: string; imageUrl?: string; instagramUrl?: string; biography?: string }>;
@@ -62,6 +89,10 @@ export default function EditSubmissionPage() {
   const [genreIds, setGenreIds] = useState<string[]>([]);
   const [productionHouse, setProductionHouse] = useState<string>('');
   const [distributor, setDistributor] = useState<string>('');
+  const [notes, setNotes] = useState<string>('');
+  const [watchFormats, setWatchFormats] = useState<string[]>([]);
+  const [releaseCountries, setReleaseCountries] = useState<MetaItem[]>([]);
+  const [submittedAt, setSubmittedAt] = useState<string>('');
   const [proposedCrew, setProposedCrew] = useState<NonNullable<SubmissionDetail['crew']>>({
     actors: [],
     directors: [],
@@ -98,6 +129,14 @@ export default function EditSubmissionPage() {
             setContentTypeId(d.contentType?._id || d.contentTypeId || '');
             setProductionHouse(d.productionHouse || '');
             setDistributor(d.distributor || '');
+            setNotes(d.notes || '');
+            setWatchFormats(Array.isArray(d.watchFormats) ? d.watchFormats : []);
+            setReleaseCountries(
+              Array.isArray(d.releaseCountries)
+                ? d.releaseCountries.map((c: { _id: string; name: string }) => ({ _id: c._id, name: c.name }))
+                : [],
+            );
+            setSubmittedAt(d.createdAt || '');
             const genreIdList =
               Array.isArray(d.genres) && d.genres.length > 0
                 ? d.genres.map((g: any) => g?._id).filter(Boolean)
@@ -212,6 +251,34 @@ export default function EditSubmissionPage() {
         <p className='text-[#bab29c] text-lg font-light max-w-2xl mb-4'>
           Update details for the film submission.
         </p>
+
+        {(submittedAt || releaseCountries.length > 0 || watchFormats.length > 0 || notes) && (
+          <section className='rounded-xl border border-border bg-surface-dark/80 p-6 mb-8 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm'>
+            <div>
+              <p className={LABEL}>Submitted</p>
+              <p className='text-white mt-1'>{formatSubmittedAt(submittedAt)}</p>
+            </div>
+            <div>
+              <p className={LABEL}>Countries of Release</p>
+              <p className='text-white mt-1'>
+                {releaseCountries.length > 0 ? releaseCountries.map((c) => c.name).join(', ') : '—'}
+              </p>
+            </div>
+            <div>
+              <p className={LABEL}>Watch Formats</p>
+              <p className='text-white mt-1'>
+                {watchFormats.length > 0
+                  ? watchFormats.map((format) => WATCH_FORMAT_LABELS[format] || format).join(', ')
+                  : '—'}
+              </p>
+            </div>
+            <div className='md:col-span-2'>
+              <p className={LABEL}>Additional Notes</p>
+              <p className='text-white mt-1 whitespace-pre-wrap'>{notes || '—'}</p>
+            </div>
+          </section>
+        )}
+
         <form className='flex flex-col gap-10' onSubmit={handleSubmit}>
           <section className='rounded-xl border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50'>
             <div className='px-8 py-6 border-b border-border flex justify-between items-center bg-surface-dark'>
@@ -513,13 +580,13 @@ export default function EditSubmissionPage() {
               </div>
               <div className='space-y-2'>
                 <label htmlFor='trailerUrl' className={LABEL}>
-                  Trailer URL
+                  Trailer Download URL
                 </label>
                 <input
                   id='trailerUrl'
                   className={INPUT}
                   type='text'
-                  placeholder='Enter your trailer URL'
+                  placeholder='Direct download link for trailer'
                   value={trailerUrl}
                   onChange={(e) => setTrailerUrl(e.target.value)}
                 />

@@ -5,6 +5,36 @@ import { Types } from "mongoose";
 import SubmissionGenre from "../models/submissionGenre.model.js";
 import { sendSubmissionReceipt } from "../libs/mailer.js";
 
+const ALLOWED_WATCH_FORMATS = new Set([
+  "theatrical",
+  "ott",
+  "tv",
+  "festival",
+  "other",
+]);
+
+function normalizeObjectIdArray(value: unknown): Types.ObjectId[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((id) => String(id || "").trim())
+    .filter((id) => Types.ObjectId.isValid(id))
+    .map((id) => new Types.ObjectId(id));
+}
+
+function normalizeWatchFormats(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(
+    value
+      .map((v) => String(v || "").trim().toLowerCase())
+      .filter((v) => ALLOWED_WATCH_FORMATS.has(v)),
+  )];
+}
+
+function normalizeNotes(value: unknown): string {
+  if (value === undefined || value === null) return "";
+  return String(value).trim().slice(0, 1000);
+}
+
 // Delete a submission (admin/staff). Removes related mappings and nominations.
 /**
  * Public API: Fetches submissions for a specific release year.
@@ -357,6 +387,9 @@ export const createSubmissionPublic = async (req, res) => {
       contactEmail,
       productionHouse = "",
       distributor = "",
+      releaseCountryIds,
+      watchFormats,
+      notes = "",
     } = req.body || {};
 
     const providedGenreIds: string[] = Array.isArray(genreIds)
@@ -374,6 +407,21 @@ export const createSubmissionPublic = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "At least one genre (genreIds[]) is required",
+      });
+    }
+
+    const normalizedReleaseCountries = normalizeObjectIdArray(releaseCountryIds);
+    const normalizedWatchFormats = normalizeWatchFormats(watchFormats);
+    if (normalizedReleaseCountries.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "At least one release country (releaseCountryIds[]) is required",
+      });
+    }
+    if (normalizedWatchFormats.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "At least one watch format (watchFormats[]) is required",
       });
     }
 
@@ -423,6 +471,9 @@ export const createSubmissionPublic = async (req, res) => {
       crew: crewGroups,
       productionHouse: String(productionHouse || "").trim(),
       distributor: String(distributor || "").trim(),
+      releaseCountryIds: normalizedReleaseCountries,
+      watchFormats: normalizedWatchFormats,
+      notes: normalizeNotes(notes),
     });
     console.log("sending submission receipt email to", contactEmail);
     // Send submission receipt email (fire-and-forget; do not block response)
@@ -512,6 +563,9 @@ export const updateSubmission = async (req: AuthedRequest, res) => {
       genreIds,
       productionHouse,
       distributor,
+      releaseCountryIds,
+      watchFormats,
+      notes,
     } = req.body || {};
 
     const updates: Record<string, unknown> = {};
@@ -543,6 +597,27 @@ export const updateSubmission = async (req: AuthedRequest, res) => {
       updates.productionHouse = String(productionHouse || "").trim();
     if (distributor !== undefined)
       updates.distributor = String(distributor || "").trim();
+    if (releaseCountryIds !== undefined) {
+      const normalized = normalizeObjectIdArray(releaseCountryIds);
+      if (normalized.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: "At least one release country (releaseCountryIds[]) is required",
+        });
+      }
+      updates.releaseCountryIds = normalized;
+    }
+    if (watchFormats !== undefined) {
+      const normalized = normalizeWatchFormats(watchFormats);
+      if (normalized.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: "At least one watch format (watchFormats[]) is required",
+        });
+      }
+      updates.watchFormats = normalized;
+    }
+    if (notes !== undefined) updates.notes = normalizeNotes(notes);
 
     // Handle genres update if provided
     const updatingGenres = Array.isArray(genreIds);
@@ -686,6 +761,15 @@ export const getSubmissionOverview = async (req, res) => {
       },
       {
         $lookup: {
+          from: "countries",
+          localField: "releaseCountryIds",
+          foreignField: "_id",
+          as: "releaseCountries",
+          pipeline: [{ $project: { _id: 1, name: 1 } }],
+        },
+      },
+      {
+        $lookup: {
           from: "submissiongenres",
           localField: "_id",
           foreignField: "submissionId",
@@ -717,12 +801,22 @@ export const getSubmissionOverview = async (req, res) => {
           isFeatured: 1,
           productionHouse: 1,
           distributor: 1,
+          releaseCountryIds: 1,
+          watchFormats: 1,
+          notes: 1,
           crew: 1,
           createdAt: 1,
           updatedAt: 1,
           contentType: { $arrayElemAt: ["$contentType", 0] },
           language: { $arrayElemAt: ["$language", 0] },
           country: { $arrayElemAt: ["$country", 0] },
+          releaseCountries: {
+            $map: {
+              input: "$releaseCountries",
+              as: "c",
+              in: { _id: "$$c._id", name: "$$c.name" },
+            },
+          },
           genres: {
             $map: {
               input: "$genres",

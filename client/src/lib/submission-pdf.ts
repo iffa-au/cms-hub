@@ -32,6 +32,9 @@ export type SubmissionOverview = {
   contentType?: { _id: string; name: string };
   language?: { _id: string; name: string };
   country?: { _id: string; name: string };
+  releaseCountries?: Array<{ _id: string; name: string }>;
+  watchFormats?: string[];
+  notes?: string;
   genres?: Array<{ _id: string; name: string }>;
   crew?: {
     actors?: CrewEntry[];
@@ -45,6 +48,35 @@ export type SubmissionOverview = {
 export type SubmissionListRow = {
   title?: string;
   createdAt?: string;
+};
+
+const WATCH_FORMAT_LABELS: Record<string, string> = {
+  theatrical: 'Theatrical',
+  ott: 'OTT / Streaming',
+  tv: 'TV',
+  festival: 'Festival only',
+  other: 'Other',
+};
+
+const formatDateTime = (value?: string) => {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).format(date);
+};
+
+const formatWatchFormats = (formats?: string[]) => {
+  if (!formats || formats.length === 0) return '—';
+  return formats
+    .map((format) => WATCH_FORMAT_LABELS[format] || format)
+    .join(', ');
 };
 
 const formatDate = (value?: string) => {
@@ -187,7 +219,7 @@ export const buildSubmissionPdf = (doc: jsPDF, details: SubmissionOverview) => {
   addField('Production House', details.productionHouse || '—');
   addField('Distributor', details.distributor || '—');
   addLinkField('IMDB URL', details.imdbUrl);
-  addLinkField('Trailer URL', details.trailerUrl);
+  addLinkField('Trailer Download URL', details.trailerUrl);
   addLinkField('Portrait Image', details.potraitImageUrl);
   addLinkField('Landscape Image', details.landscapeImageUrl);
 
@@ -195,7 +227,14 @@ export const buildSubmissionPdf = (doc: jsPDF, details: SubmissionOverview) => {
   addSectionTitle('Metadata');
   addField('Content Type', valueOrDash(details.contentType?.name));
   addField('Primary Language', valueOrDash(details.language?.name));
-  addField('Country', valueOrDash(details.country?.name));
+  addField('Country of Origin', valueOrDash(details.country?.name));
+  addField(
+    'Countries of Release',
+    details.releaseCountries && details.releaseCountries.length > 0
+      ? details.releaseCountries.map((country) => valueOrDash(country.name)).join(', ')
+      : '—',
+  );
+  addField('Watch Formats', formatWatchFormats(details.watchFormats));
   addField(
     'Genres',
     details.genres && details.genres.length > 0
@@ -204,8 +243,12 @@ export const buildSubmissionPdf = (doc: jsPDF, details: SubmissionOverview) => {
   );
 
   y += 8;
+  addSectionTitle('Additional Notes');
+  addParagraph('Notes', details.notes);
+
+  y += 8;
   addSectionTitle('Submission Timeline');
-  addField('Submitted At', formatDate(details.createdAt));
+  addField('Submitted At', formatDateTime(details.createdAt));
   addField('Last Updated', formatDate(details.updatedAt));
 
   const crewGroups: Array<{ title: string; entries?: CrewEntry[] }> = [

@@ -13,6 +13,8 @@ export interface IFilmEnquiry {
   genreIds: Types.ObjectId[];
   country: Types.ObjectId;
   language: Types.ObjectId;
+  releaseCountryIds?: Types.ObjectId[];
+  watchFormats?: string[];
   trailerUrl: string;
   createdAt?: Date;
   updatedAt?: Date;
@@ -31,6 +33,14 @@ const filmEnquirySchema = new Schema<IFilmEnquiry>({
   genreIds: [{ type: Types.ObjectId, ref: "Genre" }],
   country: { type: Types.ObjectId, ref: "Country", required: true },
   language: { type: Types.ObjectId, ref: "Language", required: true },
+  releaseCountryIds: {
+    type: [{ type: Types.ObjectId, ref: "Country" }],
+    default: [],
+  },
+  watchFormats: {
+    type: [String],
+    default: [],
+  },
   trailerUrl: { type: String, required: true },
 }, { timestamps: true });
 

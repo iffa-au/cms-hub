@@ -13,6 +13,9 @@ export interface ISubmission {
   languageId: Types.ObjectId;
   countryId: Types.ObjectId;
   contentTypeId: Types.ObjectId;
+  releaseCountryIds?: Types.ObjectId[];
+  watchFormats?: string[];
+  notes?: string;
   imdbUrl?: string;
   trailerUrl?: string;
   genreIds: Types.ObjectId[];
@@ -95,6 +98,19 @@ const submissionSchema = new Schema<ISubmission>(
       type: Schema.Types.ObjectId,
       ref: "Country",
       required: true,
+    },
+    releaseCountryIds: {
+      type: [{ type: Schema.Types.ObjectId, ref: "Country" }],
+      default: [],
+    },
+    watchFormats: {
+      type: [String],
+      default: [],
+    },
+    notes: {
+      type: String,
+      default: "",
+      maxlength: 1000,
     },
     genreIds: {
       type: [{ type: Schema.Types.ObjectId, ref: "Genre" }],

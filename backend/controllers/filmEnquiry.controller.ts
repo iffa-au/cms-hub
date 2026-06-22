@@ -2,6 +2,31 @@ import { Types } from "mongoose";
 import FilmEnquiry from "../models/filmEnquiry.model.js";
 import { sendFilmEnquiryReceipt } from "../libs/mailer.js";
 
+const ALLOWED_WATCH_FORMATS = new Set([
+  "theatrical",
+  "ott",
+  "tv",
+  "festival",
+  "other",
+]);
+
+function normalizeObjectIdArray(value: unknown): Types.ObjectId[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((id) => String(id || "").trim())
+    .filter((id) => Types.ObjectId.isValid(id))
+    .map((id) => new Types.ObjectId(id));
+}
+
+function normalizeWatchFormats(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(
+    value
+      .map((v) => String(v || "").trim().toLowerCase())
+      .filter((v) => ALLOWED_WATCH_FORMATS.has(v)),
+  )];
+}
+
 const requiredRefFields = ["contentType", "country", "language"] as const;
 
 function isValidObjectId(value: unknown): value is string {
@@ -16,7 +41,7 @@ export const getFilmEnquiries = async (req, res) => {
   try {
     const items = await FilmEnquiry.find()
       .sort({ createdAt: -1 })
-      .populate("contentType genreIds country language");
+      .populate("contentType genreIds country language releaseCountryIds");
     res.status(200).json({
       success: true,
       message: "Film enquiries fetched successfully",
@@ -35,7 +60,7 @@ export const getFilmEnquiryById = async (req, res) => {
   try {
     const { id } = req.params;
     const item = await FilmEnquiry.findById(id).populate(
-      "contentType genreIds country language",
+      "contentType genreIds country language releaseCountryIds",
     );
     if (!item) {
       return res.status(404).json({
@@ -73,6 +98,8 @@ export const createFilmEnquiryPublic = async (req, res) => {
       genreIds,
       country,
       language,
+      releaseCountryIds,
+      watchFormats,
     } = req.body || {};
 
     const requiredStrings = [
@@ -132,6 +159,21 @@ export const createFilmEnquiryPublic = async (req, res) => {
       });
     }
 
+    const normalizedReleaseCountries = normalizeObjectIdArray(releaseCountryIds);
+    const normalizedWatchFormats = normalizeWatchFormats(watchFormats);
+    if (normalizedReleaseCountries.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "At least one release country (releaseCountryIds[]) is required",
+      });
+    }
+    if (normalizedWatchFormats.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "At least one watch format (watchFormats[]) is required",
+      });
+    }
+
     const filmEnquiry = await FilmEnquiry.create({
       name: String(name).trim(),
       email: String(email).trim(),
@@ -149,6 +191,8 @@ export const createFilmEnquiryPublic = async (req, res) => {
       genreIds: providedGenreIds,
       country,
       language,
+      releaseCountryIds: normalizedReleaseCountries,
+      watchFormats: normalizedWatchFormats,
     });
     await sendFilmEnquiryReceipt(email, {
       name,
@@ -218,6 +262,8 @@ export const updateFilmEnquiry = async (req, res) => {
       "genreIds",
       "country",
       "language",
+      "releaseCountryIds",
+      "watchFormats",
     ] as const;
     for (const key of allowed) {
       if (body[key] !== undefined) {
@@ -241,6 +287,24 @@ export const updateFilmEnquiry = async (req, res) => {
             });
           }
           updateFields[key] = arr;
+        } else if (key === "releaseCountryIds") {
+          const arr = normalizeObjectIdArray(body[key]);
+          if (arr.length === 0) {
+            return res.status(400).json({
+              success: false,
+              message: "releaseCountryIds must be a non-empty array of valid IDs",
+            });
+          }
+          updateFields[key] = arr;
+        } else if (key === "watchFormats") {
+          const arr = normalizeWatchFormats(body[key]);
+          if (arr.length === 0) {
+            return res.status(400).json({
+              success: false,
+              message: "watchFormats must include at least one valid option",
+            });
+          }
+          updateFields[key] = arr;
         } else if (
           requiredRefFields.includes(key as (typeof requiredRefFields)[number])
         ) {
@@ -259,7 +323,7 @@ export const updateFilmEnquiry = async (req, res) => {
     }
     const filmEnquiry = await FilmEnquiry.findByIdAndUpdate(id, updateFields, {
       new: true,
-    }).populate("contentType genreIds country language");
+    }).populate("contentType genreIds country language releaseCountryIds");
     if (!filmEnquiry) {
       return res.status(404).json({
         success: false,
