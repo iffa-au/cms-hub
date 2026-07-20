@@ -1,3 +1,7 @@
 .DS_Store
 */.DS_Store
 pnpm-lock.yaml
+
+CODEBASE_GUIDE.md
+env.development
+backend/.env.example
