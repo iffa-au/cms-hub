@@ -57,6 +57,8 @@ router.patch(
   rejectSubmission
 );
 
+router.put("/:id", requireAuth, updateSubmission);
+
 router.post("/",createSubmissionPublic);
 
 export default router;
