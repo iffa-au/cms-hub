@@ -8,6 +8,7 @@ import {
   adminListSubmissions,
   approveSubmission,
   rejectSubmission,
+  restoreSubmission,
   updateSubmission,
   deleteSubmission,
   fetchSubmission,
@@ -55,6 +56,12 @@ router.patch(
   requireAuth,
   requireRole("admin", "staff"),
   rejectSubmission
+);
+router.patch(
+  "/:id/restore",
+  requireAuth,
+  requireRole("admin", "staff"),
+  restoreSubmission
 );
 
 router.put("/:id", requireAuth, updateSubmission);

@@ -1138,3 +1138,27 @@ export const rejectSubmission = async (req, res) => {
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
+
+export const restoreSubmission = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updated = await Submission.findByIdAndUpdate(
+      id,
+      { $set: { status: "SUBMITTED" } },
+      { new: true },
+    );
+    if (!updated) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Submission not found" });
+    }
+    res.status(200).json({
+      success: true,
+      message: "Submission restored",
+      data: updated,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};

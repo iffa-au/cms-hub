@@ -160,7 +160,15 @@ export default function ViewSubmissionPage() {
   };
 
   const goBack = () => {
-    router.push(from === 'review-queue' ? '/review-queue' : '/dashboard');
+    if (from === 'review-queue') {
+      router.push('/review-queue');
+      return;
+    }
+    if (from === 'archive') {
+      router.push('/review-queue/archive');
+      return;
+    }
+    router.push('/dashboard');
   };
 
   // Tolerate the crew-assignment array shape the API returns when `expand=crew` is used.

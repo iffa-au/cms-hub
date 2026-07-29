@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getData, patchData } from '@/lib/fetch-util';
 import { useRouter } from 'next/navigation';
-import DownloadAllPdfButton from '@/components/review-queue/download-all-pdf-button';
 
 type Submission = {
   _id: string;
@@ -38,17 +37,16 @@ const formatSubmittedAt = (value?: string) => {
   }).format(date);
 };
 
-export default function ReviewQueuePage() {
+export default function ArchivePage() {
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [items, setItems] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
   const [pageMeta, setPageMeta] = useState<{ page: number; limit: number; total: number } | null>(null);
-  const [rejectingId, setRejectingId] = useState<string | null>(null);
-  const [rejectingTitle, setRejectingTitle] = useState<string | null>(null);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
+  const [restoringTitle, setRestoringTitle] = useState<string | null>(null);
 
   const getErrorMessage = (value: unknown, fallback: string) => {
     if (value instanceof Error && value.message) return value.message;
@@ -69,7 +67,7 @@ export default function ReviewQueuePage() {
       setError(null);
       const safePage = Math.max(page, 1);
       const safeQuery = q.trim();
-      const parts = [`page=${safePage}`, `limit=${PAGE_LIMIT}`, `status=SUBMITTED`];
+      const parts = [`page=${safePage}`, `limit=${PAGE_LIMIT}`, `status=REJECTED`];
       if (safeQuery) parts.push(`q=${encodeURIComponent(safeQuery)}`);
       const res = await getData<ListResponse>(`/submissions?${parts.join('&')}`);
       setItems(res?.data ?? []);
@@ -103,20 +101,12 @@ export default function ReviewQueuePage() {
     void load(query, targetPage);
   };
 
-  const approve = async (id: string) => {
+  const restore = async (id: string) => {
     try {
-      await patchData(`/submissions/${id}/approve`, {});
+      await patchData(`/submissions/${id}/restore`, {});
       await load(query, activePage);
-    } catch {
-      // ignore for now
-    }
-  };
-  const reject = async (id: string) => {
-    try {
-      await patchData(`/submissions/${id}/reject`, {});
-      await load(query, activePage);
-    } catch {
-      // ignore for now
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Failed to restore submission'));
     }
   };
 
@@ -124,20 +114,16 @@ export default function ReviewQueuePage() {
     <main className='flex-1 py-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full'>
       <div className='flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4'>
         <div>
-          <h1 className='font-serif text-3xl md:text-4xl text-white mb-2'>Review Queue</h1>
-          <p className='text-accent-foreground text-sm'>Pending submissions awaiting review.</p>
+          <h1 className='font-serif text-3xl md:text-4xl text-white mb-2'>Archive</h1>
+          <p className='text-accent-foreground text-sm'>Rejected submissions.</p>
         </div>
-        <div className='flex items-center gap-3'>
-          <button
-            onClick={() => router.push('/review-queue/archive')}
-            className='rounded-lg border border-border text-foreground px-4 py-2 text-xs font-bold tracking-widest hover:border-primary transition-colors'
-          >
-            ARCHIVE
-          </button>
-          <DownloadAllPdfButton query={query} onError={setActionError} />
-        </div>
+        <button
+          onClick={() => router.push('/review-queue')}
+          className='rounded-lg border border-border text-foreground px-4 py-2 text-xs font-bold tracking-widest hover:border-primary transition-colors'
+        >
+          BACK TO QUEUE
+        </button>
       </div>
-      {actionError && <p className='text-red-400 text-sm mb-4'>{actionError}</p>}
 
       {/* Search bar */}
       <div className='bg-card p-2 rounded border border-border mb-8 flex items-center gap-2'>
@@ -209,7 +195,7 @@ export default function ReviewQueuePage() {
             {!loading && !error && items.length === 0 && (
               <tr className='bg-card/60'>
                 <td className='px-4 py-6' colSpan={7}>
-                  <span className='text-muted-foreground text-sm'>No submissions found.</span>
+                  <span className='text-muted-foreground text-sm'>No rejected submissions found.</span>
                 </td>
               </tr>
             )}
@@ -251,25 +237,19 @@ export default function ReviewQueuePage() {
                     <td className='px-4 py-6 text-right'>
                       <div className='flex items-center justify-end space-x-3'>
                         <button
-                          onClick={() => router.push(`/submissions/${item._id}/view?from=review-queue`)}
+                          onClick={() => router.push(`/submissions/${item._id}/view?from=archive`)}
                           className='text-primary hover:text-foreground transition-colors text-[10px] font-bold tracking-widest'
                         >
                           VIEW
                         </button>
                         <button
-                          onClick={() => void approve(item._id)}
+                          onClick={() => {
+                            setRestoringId(item._id);
+                            setRestoringTitle(item.title);
+                          }}
                           className='text-green-500 hover:text-green-400 transition-colors text-[10px] font-bold tracking-widest'
                         >
-                          APPROVE
-                        </button>
-                        <button
-                          onClick={() => {
-                            setRejectingId(item._id);
-                            setRejectingTitle(item.title);
-                          }}
-                          className='text-red-500 hover:text-red-400 transition-colors text-[10px] font-bold tracking-widest'
-                        >
-                          REJECT
+                          RESTORE
                         </button>
                       </div>
                     </td>
@@ -326,29 +306,31 @@ export default function ReviewQueuePage() {
         </div>
       </div>
 
-      {rejectingId !== null && (
+      {restoringId !== null && (
         <div
           onClick={(e) => {
             if (e.target === e.currentTarget) {
-              setRejectingId(null);
-              setRejectingTitle(null);
+              setRestoringId(null);
+              setRestoringTitle(null);
             }
           }}
           className='fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center'
         >
           <div className='bg-card border border-border rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl'>
-            <h2 className='text-white font-serif text-xl font-bold mb-2'>Reject Submission</h2>
+            <h2 className='text-white font-serif text-xl font-bold mb-2'>Restore Submission</h2>
             <p className='text-foreground text-sm'>
-              Are you sure you want to reject:
+              Are you sure you want to restore:
               <br />
-              <span className='text-primary font-semibold'>{rejectingTitle}</span>
+              <span className='text-primary font-semibold'>{restoringTitle}</span>
             </p>
-            <p className='text-muted-foreground text-sm mt-2'>This action cannot be undone.</p>
+            <p className='text-muted-foreground text-sm mt-2'>
+              This will move the submission back to the review queue.
+            </p>
             <div className='flex justify-end gap-3 mt-6'>
               <button
                 onClick={() => {
-                  setRejectingId(null);
-                  setRejectingTitle(null);
+                  setRestoringId(null);
+                  setRestoringTitle(null);
                 }}
                 className='px-5 py-2.5 rounded border border-border text-foreground text-xs font-bold tracking-widest hover:border-primary transition-colors'
               >
@@ -356,13 +338,13 @@ export default function ReviewQueuePage() {
               </button>
               <button
                 onClick={() => {
-                  void reject(rejectingId);
-                  setRejectingId(null);
-                  setRejectingTitle(null);
+                  void restore(restoringId);
+                  setRestoringId(null);
+                  setRestoringTitle(null);
                 }}
-                className='px-5 py-2.5 rounded bg-red-600 hover:bg-red-500 text-white text-xs font-bold tracking-widest transition-colors'
+                className='px-5 py-2.5 rounded bg-green-600 hover:bg-green-500 text-white text-xs font-bold tracking-widest transition-colors'
               >
-                REJECT
+                RESTORE
               </button>
             </div>
           </div>
@@ -371,4 +353,3 @@ export default function ReviewQueuePage() {
     </main>
   );
 }
-
