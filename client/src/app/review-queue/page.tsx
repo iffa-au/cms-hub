@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getData, patchData } from '@/lib/fetch-util';
 import { useRouter } from 'next/navigation';
-import DownloadPdfButton from '@/components/review-queue/download-pdf-button';
 import DownloadAllPdfButton from '@/components/review-queue/download-all-pdf-button';
 
 type Submission = {
@@ -242,10 +241,16 @@ export default function ReviewQueuePage() {
                     <td className='px-4 py-6 text-right'>
                       <div className='flex items-center justify-end space-x-3'>
                         <button
+                          onClick={() => router.push(`/submissions/${item._id}/view?from=review-queue`)}
+                          className='text-primary hover:text-foreground transition-colors text-[10px] font-bold tracking-widest'
+                        >
+                          VIEW
+                        </button>
+                        <button
                           onClick={() => router.push(`/submissions/${item._id}/edit?from=review-queue`)}
                           className='text-primary hover:text-foreground transition-colors text-[10px] font-bold tracking-widest'
                         >
-                          DETAIL
+                          EDIT
                         </button>
                         <button
                           onClick={() => void approve(item._id)}
@@ -259,7 +264,6 @@ export default function ReviewQueuePage() {
                         >
                           REJECT
                         </button>
-                        <DownloadPdfButton submissionId={item._id} onError={setActionError} />
                       </div>
                     </td>
                   </tr>
