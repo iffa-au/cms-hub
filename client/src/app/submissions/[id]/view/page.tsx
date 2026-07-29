@@ -182,13 +182,21 @@ export default function ViewSubmissionPage() {
             <h1 className='font-serif text-3xl md:text-4xl text-white mb-2'>Film Details</h1>
             <p className='text-accent-foreground text-sm'>Submission details from the filmmaker.</p>
           </div>
-          <button
-            onClick={() => void onDownload()}
-            disabled={isDownloading || !details}
-            className='rounded-lg bg-primary text-primary-foreground px-4 py-2 text-xs font-bold tracking-widest hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity'
-          >
-            {isDownloading ? 'DOWNLOADING...' : 'DOWNLOAD PDF'}
-          </button>
+          <div className='flex items-center gap-3'>
+            <button
+              onClick={() => router.push(`/submissions/${id}/edit?from=${from || 'review-queue'}`)}
+              className='rounded-lg border border-border text-foreground px-4 py-2 text-xs font-bold tracking-widest hover:border-primary transition-colors'
+            >
+              EDIT
+            </button>
+            <button
+              onClick={() => void onDownload()}
+              disabled={isDownloading || !details}
+              className='rounded-lg bg-primary text-primary-foreground px-4 py-2 text-xs font-bold tracking-widest hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity'
+            >
+              {isDownloading ? 'DOWNLOADING...' : 'DOWNLOAD PDF'}
+            </button>
+          </div>
         </div>
 
         {error && <p className='text-red-400 text-sm mb-4'>{error}</p>}
