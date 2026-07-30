@@ -93,9 +93,18 @@ function UrlField({ label, value }: { label: string; value?: string }) {
   return (
     <div className='min-w-0'>
       <p className={LABEL}>{label}</p>
-      <p className={`${VALUE} truncate text-ellipsis`} title={text === '—' ? undefined : text}>
-        {text}
-      </p>
+      {text === '—' ? (
+        <p className={VALUE}>{text}</p>
+      ) : (
+        <a
+          href={text}
+          target='_blank'
+          rel='noopener noreferrer'
+          className={`${VALUE} break-all underline hover:text-primary transition-colors`}
+        >
+          {text}
+        </a>
+      )}
     </div>
   );
 }
