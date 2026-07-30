@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { getData, patchData } from '@/lib/fetch-util';
+import { getData } from '@/lib/fetch-util';
 import { useRouter } from 'next/navigation';
 import DownloadAllPdfButton from '@/components/review-queue/download-all-pdf-button';
 
@@ -47,8 +47,6 @@ export default function ReviewQueuePage() {
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [pageMeta, setPageMeta] = useState<{ page: number; limit: number; total: number } | null>(null);
-  const [rejectingId, setRejectingId] = useState<string | null>(null);
-  const [rejectingTitle, setRejectingTitle] = useState<string | null>(null);
 
   const getErrorMessage = (value: unknown, fallback: string) => {
     if (value instanceof Error && value.message) return value.message;
@@ -101,23 +99,6 @@ export default function ReviewQueuePage() {
     if (loading || targetPage === activePage || targetPage < 1 || targetPage > totalPages) return;
     setCurrentPage(targetPage);
     void load(query, targetPage);
-  };
-
-  const approve = async (id: string) => {
-    try {
-      await patchData(`/submissions/${id}/approve`, {});
-      await load(query, activePage);
-    } catch {
-      // ignore for now
-    }
-  };
-  const reject = async (id: string) => {
-    try {
-      await patchData(`/submissions/${id}/reject`, {});
-      await load(query, activePage);
-    } catch {
-      // ignore for now
-    }
   };
 
   return (
@@ -256,21 +237,6 @@ export default function ReviewQueuePage() {
                         >
                           VIEW
                         </button>
-                        <button
-                          onClick={() => void approve(item._id)}
-                          className='text-green-500 hover:text-green-400 transition-colors text-[10px] font-bold tracking-widest'
-                        >
-                          APPROVE
-                        </button>
-                        <button
-                          onClick={() => {
-                            setRejectingId(item._id);
-                            setRejectingTitle(item.title);
-                          }}
-                          className='text-red-500 hover:text-red-400 transition-colors text-[10px] font-bold tracking-widest'
-                        >
-                          REJECT
-                        </button>
                       </div>
                     </td>
                   </tr>
@@ -325,49 +291,6 @@ export default function ReviewQueuePage() {
           )}
         </div>
       </div>
-
-      {rejectingId !== null && (
-        <div
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setRejectingId(null);
-              setRejectingTitle(null);
-            }
-          }}
-          className='fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center'
-        >
-          <div className='bg-card border border-border rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl'>
-            <h2 className='text-white font-serif text-xl font-bold mb-2'>Reject Submission</h2>
-            <p className='text-foreground text-sm'>
-              Are you sure you want to reject:
-              <br />
-              <span className='text-primary font-semibold'>{rejectingTitle}</span>
-            </p>
-            <p className='text-muted-foreground text-sm mt-2'>This action cannot be undone.</p>
-            <div className='flex justify-end gap-3 mt-6'>
-              <button
-                onClick={() => {
-                  setRejectingId(null);
-                  setRejectingTitle(null);
-                }}
-                className='px-5 py-2.5 rounded border border-border text-foreground text-xs font-bold tracking-widest hover:border-primary transition-colors'
-              >
-                CANCEL
-              </button>
-              <button
-                onClick={() => {
-                  void reject(rejectingId);
-                  setRejectingId(null);
-                  setRejectingTitle(null);
-                }}
-                className='px-5 py-2.5 rounded bg-red-600 hover:bg-red-500 text-white text-xs font-bold tracking-widest transition-colors'
-              >
-                REJECT
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </main>
   );
 }
