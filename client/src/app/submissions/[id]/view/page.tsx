@@ -367,9 +367,14 @@ export default function ViewSubmissionPage() {
                                 <p className='text-muted-foreground mt-2 whitespace-pre-wrap'>{member.biography}</p>
                               ) : null}
                               {member.instagramUrl ? (
-                                <p className='text-muted-foreground text-xs mt-2 truncate' title={member.instagramUrl}>
+                                <a
+                                  href={member.instagramUrl}
+                                  target='_blank'
+                                  rel='noopener noreferrer'
+                                  className='text-muted-foreground text-xs mt-2 block break-all underline hover:text-primary transition-colors'
+                                >
                                   {member.instagramUrl}
-                                </p>
+                                </a>
                               ) : null}
                             </div>
                           ))}
