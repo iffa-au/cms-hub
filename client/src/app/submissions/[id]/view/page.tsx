@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { getData } from '@/lib/fetch-util';
+import { getData, patchData } from '@/lib/fetch-util';
 import {
   buildSubmissionPdf,
   sanitizeSubmissionFileName,
@@ -111,6 +111,8 @@ export default function ViewSubmissionPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
+  const [isRejectConfirmOpen, setIsRejectConfirmOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -159,6 +161,29 @@ export default function ViewSubmissionPage() {
     }
   };
 
+  const approve = async () => {
+    try {
+      setError(null);
+      setIsApproving(true);
+      await patchData(`/submissions/${id}/approve`, {});
+      router.push('/review-queue');
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Failed to approve submission'));
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
+  const reject = async () => {
+    try {
+      setError(null);
+      await patchData(`/submissions/${id}/reject`, {});
+      router.push('/review-queue');
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Failed to reject submission'));
+    }
+  };
+
   const goBack = () => {
     if (from === 'review-queue') {
       router.push('/review-queue');
@@ -204,6 +229,24 @@ export default function ViewSubmissionPage() {
             >
               {isDownloading ? 'DOWNLOADING...' : 'DOWNLOAD PDF'}
             </button>
+            {from === 'review-queue' && (
+              <>
+                <button
+                  onClick={() => void approve()}
+                  disabled={isApproving || !details}
+                  className='rounded-lg border border-green-500 text-green-500 px-4 py-2 text-xs font-bold tracking-widest hover:bg-green-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
+                >
+                  {isApproving ? 'APPROVING...' : 'APPROVE'}
+                </button>
+                <button
+                  onClick={() => setIsRejectConfirmOpen(true)}
+                  disabled={!details}
+                  className='rounded-lg border border-red-500 text-red-500 px-4 py-2 text-xs font-bold tracking-widest hover:bg-red-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
+                >
+                  REJECT
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -340,6 +383,42 @@ export default function ViewSubmissionPage() {
           </button>
         </div>
       </div>
+
+      {isRejectConfirmOpen && (
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsRejectConfirmOpen(false);
+          }}
+          className='fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center'
+        >
+          <div className='bg-card border border-border rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl'>
+            <h2 className='text-white font-serif text-xl font-bold mb-2'>Reject Submission</h2>
+            <p className='text-foreground text-sm'>
+              Are you sure you want to reject:
+              <br />
+              <span className='text-primary font-semibold'>{details?.title}</span>
+            </p>
+            <p className='text-muted-foreground text-sm mt-2'>This action cannot be undone.</p>
+            <div className='flex justify-end gap-3 mt-6'>
+              <button
+                onClick={() => setIsRejectConfirmOpen(false)}
+                className='px-5 py-2.5 rounded border border-border text-foreground text-xs font-bold tracking-widest hover:border-primary transition-colors'
+              >
+                CANCEL
+              </button>
+              <button
+                onClick={() => {
+                  setIsRejectConfirmOpen(false);
+                  void reject();
+                }}
+                className='px-5 py-2.5 rounded bg-red-600 hover:bg-red-500 text-white text-xs font-bold tracking-widest transition-colors'
+              >
+                REJECT
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
