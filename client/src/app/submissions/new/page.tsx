@@ -56,6 +56,8 @@ export default function NewSubmissionPage() {
   >(undefined);
   const [imdbUrl, setImdbUrl] = useState<string | undefined>(undefined);
   const [trailerUrl, setTrailerUrl] = useState<string | undefined>(undefined);
+  const [rating, setRating] = useState<string>("");
+  const [duration, setDuration] = useState<string>("");
   const [productionHouse, setProductionHouse] = useState<string>("");
   const [distributor, setDistributor] = useState<string>("");
   useEffect(() => {
@@ -93,10 +95,14 @@ export default function NewSubmissionPage() {
         releaseDate: dateEl?.value || "",
         potraitImageUrl: potraitImageUrl ?? "",
         landscapeImageUrl: landscapeImageUrl ?? "",
+        imdbUrl: imdbUrl ?? "",
+        trailerUrl: trailerUrl ?? "",
         languageId,
         countryId,
         contentTypeId,
         genreIds,
+        rating: (rating || "").trim(),
+        duration: (duration || "").trim(),
         productionHouse: productionHouse.trim(),
         distributor: distributor.trim(),
       };
@@ -415,6 +421,48 @@ export default function NewSubmissionPage() {
                   placeholder="Enter your trailer URL"
                   value={trailerUrl ?? ""}
                   onChange={(e) => setTrailerUrl(e.target.value)}
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* Classification */}
+          <section className="rounded-xl border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50">
+            <div className="px-8 py-6 border-b border-border flex justify-between items-center bg-surface-dark">
+              <div className="flex items-center gap-4">
+                <h3 className="text-white text-lg font-bold tracking-widest uppercase font-serif">
+                  Classification
+                </h3>
+              </div>
+            </div>
+            <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Content Rating */}
+              <div className="space-y-2">
+                <label htmlFor="rating" className={LABEL}>
+                  Content Rating
+                </label>
+                <input
+                  className={INPUT}
+                  type="text"
+                  id="rating"
+                  placeholder="e.g. PG, M, MA15+, R18+"
+                  value={rating}
+                  onChange={(e) => setRating(e.target.value)}
+                />
+              </div>
+
+              {/* Duration */}
+              <div className="space-y-2">
+                <label htmlFor="duration" className={LABEL}>
+                  Duration
+                </label>
+                <input
+                  className={INPUT}
+                  type="text"
+                  id="duration"
+                  placeholder="e.g. 1h 42m"
+                  value={duration}
+                  onChange={(e) => setDuration(e.target.value)}
                 />
               </div>
             </div>

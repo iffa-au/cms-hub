@@ -43,6 +43,8 @@ type SubmissionDetail = {
   contentTypeId: string;
   imdbUrl?: string;
   trailerUrl?: string;
+  rating?: string;
+  duration?: string;
   genreIds?: string[] | { _id: string; name?: string }[];
   productionHouse?: string;
   distributor?: string;
@@ -83,6 +85,8 @@ export default function EditSubmissionPage() {
   const [landscapeImageUrl, setLandscapeImageUrl] = useState<string>('');
   const [imdbUrl, setImdbUrl] = useState<string>('');
   const [trailerUrl, setTrailerUrl] = useState<string>('');
+  const [rating, setRating] = useState<string>('');
+  const [duration, setDuration] = useState<string>('');
   const [languageId, setLanguageId] = useState<string>('');
   const [countryId, setCountryId] = useState<string>('');
   const [contentTypeId, setContentTypeId] = useState<string>('');
@@ -124,6 +128,8 @@ export default function EditSubmissionPage() {
             setLandscapeImageUrl(d.landscapeImageUrl || '');
             setImdbUrl(d.imdbUrl || '');
             setTrailerUrl(d.trailerUrl || '');
+            setRating(d.rating || '');
+            setDuration(d.duration || '');
             setLanguageId(d.language?._id || d.languageId || '');
             setCountryId(d.country?._id || d.countryId || '');
             setContentTypeId(d.contentType?._id || d.contentTypeId || '');
@@ -176,6 +182,8 @@ export default function EditSubmissionPage() {
             setLandscapeImageUrl(d2.landscapeImageUrl || '');
             setImdbUrl(d2.imdbUrl || '');
             setTrailerUrl(d2.trailerUrl || '');
+            setRating(d2.rating || '');
+            setDuration(d2.duration || '');
             setLanguageId(d2.languageId || '');
             setCountryId(d2.countryId || '');
             setContentTypeId(d2.contentTypeId || '');
@@ -219,6 +227,8 @@ export default function EditSubmissionPage() {
         genreIds,
         imdbUrl,
         trailerUrl,
+        rating: rating.trim(),
+        duration: duration.trim(),
         productionHouse: productionHouse.trim(),
         distributor: distributor.trim(),
       };
@@ -589,6 +599,42 @@ export default function EditSubmissionPage() {
                   placeholder='Direct download link for trailer'
                   value={trailerUrl}
                   onChange={(e) => setTrailerUrl(e.target.value)}
+                />
+              </div>
+            </div>
+          </section>
+
+          <section className='rounded-xl border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50'>
+            <div className='px-8 py-6 border-b border-border flex justify-between items-center bg-surface-dark'>
+              <div className='flex items-center gap-4'>
+                <h3 className='text-white text-lg font-bold tracking-widest uppercase font-serif'>Classification</h3>
+              </div>
+            </div>
+            <div className='p-8 grid grid-cols-1 md:grid-cols-2 gap-8'>
+              <div className='space-y-2'>
+                <label htmlFor='rating' className={LABEL}>
+                  Content Rating
+                </label>
+                <input
+                  id='rating'
+                  className={INPUT}
+                  type='text'
+                  placeholder='e.g. PG, M, MA15+, R18+'
+                  value={rating}
+                  onChange={(e) => setRating(e.target.value)}
+                />
+              </div>
+              <div className='space-y-2'>
+                <label htmlFor='duration' className={LABEL}>
+                  Duration
+                </label>
+                <input
+                  id='duration'
+                  className={INPUT}
+                  type='text'
+                  placeholder='e.g. 1h 42m'
+                  value={duration}
+                  onChange={(e) => setDuration(e.target.value)}
                 />
               </div>
             </div>
