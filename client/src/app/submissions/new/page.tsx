@@ -58,6 +58,9 @@ export default function NewSubmissionPage() {
   const [trailerUrl, setTrailerUrl] = useState<string | undefined>(undefined);
   const [rating, setRating] = useState<string>("");
   const [duration, setDuration] = useState<string>("");
+  const [submissionYear, setSubmissionYear] = useState<string>(
+    String(new Date().getFullYear())
+  );
   const [productionHouse, setProductionHouse] = useState<string>("");
   const [distributor, setDistributor] = useState<string>("");
   useEffect(() => {
@@ -103,6 +106,7 @@ export default function NewSubmissionPage() {
         genreIds,
         rating: (rating || "").trim(),
         duration: (duration || "").trim(),
+        submissionYear: submissionYear.trim(),
         productionHouse: productionHouse.trim(),
         distributor: distributor.trim(),
       };
@@ -464,6 +468,25 @@ export default function NewSubmissionPage() {
                   value={duration}
                   onChange={(e) => setDuration(e.target.value)}
                 />
+              </div>
+
+              {/* Submission Year */}
+              <div className="space-y-2">
+                <label htmlFor="submissionYear" className={LABEL}>
+                  Submission Year<span className="text-primary">*</span>
+                </label>
+                <input
+                  className={INPUT}
+                  type="number"
+                  id="submissionYear"
+                  placeholder="e.g. 2026"
+                  value={submissionYear}
+                  onChange={(e) => setSubmissionYear(e.target.value)}
+                  required
+                />
+                <p className="text-xs text-[#8a845f]">
+                  Controls which event year this film appears under on the public site.
+                </p>
               </div>
             </div>
           </section>

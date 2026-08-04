@@ -45,6 +45,7 @@ type SubmissionDetail = {
   trailerUrl?: string;
   rating?: string;
   duration?: string;
+  submission_year?: number;
   genreIds?: string[] | { _id: string; name?: string }[];
   productionHouse?: string;
   distributor?: string;
@@ -87,6 +88,7 @@ export default function EditSubmissionPage() {
   const [trailerUrl, setTrailerUrl] = useState<string>('');
   const [rating, setRating] = useState<string>('');
   const [duration, setDuration] = useState<string>('');
+  const [submissionYear, setSubmissionYear] = useState<string>('');
   const [languageId, setLanguageId] = useState<string>('');
   const [countryId, setCountryId] = useState<string>('');
   const [contentTypeId, setContentTypeId] = useState<string>('');
@@ -130,6 +132,7 @@ export default function EditSubmissionPage() {
             setTrailerUrl(d.trailerUrl || '');
             setRating(d.rating || '');
             setDuration(d.duration || '');
+            setSubmissionYear(d.submission_year != null ? String(d.submission_year) : '');
             setLanguageId(d.language?._id || d.languageId || '');
             setCountryId(d.country?._id || d.countryId || '');
             setContentTypeId(d.contentType?._id || d.contentTypeId || '');
@@ -184,6 +187,7 @@ export default function EditSubmissionPage() {
             setTrailerUrl(d2.trailerUrl || '');
             setRating(d2.rating || '');
             setDuration(d2.duration || '');
+            setSubmissionYear(d2.submission_year != null ? String(d2.submission_year) : '');
             setLanguageId(d2.languageId || '');
             setCountryId(d2.countryId || '');
             setContentTypeId(d2.contentTypeId || '');
@@ -229,6 +233,9 @@ export default function EditSubmissionPage() {
         trailerUrl,
         rating: rating.trim(),
         duration: duration.trim(),
+        // Omit when blank so admins can save unrelated edits on older
+        // submissions without being forced to backfill this first.
+        ...(submissionYear.trim() ? { submissionYear: submissionYear.trim() } : {}),
         productionHouse: productionHouse.trim(),
         distributor: distributor.trim(),
       };
@@ -636,6 +643,22 @@ export default function EditSubmissionPage() {
                   value={duration}
                   onChange={(e) => setDuration(e.target.value)}
                 />
+              </div>
+              <div className='space-y-2'>
+                <label htmlFor='submissionYear' className={LABEL}>
+                  Submission Year
+                </label>
+                <input
+                  id='submissionYear'
+                  className={INPUT}
+                  type='number'
+                  placeholder='e.g. 2026'
+                  value={submissionYear}
+                  onChange={(e) => setSubmissionYear(e.target.value)}
+                />
+                <p className='text-xs text-[#8a845f]'>
+                  Controls which event year this film appears under on the public site (e.g. /events/2026/submissions). Leave blank only if intentionally hidden from every year.
+                </p>
               </div>
             </div>
           </section>
