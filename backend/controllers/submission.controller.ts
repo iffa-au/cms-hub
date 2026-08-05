@@ -35,10 +35,41 @@ function normalizeNotes(value: unknown): string {
   return String(value).trim().slice(0, 1000);
 }
 
+// Sentinel distinguishing "field not provided" (undefined) from
+// "field provided but out of range / not a whole number" (INVALID_DURATION).
+const INVALID_DURATION = Symbol("invalid-duration");
+
+function parseDurationPart(
+  value: unknown,
+  max: number,
+): number | undefined | typeof INVALID_DURATION {
+  if (value === undefined || value === null || value === "") return undefined;
+  const num = Number(value);
+  if (!Number.isInteger(num) || num < 0 || num > max) return INVALID_DURATION;
+  return num;
+}
+
+type ParsedDuration = { durationHours?: number; durationMinutes?: number };
+
+/**
+ * Validates the hour/minute pair together so a request can never persist a
+ * partially-invalid duration (e.g. hours ok, minutes out of range).
+ */
+function parseDuration(
+  durationHours: unknown,
+  durationMinutes: unknown,
+): ParsedDuration | null {
+  const hours = parseDurationPart(durationHours, 10);
+  const minutes = parseDurationPart(durationMinutes, 59);
+  if (hours === INVALID_DURATION || minutes === INVALID_DURATION) return null;
+  return { durationHours: hours, durationMinutes: minutes };
+}
+
 // Delete a submission (admin/staff). Removes related mappings and nominations.
 /**
  * Public API: Fetches submissions for a specific release year.
- * Returns simplified film data (title, images, directors) matching the structure expected by the website.
+ * Returns simplified film data (title, images, directors, genre, cast,
+ * synopsis, trailerUrl) matching the structure expected by the website.
  * Used by the Submissions page (e.g., /api/submissions?year=2024).
  */
 export const fetchSubmission = async (req: Request, res: Response) => {
@@ -64,7 +95,7 @@ export const fetchSubmission = async (req: Request, res: Response) => {
       matchStage.isFeatured = true;
     }
 
-    // If on the official website we only want approved, keep this. 
+    // If on the official website we only want approved, keep this.
     // But for testing while items are "SUBMITTED", you might want to comment this out.
     // matchStage.status = "APPROVED";
 
@@ -89,6 +120,14 @@ export const fetchSubmission = async (req: Request, res: Response) => {
         },
       },
       {
+        $lookup: {
+          from: "genres",
+          localField: "genreIds",
+          foreignField: "_id",
+          as: "genreDocs",
+        },
+      },
+      {
         $project: {
           id: "$_id",
           title: 1,
@@ -101,6 +140,27 @@ export const fetchSubmission = async (req: Request, res: Response) => {
               in: "$$cm.name",
             },
           },
+          // Cast comes from the embedded crew object captured on the public
+          // submission form — separate from the admin-curated crewMembers
+          // lookup above used for `directors`.
+          cast: {
+            $map: {
+              input: { $ifNull: ["$crew.actors", []] },
+              as: "a",
+              in: "$$a.fullName",
+            },
+          },
+          genres: {
+            $map: {
+              input: "$genreDocs",
+              as: "g",
+              in: "$$g.name",
+            },
+          },
+          synopsis: 1,
+          trailerUrl: 1,
+          durationHours: 1,
+          durationMinutes: 1,
         },
       },
     ]);
@@ -291,6 +351,9 @@ export const createSubmission = async (req: AuthedRequest, res) => {
       landscapeImageUrl = "",
       imdbUrl = "",
       trailerUrl = "",
+      durationHours,
+      durationMinutes,
+      submissionYear,
       languageId,
       countryId,
       contentTypeId,
@@ -302,6 +365,19 @@ export const createSubmission = async (req: AuthedRequest, res) => {
     const providedGenreIds: string[] = Array.isArray(genreIds)
       ? genreIds.filter(Boolean)
       : [];
+
+    const parsedSubmissionYear = Number(submissionYear);
+    const resolvedSubmissionYear = Number.isFinite(parsedSubmissionYear)
+      ? parsedSubmissionYear
+      : new Date().getFullYear();
+
+    const parsedDuration = parseDuration(durationHours, durationMinutes);
+    if (parsedDuration === null) {
+      return res.status(400).json({
+        success: false,
+        message: "Duration hours must be 0-10 and minutes must be 0-59",
+      });
+    }
 
     if (!title || !releaseDate || !languageId || !countryId || !contentTypeId) {
       return res.status(400).json({
@@ -332,6 +408,8 @@ export const createSubmission = async (req: AuthedRequest, res) => {
       landscapeImageUrl,
       imdbUrl,
       trailerUrl,
+      ...parsedDuration,
+      submission_year: resolvedSubmissionYear,
       languageId,
       countryId,
       contentTypeId,
@@ -379,6 +457,9 @@ export const createSubmissionPublic = async (req, res) => {
       landscapeImageUrl = "",
       imdbUrl = "",
       trailerUrl = "",
+      submissionYear,
+      durationHours,
+      durationMinutes,
       languageId,
       countryId,
       contentTypeId,
@@ -391,6 +472,19 @@ export const createSubmissionPublic = async (req, res) => {
       watchFormats,
       notes = "",
     } = req.body || {};
+
+    const parsedSubmissionYear = Number(submissionYear);
+    const resolvedSubmissionYear = Number.isFinite(parsedSubmissionYear)
+      ? parsedSubmissionYear
+      : new Date().getFullYear();
+
+    const parsedDuration = parseDuration(durationHours, durationMinutes);
+    if (parsedDuration === null) {
+      return res.status(400).json({
+        success: false,
+        message: "Duration hours must be 0-10 and minutes must be 0-59",
+      });
+    }
 
     const providedGenreIds: string[] = Array.isArray(genreIds)
       ? genreIds.filter(Boolean)
@@ -464,6 +558,8 @@ export const createSubmissionPublic = async (req, res) => {
       landscapeImageUrl,
       imdbUrl,
       trailerUrl,
+      submission_year: resolvedSubmissionYear,
+      ...parsedDuration,
       languageId,
       countryId,
       contentTypeId,
@@ -556,6 +652,9 @@ export const updateSubmission = async (req: AuthedRequest, res) => {
       landscapeImageUrl,
       imdbUrl,
       trailerUrl,
+      durationHours,
+      durationMinutes,
+      submissionYear,
       languageId,
       countryId,
       contentTypeId,
@@ -589,6 +688,33 @@ export const updateSubmission = async (req: AuthedRequest, res) => {
       updates.landscapeImageUrl = landscapeImageUrl;
     if (imdbUrl !== undefined) updates.imdbUrl = imdbUrl;
     if (trailerUrl !== undefined) updates.trailerUrl = trailerUrl;
+    if (durationHours !== undefined) {
+      const parsedHours = parseDurationPart(durationHours, 10);
+      if (parsedHours === INVALID_DURATION) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Duration hours must be 0-10" });
+      }
+      updates.durationHours = parsedHours;
+    }
+    if (durationMinutes !== undefined) {
+      const parsedMinutes = parseDurationPart(durationMinutes, 59);
+      if (parsedMinutes === INVALID_DURATION) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Duration minutes must be 0-59" });
+      }
+      updates.durationMinutes = parsedMinutes;
+    }
+    if (submissionYear !== undefined) {
+      const parsedSubmissionYear = Number(submissionYear);
+      if (!Number.isFinite(parsedSubmissionYear)) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid submissionYear" });
+      }
+      updates.submission_year = parsedSubmissionYear;
+    }
     if (languageId !== undefined) updates.languageId = languageId;
     if (countryId !== undefined) updates.countryId = countryId;
     if (contentTypeId !== undefined) updates.contentTypeId = contentTypeId;
@@ -798,6 +924,9 @@ export const getSubmissionOverview = async (req, res) => {
           contentTypeId: 1,
           imdbUrl: 1,
           trailerUrl: 1,
+          durationHours: 1,
+          durationMinutes: 1,
+          submission_year: 1,
           isFeatured: 1,
           productionHouse: 1,
           distributor: 1,
@@ -1043,6 +1172,8 @@ export const adminListSubmissions = async (req, res) => {
           contentTypeId: 1,
           imdbUrl: 1,
           trailerUrl: 1,
+          durationHours: 1,
+          durationMinutes: 1,
           isFeatured: 1,
           productionHouse: 1,
           distributor: 1,
