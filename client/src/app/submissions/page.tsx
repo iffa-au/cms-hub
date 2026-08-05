@@ -9,11 +9,21 @@ type Submission = {
   title: string;
   synopsis?: string;
   releaseDate?: string;
+  durationHours?: number;
+  durationMinutes?: number;
   contentTypeId?: string;
   genreIds?: string[];
   contentTypeName?: string | null;
   genreNames?: string[];
   status?: 'SUBMITTED' | 'APPROVED' | 'REJECTED';
+};
+
+const formatDuration = (hours?: number, minutes?: number): string => {
+  if (!hours && !minutes) return '—';
+  const parts = [];
+  if (hours) parts.push(`${hours}h`);
+  if (minutes) parts.push(`${minutes}m`);
+  return parts.join(' ');
 };
 
 type ListResponse = {
@@ -430,6 +440,7 @@ export default function SubmissionsPage() {
               <th className='px-4 py-3'>Film Details</th>
               <th className='px-4 py-3'>Content Type</th>
               <th className='px-4 py-3 text-center'>Release</th>
+              <th className='px-4 py-3 text-center'>Duration</th>
               <th className='px-4 py-3'>Genres</th>
               <th className='px-4 py-3 text-right'>Actions</th>
             </tr>
@@ -437,7 +448,7 @@ export default function SubmissionsPage() {
           <tbody className='text-sm'>
             {loading && (
               <tr className='bg-card/60'>
-                <td className='px-4 py-6' colSpan={5}>
+                <td className='px-4 py-6' colSpan={6}>
                   <div className='animate-pulse h-4 w-1/3 bg-border rounded mb-3' />
                   <div className='animate-pulse h-3 w-2/3 bg-border rounded' />
                 </td>
@@ -445,14 +456,14 @@ export default function SubmissionsPage() {
             )}
             {!loading && error && (
               <tr className='bg-card/60'>
-                <td className='px-4 py-6' colSpan={5}>
+                <td className='px-4 py-6' colSpan={6}>
                   <span className='text-red-400 text-sm'>{error}</span>
                 </td>
               </tr>
             )}
             {!loading && !error && items.length === 0 && (
               <tr className='bg-card/60'>
-                <td className='px-4 py-6' colSpan={5}>
+                <td className='px-4 py-6' colSpan={6}>
                   <span className='text-muted-foreground text-sm'>No submissions found.</span>
                 </td>
               </tr>
@@ -478,6 +489,11 @@ export default function SubmissionsPage() {
                     </td>
                     <td className='px-4 py-6 text-center'>
                       <span className='text-muted-foreground'>{release}</span>
+                    </td>
+                    <td className='px-4 py-6 text-center'>
+                      <span className='text-muted-foreground'>
+                        {formatDuration(item.durationHours, item.durationMinutes)}
+                      </span>
                     </td>
                     <td className='px-4 py-6'>
                       <div className='flex flex-wrap gap-2'>

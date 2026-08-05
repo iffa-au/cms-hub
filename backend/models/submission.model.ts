@@ -21,6 +21,8 @@ export interface ISubmission {
   genreIds: Types.ObjectId[];
   productionHouse?: String; // production house name (e.g. "Universal Pictures")
   distributor?: String; // distributor name (e.g. "Netflix")
+  durationHours?: number; // runtime, whole hours (e.g. 1)
+  durationMinutes?: number; // runtime, minutes 0-59 (e.g. 42)
   // User-proposed crew grouped by category (public form payload)
   submission_year?: number; // Optional field to capture the year of submission for nomination purposes
   crew?: {
@@ -140,6 +142,16 @@ const submissionSchema = new Schema<ISubmission>(
     trailerUrl: {
       type: String,
       default: "",
+    },
+    durationHours: {
+      type: Number,
+      min: 0,
+      max: 10,
+    },
+    durationMinutes: {
+      type: Number,
+      min: 0,
+      max: 59,
     },
     crew: {
       actors: {

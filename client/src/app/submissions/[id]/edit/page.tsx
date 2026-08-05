@@ -8,6 +8,19 @@ const INPUT =
   'w-full bg-[#0a0a0a] border border-[#393528] rounded px-4 py-3 text-white placeholder-[#544e3b] focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all mt-2';
 const LABEL = 'text-accent-foreground text-xs font-bold uppercase tracking-widest';
 
+// Keeps duration inputs digit-only and within range as the user types,
+// rather than relying on <input type="number"> alone (which still lets
+// browsers accept "e", "-", "+", or out-of-range values).
+function sanitizeDigitInput(raw: string, max: number, setter: (value: string) => void) {
+  const digitsOnly = raw.replace(/[^0-9]/g, '');
+  if (digitsOnly === '') {
+    setter('');
+    return;
+  }
+  if (Number(digitsOnly) > max) return;
+  setter(digitsOnly);
+}
+
 const WATCH_FORMAT_LABELS: Record<string, string> = {
   theatrical: 'Theatrical',
   ott: 'OTT / Streaming',
@@ -43,6 +56,9 @@ type SubmissionDetail = {
   contentTypeId: string;
   imdbUrl?: string;
   trailerUrl?: string;
+  durationHours?: number;
+  durationMinutes?: number;
+  submission_year?: number;
   genreIds?: string[] | { _id: string; name?: string }[];
   productionHouse?: string;
   distributor?: string;
@@ -83,6 +99,9 @@ export default function EditSubmissionPage() {
   const [landscapeImageUrl, setLandscapeImageUrl] = useState<string>('');
   const [imdbUrl, setImdbUrl] = useState<string>('');
   const [trailerUrl, setTrailerUrl] = useState<string>('');
+  const [durationHours, setDurationHours] = useState<string>('');
+  const [durationMinutes, setDurationMinutes] = useState<string>('');
+  const [submissionYear, setSubmissionYear] = useState<string>('');
   const [languageId, setLanguageId] = useState<string>('');
   const [countryId, setCountryId] = useState<string>('');
   const [contentTypeId, setContentTypeId] = useState<string>('');
@@ -124,6 +143,9 @@ export default function EditSubmissionPage() {
             setLandscapeImageUrl(d.landscapeImageUrl || '');
             setImdbUrl(d.imdbUrl || '');
             setTrailerUrl(d.trailerUrl || '');
+            setDurationHours(d.durationHours != null ? String(d.durationHours) : '');
+            setDurationMinutes(d.durationMinutes != null ? String(d.durationMinutes) : '');
+            setSubmissionYear(d.submission_year != null ? String(d.submission_year) : '');
             setLanguageId(d.language?._id || d.languageId || '');
             setCountryId(d.country?._id || d.countryId || '');
             setContentTypeId(d.contentType?._id || d.contentTypeId || '');
@@ -176,6 +198,9 @@ export default function EditSubmissionPage() {
             setLandscapeImageUrl(d2.landscapeImageUrl || '');
             setImdbUrl(d2.imdbUrl || '');
             setTrailerUrl(d2.trailerUrl || '');
+            setDurationHours(d2.durationHours != null ? String(d2.durationHours) : '');
+            setDurationMinutes(d2.durationMinutes != null ? String(d2.durationMinutes) : '');
+            setSubmissionYear(d2.submission_year != null ? String(d2.submission_year) : '');
             setLanguageId(d2.languageId || '');
             setCountryId(d2.countryId || '');
             setContentTypeId(d2.contentTypeId || '');
@@ -219,6 +244,11 @@ export default function EditSubmissionPage() {
         genreIds,
         imdbUrl,
         trailerUrl,
+        // Omit when blank so admins can save unrelated edits without being
+        // forced to fill in every field first.
+        ...(durationHours.trim() ? { durationHours: durationHours.trim() } : {}),
+        ...(durationMinutes.trim() ? { durationMinutes: durationMinutes.trim() } : {}),
+        ...(submissionYear.trim() ? { submissionYear: submissionYear.trim() } : {}),
         productionHouse: productionHouse.trim(),
         distributor: distributor.trim(),
       };
@@ -590,6 +620,67 @@ export default function EditSubmissionPage() {
                   value={trailerUrl}
                   onChange={(e) => setTrailerUrl(e.target.value)}
                 />
+              </div>
+            </div>
+          </section>
+
+          <section className='rounded-xl border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50'>
+            <div className='px-8 py-6 border-b border-border flex justify-between items-center bg-surface-dark'>
+              <div className='flex items-center gap-4'>
+                <h3 className='text-white text-lg font-bold tracking-widest uppercase font-serif'>Classification</h3>
+              </div>
+            </div>
+            <div className='p-8 grid grid-cols-1 md:grid-cols-2 gap-8'>
+              <div className='space-y-2'>
+                <label htmlFor='durationHours' className={LABEL}>
+                  Duration
+                </label>
+                <div className='mt-2 flex items-center gap-3'>
+                  <div className='flex items-center gap-2'>
+                    <input
+                      id='durationHours'
+                      className={`${INPUT} mt-0 w-20 text-center`}
+                      type='number'
+                      inputMode='numeric'
+                      min={0}
+                      max={10}
+                      placeholder='0'
+                      value={durationHours}
+                      onChange={(e) => sanitizeDigitInput(e.target.value, 10, setDurationHours)}
+                    />
+                    <span className='text-xs text-[#8a845f]'>hr</span>
+                  </div>
+                  <div className='flex items-center gap-2'>
+                    <input
+                      id='durationMinutes'
+                      className={`${INPUT} mt-0 w-20 text-center`}
+                      type='number'
+                      inputMode='numeric'
+                      min={0}
+                      max={59}
+                      placeholder='0'
+                      value={durationMinutes}
+                      onChange={(e) => sanitizeDigitInput(e.target.value, 59, setDurationMinutes)}
+                    />
+                    <span className='text-xs text-[#8a845f]'>min</span>
+                  </div>
+                </div>
+              </div>
+              <div className='space-y-2'>
+                <label htmlFor='submissionYear' className={LABEL}>
+                  Submission Year
+                </label>
+                <input
+                  id='submissionYear'
+                  className={INPUT}
+                  type='number'
+                  placeholder='e.g. 2026'
+                  value={submissionYear}
+                  onChange={(e) => setSubmissionYear(e.target.value)}
+                />
+                <p className='text-xs text-[#8a845f]'>
+                  Controls which event year this film appears under on the public site (e.g. /events/2026/submissions). Leave blank only if intentionally hidden from every year.
+                </p>
               </div>
             </div>
           </section>

@@ -30,6 +30,19 @@ const INPUT =
 const LABEL =
   "text-accent-foreground text-xs font-bold uppercase tracking-widest";
 
+// Keeps duration inputs digit-only and within range as the user types,
+// rather than relying on <input type="number"> alone (which still lets
+// browsers accept "e", "-", "+", or out-of-range values).
+function sanitizeDigitInput(raw: string, max: number, setter: (value: string) => void) {
+  const digitsOnly = raw.replace(/[^0-9]/g, "");
+  if (digitsOnly === "") {
+    setter("");
+    return;
+  }
+  if (Number(digitsOnly) > max) return;
+  setter(digitsOnly);
+}
+
 type MetaItem = { _id: string; name: string; description?: string };
 
 export default function NewSubmissionPage() {
@@ -56,6 +69,11 @@ export default function NewSubmissionPage() {
   >(undefined);
   const [imdbUrl, setImdbUrl] = useState<string | undefined>(undefined);
   const [trailerUrl, setTrailerUrl] = useState<string | undefined>(undefined);
+  const [durationHours, setDurationHours] = useState<string>("");
+  const [durationMinutes, setDurationMinutes] = useState<string>("");
+  const [submissionYear, setSubmissionYear] = useState<string>(
+    String(new Date().getFullYear())
+  );
   const [productionHouse, setProductionHouse] = useState<string>("");
   const [distributor, setDistributor] = useState<string>("");
   useEffect(() => {
@@ -93,10 +111,15 @@ export default function NewSubmissionPage() {
         releaseDate: dateEl?.value || "",
         potraitImageUrl: potraitImageUrl ?? "",
         landscapeImageUrl: landscapeImageUrl ?? "",
+        imdbUrl: imdbUrl ?? "",
+        trailerUrl: trailerUrl ?? "",
         languageId,
         countryId,
         contentTypeId,
         genreIds,
+        durationHours: durationHours.trim(),
+        durationMinutes: durationMinutes.trim(),
+        submissionYear: submissionYear.trim(),
         productionHouse: productionHouse.trim(),
         distributor: distributor.trim(),
       };
@@ -416,6 +439,74 @@ export default function NewSubmissionPage() {
                   value={trailerUrl ?? ""}
                   onChange={(e) => setTrailerUrl(e.target.value)}
                 />
+              </div>
+            </div>
+          </section>
+
+          {/* Classification */}
+          <section className="rounded-xl border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50">
+            <div className="px-8 py-6 border-b border-border flex justify-between items-center bg-surface-dark">
+              <div className="flex items-center gap-4">
+                <h3 className="text-white text-lg font-bold tracking-widest uppercase font-serif">
+                  Classification
+                </h3>
+              </div>
+            </div>
+            <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Duration */}
+              <div className="space-y-2">
+                <label htmlFor="durationHours" className={LABEL}>
+                  Duration
+                </label>
+                <div className="mt-2 flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="durationHours"
+                      className={`${INPUT} mt-0 w-20 text-center`}
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      max={10}
+                      placeholder="0"
+                      value={durationHours}
+                      onChange={(e) => sanitizeDigitInput(e.target.value, 10, setDurationHours)}
+                    />
+                    <span className="text-xs text-[#8a845f]">hr</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="durationMinutes"
+                      className={`${INPUT} mt-0 w-20 text-center`}
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      max={59}
+                      placeholder="0"
+                      value={durationMinutes}
+                      onChange={(e) => sanitizeDigitInput(e.target.value, 59, setDurationMinutes)}
+                    />
+                    <span className="text-xs text-[#8a845f]">min</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Submission Year */}
+              <div className="space-y-2">
+                <label htmlFor="submissionYear" className={LABEL}>
+                  Submission Year<span className="text-primary">*</span>
+                </label>
+                <input
+                  className={INPUT}
+                  type="number"
+                  id="submissionYear"
+                  placeholder="e.g. 2026"
+                  value={submissionYear}
+                  onChange={(e) => setSubmissionYear(e.target.value)}
+                  required
+                />
+                <p className="text-xs text-[#8a845f]">
+                  Controls which event year this film appears under on the public site.
+                </p>
               </div>
             </div>
           </section>
