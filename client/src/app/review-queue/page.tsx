@@ -10,9 +10,19 @@ type Submission = {
   title: string;
   synopsis?: string;
   releaseDate?: string;
+  durationHours?: number;
+  durationMinutes?: number;
   createdAt?: string;
   contentTypeName?: string | null;
   genreNames?: string[];
+};
+
+const formatDuration = (hours?: number, minutes?: number): string => {
+  if (!hours && !minutes) return '—';
+  const parts = [];
+  if (hours) parts.push(`${hours}h`);
+  if (minutes) parts.push(`${minutes}m`);
+  return parts.join(' ');
 };
 
 type ListResponse = {
@@ -166,6 +176,7 @@ export default function ReviewQueuePage() {
               <th className='px-4 py-3'>Film Details</th>
               <th className='px-4 py-3'>Content Type</th>
               <th className='px-4 py-3 text-center'>Release Year</th>
+              <th className='px-4 py-3 text-center'>Duration</th>
               <th className='px-4 py-3'>Submitted</th>
               <th className='px-4 py-3'>Genres</th>
               <th className='px-4 py-3 text-right'>Actions</th>
@@ -174,7 +185,7 @@ export default function ReviewQueuePage() {
           <tbody className='text-sm'>
             {loading && (
               <tr className='bg-card/60'>
-                <td className='px-4 py-6' colSpan={7}>
+                <td className='px-4 py-6' colSpan={8}>
                   <div className='animate-pulse h-4 w-1/3 bg-border rounded mb-3' />
                   <div className='animate-pulse h-3 w-2/3 bg-border rounded' />
                 </td>
@@ -182,14 +193,14 @@ export default function ReviewQueuePage() {
             )}
             {!loading && error && (
               <tr className='bg-card/60'>
-                <td className='px-4 py-6' colSpan={7}>
+                <td className='px-4 py-6' colSpan={8}>
                   <span className='text-red-400 text-sm'>{error}</span>
                 </td>
               </tr>
             )}
             {!loading && !error && items.length === 0 && (
               <tr className='bg-card/60'>
-                <td className='px-4 py-6' colSpan={7}>
+                <td className='px-4 py-6' colSpan={8}>
                   <span className='text-muted-foreground text-sm'>No submissions found.</span>
                 </td>
               </tr>
@@ -214,6 +225,11 @@ export default function ReviewQueuePage() {
                     </td>
                     <td className='px-4 py-6 text-center'>
                       <span className='text-muted-foreground'>{release}</span>
+                    </td>
+                    <td className='px-4 py-6 text-center'>
+                      <span className='text-muted-foreground'>
+                        {formatDuration(item.durationHours, item.durationMinutes)}
+                      </span>
                     </td>
                     <td className='px-4 py-6'>
                       <span className='text-muted-foreground text-xs whitespace-nowrap'>

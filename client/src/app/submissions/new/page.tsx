@@ -30,6 +30,19 @@ const INPUT =
 const LABEL =
   "text-accent-foreground text-xs font-bold uppercase tracking-widest";
 
+// Keeps duration inputs digit-only and within range as the user types,
+// rather than relying on <input type="number"> alone (which still lets
+// browsers accept "e", "-", "+", or out-of-range values).
+function sanitizeDigitInput(raw: string, max: number, setter: (value: string) => void) {
+  const digitsOnly = raw.replace(/[^0-9]/g, "");
+  if (digitsOnly === "") {
+    setter("");
+    return;
+  }
+  if (Number(digitsOnly) > max) return;
+  setter(digitsOnly);
+}
+
 type MetaItem = { _id: string; name: string; description?: string };
 
 export default function NewSubmissionPage() {
@@ -56,8 +69,8 @@ export default function NewSubmissionPage() {
   >(undefined);
   const [imdbUrl, setImdbUrl] = useState<string | undefined>(undefined);
   const [trailerUrl, setTrailerUrl] = useState<string | undefined>(undefined);
-  const [rating, setRating] = useState<string>("");
-  const [duration, setDuration] = useState<string>("");
+  const [durationHours, setDurationHours] = useState<string>("");
+  const [durationMinutes, setDurationMinutes] = useState<string>("");
   const [submissionYear, setSubmissionYear] = useState<string>(
     String(new Date().getFullYear())
   );
@@ -104,8 +117,8 @@ export default function NewSubmissionPage() {
         countryId,
         contentTypeId,
         genreIds,
-        rating: (rating || "").trim(),
-        duration: (duration || "").trim(),
+        durationHours: durationHours.trim(),
+        durationMinutes: durationMinutes.trim(),
         submissionYear: submissionYear.trim(),
         productionHouse: productionHouse.trim(),
         distributor: distributor.trim(),
@@ -440,34 +453,41 @@ export default function NewSubmissionPage() {
               </div>
             </div>
             <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Content Rating */}
-              <div className="space-y-2">
-                <label htmlFor="rating" className={LABEL}>
-                  Content Rating
-                </label>
-                <input
-                  className={INPUT}
-                  type="text"
-                  id="rating"
-                  placeholder="e.g. PG, M, MA15+, R18+"
-                  value={rating}
-                  onChange={(e) => setRating(e.target.value)}
-                />
-              </div>
-
               {/* Duration */}
               <div className="space-y-2">
-                <label htmlFor="duration" className={LABEL}>
+                <label htmlFor="durationHours" className={LABEL}>
                   Duration
                 </label>
-                <input
-                  className={INPUT}
-                  type="text"
-                  id="duration"
-                  placeholder="e.g. 1h 42m"
-                  value={duration}
-                  onChange={(e) => setDuration(e.target.value)}
-                />
+                <div className="mt-2 flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="durationHours"
+                      className={`${INPUT} mt-0 w-20 text-center`}
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      max={10}
+                      placeholder="0"
+                      value={durationHours}
+                      onChange={(e) => sanitizeDigitInput(e.target.value, 10, setDurationHours)}
+                    />
+                    <span className="text-xs text-[#8a845f]">hr</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="durationMinutes"
+                      className={`${INPUT} mt-0 w-20 text-center`}
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      max={59}
+                      placeholder="0"
+                      value={durationMinutes}
+                      onChange={(e) => sanitizeDigitInput(e.target.value, 59, setDurationMinutes)}
+                    />
+                    <span className="text-xs text-[#8a845f]">min</span>
+                  </div>
+                </div>
               </div>
 
               {/* Submission Year */}
