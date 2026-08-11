@@ -15,6 +15,7 @@ import crewAssignmentRoutes from "./crewAssignment.js";
 import userRoutes from "./user.js";
 import filmEnquiryRoutes from "./filmEnquiry.js";
 import mediaAssetRoutes from "./mediaAsset.js";
+import uploadRoutes from "./upload.js";
 
 const router = e.Router();
 
@@ -34,5 +35,6 @@ router.use("/crew-assignments", crewAssignmentRoutes);
 router.use("/users", userRoutes);
 router.use("/film-enquiries", filmEnquiryRoutes);
 router.use("/media-assets", mediaAssetRoutes);
+router.use("/uploads", uploadRoutes);
 
 export default router;

@@ -283,14 +283,25 @@ export const fetchWinnerDetailed = async (req: Request, res: Response) => {
       },
       { $unwind: { path: "$awardCategory", preserveNullAndEmptyArrays: true } },
       {
+        $lookup: {
+          from: "crewmembers",
+          localField: "crewMemberId",
+          foreignField: "_id",
+          as: "crewMember",
+        },
+      },
+      { $unwind: { path: "$crewMember", preserveNullAndEmptyArrays: true } },
+      {
         $project: {
           id: "$submission._id",
           editionYear: "$year",
           contentId: "$submission._id",
           title: "$submission.title",
           portraitImageUrl: "$submission.potraitImageUrl",
+          landscapeImageUrl: "$submission.landscapeImageUrl",
           awardCategoryId: "$awardCategory._id",
           awardCategoryName: "$awardCategory.name",
+          crewMemberName: "$crewMember.name",
         },
       },
     ]);
