@@ -153,6 +153,16 @@ const submissionSchema = new Schema<ISubmission>(
       min: 0,
       max: 59,
     },
+    // Declared in the ISubmission interface for a long time, but never
+    // actually added here — Mongoose silently drops any field passed to
+    // .create()/.save() that isn't a real schema path, so every fresh
+    // submission has been created without it despite the controller code
+    // setting it. findByIdAndUpdate's $set isn't filtered the same way,
+    // which is why manually editing a submission via the CMS edit page has
+    // been the only way this field ever actually got persisted.
+    submission_year: {
+      type: Number,
+    },
     crew: {
       actors: {
         type: [
