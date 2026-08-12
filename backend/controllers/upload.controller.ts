@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import {
   ALLOWED_UPLOAD_CONTENT_TYPE,
   createPresignedUpload,
+  S3ConfigError,
 } from "../libs/s3.js";
 
 /**
@@ -28,6 +29,11 @@ export const requestUploadUrl = async (req: Request, res: Response) => {
     res.status(200).json({ success: true, uploadUrl, key });
   } catch (error) {
     console.error(error);
+    if (error instanceof S3ConfigError) {
+      return res.status(500).json({ success: false, message: error.message });
+    }
+    // Anything else (bad AWS credentials, missing bucket permission, network
+    // failure) — keep the public message generic and rely on server logs.
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 };

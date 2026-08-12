@@ -13,12 +13,23 @@ type S3Config = {
 let cachedConfig: S3Config | null = null;
 let cachedClient: S3Client | null = null;
 
+// Distinguished from AWS SDK errors (bad credentials, no bucket permission,
+// etc.) so the controller can tell a missing-config deploy from a genuine
+// AWS-side failure without parsing SDK error internals.
+export class S3ConfigError extends Error {}
+
 function loadConfig(): S3Config {
   if (cachedConfig) return cachedConfig;
   const { AWS_REGION, AWS_S3_BUCKET, AWS_S3_UPLOAD_PREFIX } = process.env;
 
   if (!AWS_REGION || !AWS_S3_BUCKET) {
-    throw new Error("Missing AWS envs: AWS_REGION, AWS_S3_BUCKET");
+    const missing = [
+      !AWS_REGION && "AWS_REGION",
+      !AWS_S3_BUCKET && "AWS_S3_BUCKET",
+    ].filter(Boolean).join(", ");
+    throw new S3ConfigError(
+      `Missing AWS env vars on this server: ${missing}. Set them in the deploy target's environment config (not just a local .env file).`,
+    );
   }
 
   cachedConfig = {
