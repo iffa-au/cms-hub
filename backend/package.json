@@ -4,15 +4,13 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "tsx watch index.ts",
-    "start": "node dist/index.js",
-    "build": "tsc"
-  },
+  "dev": "tsx watch index.ts",
+  "start": "node dist/index.js",
+  "build": "tsc"
+ },
   "dependencies": {
     "@arcjet/inspect": "^1.0.0-beta.15",
     "@arcjet/node": "^1.0.0-beta.15",
-    "@aws-sdk/client-s3": "^3.1106.0",
-    "@aws-sdk/s3-request-presigner": "^3.1106.0",
     "@mailchimp/mailchimp_transactional": "^1.1.2",
     "@sendgrid/mail": "^8.1.6",
     "bcryptjs": "^3.0.3",

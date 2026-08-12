@@ -44,14 +44,6 @@ export const fetchNomination = async (req: Request, res: Response) => {
         },
       },
       {
-        $lookup: {
-          from: "genres",
-          localField: "submission.genreIds",
-          foreignField: "_id",
-          as: "genreDocs",
-        },
-      },
-      {
         $project: {
           id: "$submission._id",
           title: "$submission.title",
@@ -63,28 +55,7 @@ export const fetchNomination = async (req: Request, res: Response) => {
                as: "cm",
                in: "$$cm.name"
              }
-          },
-          // Cast comes from the embedded crew object captured on the public
-          // submission form — separate from the admin-curated crewMembers
-          // lookup above used for `directors`.
-          cast: {
-            $map: {
-              input: { $ifNull: ["$submission.crew.actors", []] },
-              as: "a",
-              in: "$$a.fullName",
-            },
-          },
-          genres: {
-            $map: {
-              input: "$genreDocs",
-              as: "g",
-              in: "$$g.name",
-            },
-          },
-          synopsis: "$submission.synopsis",
-          trailerUrl: "$submission.trailerUrl",
-          durationHours: "$submission.durationHours",
-          durationMinutes: "$submission.durationMinutes",
+          }
         },
       },
     ]);
