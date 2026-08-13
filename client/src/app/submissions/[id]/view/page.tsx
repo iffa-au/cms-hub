@@ -310,6 +310,7 @@ export default function ViewSubmissionPage() {
                 <UrlField label='Landscape Image URL' value={details.landscapeImageUrl} />
                 <UrlField label='IMDb URL' value={details.imdbUrl} />
                 <UrlField label='Trailer URL' value={details.trailerUrl} />
+                <UrlField label='Release, Broadcast or Exhibition Link' value={details.releaseLinkUrl} />
               </div>
             </section>
 

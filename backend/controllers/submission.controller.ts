@@ -362,6 +362,7 @@ export const createSubmission = async (req: AuthedRequest, res) => {
       landscapeImageUrl = "",
       imdbUrl = "",
       trailerUrl = "",
+      releaseLinkUrl = "",
       durationHours,
       durationMinutes,
       submissionYear,
@@ -419,6 +420,7 @@ export const createSubmission = async (req: AuthedRequest, res) => {
       landscapeImageUrl,
       imdbUrl,
       trailerUrl,
+      releaseLinkUrl: String(releaseLinkUrl || "").trim(),
       ...parsedDuration,
       submission_year: resolvedSubmissionYear,
       languageId,
@@ -468,6 +470,7 @@ export const createSubmissionPublic = async (req, res) => {
       landscapeImageUrl = "",
       imdbUrl = "",
       trailerUrl = "",
+      releaseLinkUrl = "",
       submissionYear,
       durationHours,
       durationMinutes,
@@ -569,6 +572,7 @@ export const createSubmissionPublic = async (req, res) => {
       landscapeImageUrl,
       imdbUrl,
       trailerUrl,
+      releaseLinkUrl: String(releaseLinkUrl || "").trim(),
       submission_year: resolvedSubmissionYear,
       ...parsedDuration,
       languageId,
@@ -663,6 +667,7 @@ export const updateSubmission = async (req: AuthedRequest, res) => {
       landscapeImageUrl,
       imdbUrl,
       trailerUrl,
+      releaseLinkUrl,
       durationHours,
       durationMinutes,
       submissionYear,
@@ -699,6 +704,8 @@ export const updateSubmission = async (req: AuthedRequest, res) => {
       updates.landscapeImageUrl = landscapeImageUrl;
     if (imdbUrl !== undefined) updates.imdbUrl = imdbUrl;
     if (trailerUrl !== undefined) updates.trailerUrl = trailerUrl;
+    if (releaseLinkUrl !== undefined)
+      updates.releaseLinkUrl = String(releaseLinkUrl || "").trim();
     if (durationHours !== undefined) {
       const parsedHours = parseDurationPart(durationHours, 10);
       if (parsedHours === INVALID_DURATION) {
@@ -935,6 +942,7 @@ export const getSubmissionOverview = async (req, res) => {
           contentTypeId: 1,
           imdbUrl: 1,
           trailerUrl: 1,
+          releaseLinkUrl: 1,
           durationHours: 1,
           durationMinutes: 1,
           submission_year: 1,

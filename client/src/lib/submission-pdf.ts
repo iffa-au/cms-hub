@@ -20,6 +20,7 @@ export type SubmissionOverview = {
   status?: string;
   imdbUrl?: string;
   trailerUrl?: string;
+  releaseLinkUrl?: string;
   productionHouse?: string;
   distributor?: string;
   isFeatured?: boolean;
@@ -220,6 +221,7 @@ export const buildSubmissionPdf = (doc: jsPDF, details: SubmissionOverview) => {
   addField('Distributor', details.distributor || '—');
   addLinkField('IMDB URL', details.imdbUrl);
   addLinkField('Trailer Download URL', details.trailerUrl);
+  addLinkField('Release, Broadcast or Exhibition Link', details.releaseLinkUrl);
   addLinkField('Portrait Image', details.potraitImageUrl);
   addLinkField('Landscape Image', details.landscapeImageUrl);
 
