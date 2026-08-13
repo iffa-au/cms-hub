@@ -56,6 +56,7 @@ type SubmissionDetail = {
   contentTypeId: string;
   imdbUrl?: string;
   trailerUrl?: string;
+  releaseLinkUrl?: string;
   durationHours?: number;
   durationMinutes?: number;
   submission_year?: number;
@@ -99,6 +100,7 @@ export default function EditSubmissionPage() {
   const [landscapeImageUrl, setLandscapeImageUrl] = useState<string>('');
   const [imdbUrl, setImdbUrl] = useState<string>('');
   const [trailerUrl, setTrailerUrl] = useState<string>('');
+  const [releaseLinkUrl, setReleaseLinkUrl] = useState<string>('');
   const [durationHours, setDurationHours] = useState<string>('');
   const [durationMinutes, setDurationMinutes] = useState<string>('');
   const [submissionYear, setSubmissionYear] = useState<string>('');
@@ -143,6 +145,7 @@ export default function EditSubmissionPage() {
             setLandscapeImageUrl(d.landscapeImageUrl || '');
             setImdbUrl(d.imdbUrl || '');
             setTrailerUrl(d.trailerUrl || '');
+            setReleaseLinkUrl(d.releaseLinkUrl || '');
             setDurationHours(d.durationHours != null ? String(d.durationHours) : '');
             setDurationMinutes(d.durationMinutes != null ? String(d.durationMinutes) : '');
             setSubmissionYear(d.submission_year != null ? String(d.submission_year) : '');
@@ -198,6 +201,7 @@ export default function EditSubmissionPage() {
             setLandscapeImageUrl(d2.landscapeImageUrl || '');
             setImdbUrl(d2.imdbUrl || '');
             setTrailerUrl(d2.trailerUrl || '');
+            setReleaseLinkUrl(d2.releaseLinkUrl || '');
             setDurationHours(d2.durationHours != null ? String(d2.durationHours) : '');
             setDurationMinutes(d2.durationMinutes != null ? String(d2.durationMinutes) : '');
             setSubmissionYear(d2.submission_year != null ? String(d2.submission_year) : '');
@@ -244,6 +248,7 @@ export default function EditSubmissionPage() {
         genreIds,
         imdbUrl,
         trailerUrl,
+        releaseLinkUrl,
         // Omit when blank so admins can save unrelated edits without being
         // forced to fill in every field first.
         ...(durationHours.trim() ? { durationHours: durationHours.trim() } : {}),
@@ -619,6 +624,19 @@ export default function EditSubmissionPage() {
                   placeholder='Direct download link for trailer'
                   value={trailerUrl}
                   onChange={(e) => setTrailerUrl(e.target.value)}
+                />
+              </div>
+              <div className='space-y-2'>
+                <label htmlFor='releaseLinkUrl' className={LABEL}>
+                  Release, Broadcast or Exhibition Link
+                </label>
+                <input
+                  id='releaseLinkUrl'
+                  className={INPUT}
+                  type='text'
+                  placeholder='Link to official streaming, cinema, TV, festival, trailer, press or private screener'
+                  value={releaseLinkUrl}
+                  onChange={(e) => setReleaseLinkUrl(e.target.value)}
                 />
               </div>
             </div>
