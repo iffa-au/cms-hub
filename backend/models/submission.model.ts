@@ -19,6 +19,7 @@ export interface ISubmission {
   imdbUrl?: string;
   trailerUrl?: string;
   releaseLinkUrl?: string;
+  contactEmail?: string;
   genreIds: Types.ObjectId[];
   productionHouse?: String; // production house name (e.g. "Universal Pictures")
   distributor?: String; // distributor name (e.g. "Netflix")
@@ -147,6 +148,13 @@ const submissionSchema = new Schema<ISubmission>(
     releaseLinkUrl: {
       type: String,
       default: "",
+    },
+    // Not shown on the public site — only surfaced to staff via the
+    // review queue and the /:id/overview endpoint (which requires auth).
+    contactEmail: {
+      type: String,
+      default: "",
+      trim: true,
     },
     durationHours: {
       type: Number,

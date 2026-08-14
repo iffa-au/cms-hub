@@ -573,6 +573,7 @@ export const createSubmissionPublic = async (req, res) => {
       imdbUrl,
       trailerUrl,
       releaseLinkUrl: String(releaseLinkUrl || "").trim(),
+      contactEmail: String(contactEmail || "").trim().toLowerCase(),
       submission_year: resolvedSubmissionYear,
       ...parsedDuration,
       languageId,
@@ -668,6 +669,7 @@ export const updateSubmission = async (req: AuthedRequest, res) => {
       imdbUrl,
       trailerUrl,
       releaseLinkUrl,
+      contactEmail,
       durationHours,
       durationMinutes,
       submissionYear,
@@ -706,6 +708,8 @@ export const updateSubmission = async (req: AuthedRequest, res) => {
     if (trailerUrl !== undefined) updates.trailerUrl = trailerUrl;
     if (releaseLinkUrl !== undefined)
       updates.releaseLinkUrl = String(releaseLinkUrl || "").trim();
+    if (contactEmail !== undefined)
+      updates.contactEmail = String(contactEmail || "").trim().toLowerCase();
     if (durationHours !== undefined) {
       const parsedHours = parseDurationPart(durationHours, 10);
       if (parsedHours === INVALID_DURATION) {
@@ -850,7 +854,11 @@ export const getSubmission = async (req: Request, res: Response) => {
     if (!Types.ObjectId.isValid(id)) {
       return res.status(400).json({ success: false, message: "Invalid ID" });
     }
-    const item = await Submission.findById(id).populate("genreIds");
+    // Public endpoint (synopsis page) — contactEmail is submitter PII and
+    // must never be exposed here.
+    const item = await Submission.findById(id)
+      .select("-contactEmail")
+      .populate("genreIds");
     if (!item) {
       return res
         .status(404)
@@ -943,6 +951,7 @@ export const getSubmissionOverview = async (req, res) => {
           imdbUrl: 1,
           trailerUrl: 1,
           releaseLinkUrl: 1,
+          contactEmail: 1,
           durationHours: 1,
           durationMinutes: 1,
           submission_year: 1,
@@ -1191,6 +1200,7 @@ export const adminListSubmissions = async (req, res) => {
           contentTypeId: 1,
           imdbUrl: 1,
           trailerUrl: 1,
+          contactEmail: 1,
           durationHours: 1,
           durationMinutes: 1,
           isFeatured: 1,

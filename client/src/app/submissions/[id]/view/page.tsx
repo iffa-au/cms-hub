@@ -299,6 +299,7 @@ export default function ViewSubmissionPage() {
                 <Field label='Synopsis' value={valueOrDash(details.synopsis)} className='md:col-span-2' />
                 <Field label='Production House' value={valueOrDash(details.productionHouse)} />
                 <Field label='Distributor' value={valueOrDash(details.distributor)} />
+                <Field label='Submitter Email' value={valueOrDash(details.contactEmail)} />
               </div>
             </section>
 
