@@ -95,9 +95,9 @@ export const fetchSubmission = async (req: Request, res: Response) => {
       matchStage.isFeatured = true;
     }
 
-    // If on the official website we only want approved, keep this.
-    // But for testing while items are "SUBMITTED", you might want to comment this out.
-    // matchStage.status = "APPROVED";
+    // Public endpoint (submissions page + carousel) — only approved
+    // submissions should ever be visible on the live site.
+    matchStage.status = "APPROVED";
 
     const submissions = await Submission.aggregate([
       {
