@@ -547,6 +547,7 @@ export const createSubmissionPublic = async (req, res) => {
               imageUrl: String(x?.imageUrl || "").trim(),
               biography: String(x?.biography || "").trim(),
               instagramUrl: String(x?.instagramUrl || "").trim(),
+              email: String(x?.email || "").trim().toLowerCase(),
               order: Number.isFinite(x?.order) ? Number(x.order) : 0,
             }))
             .filter((x) => x.fullName)

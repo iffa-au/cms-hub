@@ -7,6 +7,7 @@ export type CrewEntry = {
   biography?: string;
   instagramUrl?: string;
   imageUrl?: string;
+  email?: string;
 };
 
 export type SubmissionOverview = {
@@ -283,22 +284,24 @@ export const buildSubmissionPdf = (doc: jsPDF, details: SubmissionOverview) => {
               valueOrDash(entry.biography),
               wrapUrl(entry.instagramUrl),
               wrapUrl(entry.imageUrl),
+              valueOrDash(entry.email),
             ];
           })
-        : [['—', '—', 'No submitted entries', '—', '—']];
+        : [['—', '—', 'No submitted entries', '—', '—', '—']];
 
     const columnWidths = {
-      0: maxWidth * 0.16, // Name
-      1: maxWidth * 0.1,  // Role
-      2: maxWidth * 0.44, // Biography
-      3: maxWidth * 0.14, // Instagram
-      4: maxWidth * 0.16, // Image URL
+      0: maxWidth * 0.14, // Name
+      1: maxWidth * 0.08, // Role
+      2: maxWidth * 0.32, // Biography
+      3: maxWidth * 0.12, // Instagram
+      4: maxWidth * 0.14, // Image URL
+      5: maxWidth * 0.2,  // Email
     };
 
     autoTable(doc, {
       startY: y,
       margin: { left: margin, right: margin },
-      head: [['Name', 'Role', 'Biography', 'Instagram', 'Image URL']],
+      head: [['Name', 'Role', 'Biography', 'Instagram', 'Image URL', 'Email']],
       body: rows,
       theme: 'grid',
       showHead: 'everyPage',
@@ -330,6 +333,7 @@ export const buildSubmissionPdf = (doc: jsPDF, details: SubmissionOverview) => {
         2: { cellWidth: columnWidths[2], overflow: 'linebreak' },
         3: { cellWidth: columnWidths[3], overflow: 'linebreak' },
         4: { cellWidth: columnWidths[4], overflow: 'linebreak' },
+        5: { cellWidth: columnWidths[5], overflow: 'linebreak' },
       },
       // Colour URL cells blue before drawing text
       willDrawCell: (data) => {

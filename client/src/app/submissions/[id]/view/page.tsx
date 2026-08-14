@@ -368,6 +368,9 @@ export default function ViewSubmissionPage() {
                               {member.biography ? (
                                 <p className='text-muted-foreground mt-2 whitespace-pre-wrap'>{member.biography}</p>
                               ) : null}
+                              {member.email ? (
+                                <p className='text-muted-foreground text-xs mt-2 break-all'>{member.email}</p>
+                              ) : null}
                               {member.instagramUrl ? (
                                 <a
                                   href={member.instagramUrl}

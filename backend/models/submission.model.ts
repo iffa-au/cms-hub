@@ -34,6 +34,7 @@ export interface ISubmission {
       imageUrl?: string;
       biography?: string;
       instagramUrl?: string;
+      email?: string;
       order?: number;
     }>;
     directors: Array<{
@@ -42,6 +43,7 @@ export interface ISubmission {
       imageUrl?: string;
       instagramUrl?: string;
       biography?: string;
+      email?: string;
     }>;
     producers: Array<{
       fullName: string;
@@ -49,6 +51,7 @@ export interface ISubmission {
       imageUrl?: string;
       instagramUrl?: string;
       biography?: string;
+      email?: string;
     }>;
     other: Array<{
       fullName: string;
@@ -56,6 +59,7 @@ export interface ISubmission {
       imageUrl?: string;
       instagramUrl?: string;
       biography?: string;
+      email?: string;
     }>;
   };
 }
@@ -194,6 +198,7 @@ const submissionSchema = new Schema<ISubmission>(
               trim: true,
             },
             instagramUrl: { type: String, default: "", trim: true },
+            email: { type: String, default: "", trim: true },
           },
         ],
         default: [],
@@ -215,6 +220,7 @@ const submissionSchema = new Schema<ISubmission>(
               default: "",
               trim: true,
             },
+            email: { type: String, default: "", trim: true },
           },
         ],
         default: [],
@@ -236,6 +242,7 @@ const submissionSchema = new Schema<ISubmission>(
               default: "",
               trim: true,
             },
+            email: { type: String, default: "", trim: true },
           },
         ],
         default: [],
@@ -257,6 +264,7 @@ const submissionSchema = new Schema<ISubmission>(
               default: "",
               trim: true,
             },
+            email: { type: String, default: "", trim: true },
           },
         ],
         default: [],
