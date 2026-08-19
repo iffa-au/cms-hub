@@ -19,6 +19,7 @@ export interface ISubmission {
   imdbUrl?: string;
   trailerUrl?: string;
   releaseLinkUrl?: string;
+  contactEmail?: string;
   genreIds: Types.ObjectId[];
   productionHouse?: String; // production house name (e.g. "Universal Pictures")
   distributor?: String; // distributor name (e.g. "Netflix")
@@ -33,6 +34,7 @@ export interface ISubmission {
       imageUrl?: string;
       biography?: string;
       instagramUrl?: string;
+      email?: string;
       order?: number;
     }>;
     directors: Array<{
@@ -41,6 +43,7 @@ export interface ISubmission {
       imageUrl?: string;
       instagramUrl?: string;
       biography?: string;
+      email?: string;
     }>;
     producers: Array<{
       fullName: string;
@@ -48,6 +51,7 @@ export interface ISubmission {
       imageUrl?: string;
       instagramUrl?: string;
       biography?: string;
+      email?: string;
     }>;
     other: Array<{
       fullName: string;
@@ -55,6 +59,7 @@ export interface ISubmission {
       imageUrl?: string;
       instagramUrl?: string;
       biography?: string;
+      email?: string;
     }>;
   };
 }
@@ -148,6 +153,13 @@ const submissionSchema = new Schema<ISubmission>(
       type: String,
       default: "",
     },
+    // Not shown on the public site — only surfaced to staff via the
+    // review queue and the /:id/overview endpoint (which requires auth).
+    contactEmail: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     durationHours: {
       type: Number,
       min: 0,
@@ -186,6 +198,7 @@ const submissionSchema = new Schema<ISubmission>(
               trim: true,
             },
             instagramUrl: { type: String, default: "", trim: true },
+            email: { type: String, default: "", trim: true },
           },
         ],
         default: [],
@@ -207,6 +220,7 @@ const submissionSchema = new Schema<ISubmission>(
               default: "",
               trim: true,
             },
+            email: { type: String, default: "", trim: true },
           },
         ],
         default: [],
@@ -228,6 +242,7 @@ const submissionSchema = new Schema<ISubmission>(
               default: "",
               trim: true,
             },
+            email: { type: String, default: "", trim: true },
           },
         ],
         default: [],
@@ -249,6 +264,7 @@ const submissionSchema = new Schema<ISubmission>(
               default: "",
               trim: true,
             },
+            email: { type: String, default: "", trim: true },
           },
         ],
         default: [],

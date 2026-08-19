@@ -299,6 +299,7 @@ export default function ViewSubmissionPage() {
                 <Field label='Synopsis' value={valueOrDash(details.synopsis)} className='md:col-span-2' />
                 <Field label='Production House' value={valueOrDash(details.productionHouse)} />
                 <Field label='Distributor' value={valueOrDash(details.distributor)} />
+                <Field label='Submitter Email' value={valueOrDash(details.contactEmail)} />
               </div>
             </section>
 
@@ -366,6 +367,9 @@ export default function ViewSubmissionPage() {
                               </div>
                               {member.biography ? (
                                 <p className='text-muted-foreground mt-2 whitespace-pre-wrap'>{member.biography}</p>
+                              ) : null}
+                              {member.email ? (
+                                <p className='text-muted-foreground text-xs mt-2 break-all'>{member.email}</p>
                               ) : null}
                               {member.instagramUrl ? (
                                 <a

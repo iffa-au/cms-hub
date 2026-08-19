@@ -7,6 +7,7 @@ export type CrewEntry = {
   biography?: string;
   instagramUrl?: string;
   imageUrl?: string;
+  email?: string;
 };
 
 export type SubmissionOverview = {
@@ -21,6 +22,7 @@ export type SubmissionOverview = {
   imdbUrl?: string;
   trailerUrl?: string;
   releaseLinkUrl?: string;
+  contactEmail?: string;
   productionHouse?: string;
   distributor?: string;
   isFeatured?: boolean;
@@ -49,6 +51,7 @@ export type SubmissionOverview = {
 export type SubmissionListRow = {
   title?: string;
   createdAt?: string;
+  contactEmail?: string;
 };
 
 const WATCH_FORMAT_LABELS: Record<string, string> = {
@@ -219,6 +222,7 @@ export const buildSubmissionPdf = (doc: jsPDF, details: SubmissionOverview) => {
   );
   addField('Production House', details.productionHouse || '—');
   addField('Distributor', details.distributor || '—');
+  addField('Submitter Email', details.contactEmail || '—');
   addLinkField('IMDB URL', details.imdbUrl);
   addLinkField('Trailer Download URL', details.trailerUrl);
   addLinkField('Release, Broadcast or Exhibition Link', details.releaseLinkUrl);
@@ -280,22 +284,24 @@ export const buildSubmissionPdf = (doc: jsPDF, details: SubmissionOverview) => {
               valueOrDash(entry.biography),
               wrapUrl(entry.instagramUrl),
               wrapUrl(entry.imageUrl),
+              valueOrDash(entry.email),
             ];
           })
-        : [['—', '—', 'No submitted entries', '—', '—']];
+        : [['—', '—', 'No submitted entries', '—', '—', '—']];
 
     const columnWidths = {
-      0: maxWidth * 0.16, // Name
-      1: maxWidth * 0.1,  // Role
-      2: maxWidth * 0.44, // Biography
-      3: maxWidth * 0.14, // Instagram
-      4: maxWidth * 0.16, // Image URL
+      0: maxWidth * 0.14, // Name
+      1: maxWidth * 0.08, // Role
+      2: maxWidth * 0.32, // Biography
+      3: maxWidth * 0.12, // Instagram
+      4: maxWidth * 0.14, // Image URL
+      5: maxWidth * 0.2,  // Email
     };
 
     autoTable(doc, {
       startY: y,
       margin: { left: margin, right: margin },
-      head: [['Name', 'Role', 'Biography', 'Instagram', 'Image URL']],
+      head: [['Name', 'Role', 'Biography', 'Instagram', 'Image URL', 'Email']],
       body: rows,
       theme: 'grid',
       showHead: 'everyPage',
@@ -327,6 +333,7 @@ export const buildSubmissionPdf = (doc: jsPDF, details: SubmissionOverview) => {
         2: { cellWidth: columnWidths[2], overflow: 'linebreak' },
         3: { cellWidth: columnWidths[3], overflow: 'linebreak' },
         4: { cellWidth: columnWidths[4], overflow: 'linebreak' },
+        5: { cellWidth: columnWidths[5], overflow: 'linebreak' },
       },
       // Colour URL cells blue before drawing text
       willDrawCell: (data) => {
@@ -372,13 +379,18 @@ export const buildSubmissionListPdf = (doc: jsPDF, rows: SubmissionListRow[]) =>
 
   const body =
     rows.length > 0
-      ? rows.map((row, idx) => [String(idx + 1), valueOrDash(row.title), formatSubmissionDate(row.createdAt)])
-      : [['—', 'No submissions found', '—']];
+      ? rows.map((row, idx) => [
+          String(idx + 1),
+          valueOrDash(row.title),
+          valueOrDash(row.contactEmail),
+          formatSubmissionDate(row.createdAt),
+        ])
+      : [['—', 'No submissions found', '—', '—']];
 
   autoTable(doc, {
     startY: margin + 34,
     margin: { left: margin, right: margin },
-    head: [['No.', 'Film Title', 'Submission Date']],
+    head: [['No.', 'Film Title', 'Submitter Email', 'Submission Date']],
     body,
     theme: 'grid',
     tableWidth: maxWidth,
@@ -396,8 +408,9 @@ export const buildSubmissionListPdf = (doc: jsPDF, rows: SubmissionListRow[]) =>
     },
     columnStyles: {
       0: { cellWidth: 56, halign: 'center' },
-      1: { cellWidth: maxWidth - 170 },
-      2: { cellWidth: 114 },
+      1: { cellWidth: maxWidth - 170 - 140 },
+      2: { cellWidth: 140 },
+      3: { cellWidth: 114 },
     },
   });
 };

@@ -37,7 +37,14 @@ router.get("/", (req, res, next) => {
 // Authenticated user's submissions
 router.get("/my/list", requireAuth, getMySubmissions);
 
-router.get("/:id/overview", getSubmissionOverview);
+// Now returns contactEmail (submitter PII) — staff-only, matching the
+// CMS client's fetch-util which already attaches a bearer token to every request.
+router.get(
+  "/:id/overview",
+  requireAuth,
+  requireRole("admin", "staff"),
+  getSubmissionOverview
+);
 router.get("/:id", getSubmission);
 router.delete(
   "/:id",
