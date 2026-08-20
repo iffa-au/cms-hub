@@ -99,10 +99,15 @@ export const fetchSubmission = async (req: Request, res: Response) => {
     // submissions should ever be visible on the live site.
     matchStage.status = "APPROVED";
 
-    const submissions = await Submission.aggregate([
-      {
-        $match: matchStage,
-      },
+    const pipeline: any[] = [{ $match: matchStage }];
+
+    // The hero carousel shows an admin-curated set of exactly 5 films, in
+    // the order staff picked them from the CMS carousel page.
+    if (featuredOnly) {
+      pipeline.push({ $sort: { featuredOrder: 1 } }, { $limit: 5 });
+    }
+
+    pipeline.push(
       {
         $lookup: {
           from: "crewassignments",
@@ -140,9 +145,17 @@ export const fetchSubmission = async (req: Request, res: Response) => {
               in: "$$cm.name",
             },
           },
-          // Cast comes from the embedded crew object captured on the public
-          // submission form — separate from the admin-curated crewMembers
-          // lookup above used for `directors`.
+          // Cast/director fall back to the embedded crew object captured on
+          // the public submission form — the crewMembers lookup above only
+          // has data once staff have separately run the admin crew-linking
+          // workflow, which most submissions never go through.
+          crewDirectors: {
+            $map: {
+              input: { $ifNull: ["$crew.directors", []] },
+              as: "d",
+              in: "$$d.fullName",
+            },
+          },
           cast: {
             $map: {
               input: { $ifNull: ["$crew.actors", []] },
@@ -161,9 +174,13 @@ export const fetchSubmission = async (req: Request, res: Response) => {
           trailerUrl: 1,
           durationHours: 1,
           durationMinutes: 1,
+          submissionYear: "$submission_year",
+          featuredOrder: 1,
         },
       },
-    ]);
+    );
+
+    const submissions = await Submission.aggregate(pipeline);
 
     res.status(200).json(submissions);
   } catch (error) {
@@ -1318,6 +1335,77 @@ export const restoreSubmission = async (req, res) => {
       message: "Submission restored",
       data: updated,
     });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+// Staff-only: browse approved submissions to pick the 5 carousel films from,
+// with the current isFeatured/featuredOrder state included so the CMS
+// carousel page can show which ones are already selected.
+export const listCarouselCandidates = async (req, res) => {
+  try {
+    const { q } = req.query as Record<string, string>;
+    const filter: Record<string, unknown> = { status: "APPROVED" };
+    if (q && q.trim()) {
+      const escaped = q.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      filter.title = { $regex: escaped, $options: "i" };
+    }
+    const items = await Submission.find(filter, {
+      title: 1,
+      potraitImageUrl: 1,
+      landscapeImageUrl: 1,
+      submission_year: 1,
+      isFeatured: 1,
+      featuredOrder: 1,
+      createdAt: 1,
+    })
+      // Most recently submitted first, so staff picking films for the
+      // carousel see the latest approved submissions without having to
+      // search for them.
+      .sort({ createdAt: -1 })
+      .limit(200);
+    res.status(200).json({ success: true, data: items });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+// Staff-only: replace the whole carousel selection in one shot — accepts an
+// ordered array of up to 5 submission ids. Anything previously featured but
+// left out of the new array gets cleared, so there's never a stale 6th slot.
+export const setCarouselSubmissions = async (req, res) => {
+  try {
+    const { submissionIds } = req.body as { submissionIds?: unknown };
+    if (!Array.isArray(submissionIds) || submissionIds.length > 5) {
+      return res.status(400).json({
+        success: false,
+        message: "submissionIds must be an array of at most 5 ids",
+      });
+    }
+    const ids = submissionIds
+      .map((id) => String(id || "").trim())
+      .filter((id) => Types.ObjectId.isValid(id));
+    if (ids.length !== submissionIds.length) {
+      return res.status(400).json({ success: false, message: "Invalid submission id in list" });
+    }
+
+    await Submission.updateMany(
+      { isFeatured: true, _id: { $nin: ids.map((id) => new Types.ObjectId(id)) } },
+      { $set: { isFeatured: false }, $unset: { featuredOrder: "" } },
+    );
+
+    await Promise.all(
+      ids.map((id, index) =>
+        Submission.findByIdAndUpdate(id, {
+          $set: { isFeatured: true, featuredOrder: index + 1 },
+        }),
+      ),
+    );
+
+    res.status(200).json({ success: true, message: "Carousel updated" });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: "Internal server error" });
