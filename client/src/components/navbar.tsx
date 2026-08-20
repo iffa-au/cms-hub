@@ -33,11 +33,12 @@ export default function Navbar() {
     commonLinks.splice(insertAfterCrew, 0, { href: "/admin/metadata", label: "Metadata" });
     commonLinks.splice(insertAfterCrew + 1, 0, { href: "/admin/film-enquiry", label: "Film Enquiry" });
   }
-  // Staff and Admin can access the review queue
+  // Staff and Admin can access the review queue and carousel management
   if (user?.role === "admin" || user?.role === "staff") {
     const profileIndex = commonLinks.findIndex((l) => l.href === "/profile");
     const insertIndex = profileIndex >= 0 ? profileIndex : commonLinks.length;
     commonLinks.splice(insertIndex, 0, { href: "/review-queue", label: "Review Queue" });
+    commonLinks.splice(insertIndex + 1, 0, { href: "/carousel", label: "Carousel" });
   }
 
   const handleLogout = () => {
