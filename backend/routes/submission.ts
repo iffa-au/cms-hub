@@ -14,6 +14,8 @@ import {
   fetchSubmission,
   fetchWinner,
   fetchWinnerDetailed,
+  listCarouselCandidates,
+  setCarouselSubmissions,
 } from "../controllers/submission.controller.js";
 import { requireAuth, requireRole } from "../middlewares/auth.middleware.js";
 
@@ -36,6 +38,10 @@ router.get("/", (req, res, next) => {
 
 // Authenticated user's submissions
 router.get("/my/list", requireAuth, getMySubmissions);
+
+// Carousel management (must come before the /:id catch-alls below)
+router.get("/carousel", requireAuth, requireRole("admin", "staff"), listCarouselCandidates);
+router.put("/carousel", requireAuth, requireRole("admin", "staff"), setCarouselSubmissions);
 
 // Now returns contactEmail (submitter PII) — staff-only, matching the
 // CMS client's fetch-util which already attaches a bearer token to every request.
