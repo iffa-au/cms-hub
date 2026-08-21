@@ -4,7 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/providers/auth-context";
 import { getData, postData, updateData, deleteData } from "@/lib/fetch-util";
-import PartnerLogoUpload from "@/components/partners/partner-logo-upload";
+import PartnerLogoUpload, {
+  uploadPartnerLogo,
+} from "@/components/partners/partner-logo-upload";
 import { Pencil, Trash2, Plus, X } from "lucide-react";
 
 const TIERS = [
@@ -19,6 +21,7 @@ type Partner = {
   _id: string;
   name: string;
   logoUrl: string;
+  logoKey?: string;
   websiteUrl?: string;
   tier: Tier;
   order?: number;
@@ -29,7 +32,9 @@ type ListResponse = { success: boolean; data: Partner[]; message?: string };
 
 type FormState = {
   name: string;
+  /** Already-saved logo. Empty for a new partner, or once cleared. */
   logoUrl: string;
+  logoKey: string;
   websiteUrl: string;
   tier: Tier;
   order: string;
@@ -39,6 +44,7 @@ type FormState = {
 const emptyForm: FormState = {
   name: "",
   logoUrl: "",
+  logoKey: "",
   websiteUrl: "",
   tier: "SUPPORTING",
   order: "0",
@@ -61,6 +67,7 @@ export default function PartnersAdminPage() {
   const [success, setSuccess] = useState<string | null>(null);
 
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [pendingLogo, setPendingLogo] = useState<File | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
 
@@ -96,12 +103,14 @@ export default function PartnersAdminPage() {
 
   const resetForm = () => {
     setForm(emptyForm);
+    setPendingLogo(null);
     setEditingId(null);
     setFormOpen(false);
   };
 
   const startCreate = () => {
     setForm(emptyForm);
+    setPendingLogo(null);
     setEditingId(null);
     setFormOpen(true);
     setSuccess(null);
@@ -111,11 +120,13 @@ export default function PartnersAdminPage() {
     setForm({
       name: partner.name,
       logoUrl: partner.logoUrl,
+      logoKey: partner.logoKey ?? "",
       websiteUrl: partner.websiteUrl ?? "",
       tier: partner.tier,
       order: String(partner.order ?? 0),
       isActive: partner.isActive !== false,
     });
+    setPendingLogo(null);
     setEditingId(partner._id);
     setFormOpen(true);
     setSuccess(null);
@@ -127,8 +138,8 @@ export default function PartnersAdminPage() {
       setError("Name is required");
       return;
     }
-    if (!form.logoUrl.trim()) {
-      setError("Please upload a logo");
+    if (!pendingLogo && !form.logoUrl.trim()) {
+      setError("Please select a logo");
       return;
     }
 
@@ -137,9 +148,20 @@ export default function PartnersAdminPage() {
       setError(null);
       setSuccess(null);
 
+      // Upload happens here, not on file selection — an abandoned form never
+      // leaves an orphaned object in the bucket. The backend deletes the
+      // previous object when logoKey changes.
+      let { logoUrl, logoKey } = { logoUrl: form.logoUrl.trim(), logoKey: form.logoKey.trim() };
+      if (pendingLogo) {
+        const uploaded = await uploadPartnerLogo(pendingLogo);
+        logoUrl = uploaded.url;
+        logoKey = uploaded.key;
+      }
+
       const payload = {
         name: form.name.trim(),
-        logoUrl: form.logoUrl.trim(),
+        logoUrl,
+        logoKey,
         websiteUrl: form.websiteUrl.trim(),
         tier: form.tier,
         order: Number(form.order) || 0,
@@ -287,8 +309,12 @@ export default function PartnersAdminPage() {
             <div className="md:col-span-2">
               <label className="mb-1 block text-xs text-muted-foreground">Logo *</label>
               <PartnerLogoUpload
-                value={form.logoUrl}
-                onChange={(logoUrl) => setForm((f) => ({ ...f, logoUrl }))}
+                existingUrl={form.logoUrl}
+                pendingFile={pendingLogo}
+                onSelect={setPendingLogo}
+                onClearExisting={() =>
+                  setForm((f) => ({ ...f, logoUrl: "", logoKey: "" }))
+                }
               />
             </div>
 

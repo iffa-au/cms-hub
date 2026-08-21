@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import Partner, { PARTNER_TIERS, type PartnerTier } from "../models/partner.model.js";
+import { deleteUploadedObject } from "../libs/s3.js";
 
 // Display order of the tiers themselves. Can't be done with a plain Mongo
 // sort — alphabetically CULTURAL would come before PRESENTING, which inverts
@@ -54,7 +55,7 @@ export const listPartners = async (_req: Request, res: Response) => {
 
 export const createPartner = async (req: Request, res: Response) => {
   try {
-    const { name, logoUrl, websiteUrl, tier, order, isActive } = req.body || {};
+    const { name, logoUrl, logoKey, websiteUrl, tier, order, isActive } = req.body || {};
 
     if (!String(name || "").trim()) {
       return res.status(400).json({ success: false, message: "Name is required" });
@@ -72,6 +73,7 @@ export const createPartner = async (req: Request, res: Response) => {
     const created = await Partner.create({
       name: String(name).trim(),
       logoUrl: String(logoUrl).trim(),
+      logoKey: String(logoKey || "").trim(),
       websiteUrl: String(websiteUrl || "").trim(),
       tier,
       order: Number.isFinite(Number(order)) ? Number(order) : 0,
@@ -88,7 +90,12 @@ export const createPartner = async (req: Request, res: Response) => {
 export const updatePartner = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, logoUrl, websiteUrl, tier, order, isActive } = req.body || {};
+    const { name, logoUrl, logoKey, websiteUrl, tier, order, isActive } = req.body || {};
+
+    const existing = await Partner.findById(id);
+    if (!existing) {
+      return res.status(404).json({ success: false, message: "Partner not found" });
+    }
 
     const updates: Record<string, unknown> = {};
     if (name !== undefined) {
@@ -103,6 +110,7 @@ export const updatePartner = async (req: Request, res: Response) => {
       }
       updates.logoUrl = String(logoUrl).trim();
     }
+    if (logoKey !== undefined) updates.logoKey = String(logoKey || "").trim();
     if (websiteUrl !== undefined) updates.websiteUrl = String(websiteUrl || "").trim();
     if (tier !== undefined) {
       if (!isPartnerTier(tier)) {
@@ -123,6 +131,14 @@ export const updatePartner = async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: "Partner not found" });
     }
 
+    // Logo was swapped for a different uploaded file — clean up the old one.
+    // Deliberately after the successful write: a failed cleanup must never
+    // roll back or block the edit the admin actually asked for.
+    const previousKey = existing.logoKey?.trim();
+    if (previousKey && updates.logoKey !== undefined && updates.logoKey !== previousKey) {
+      await deleteUploadedObject(previousKey);
+    }
+
     res.status(200).json({ success: true, message: "Partner updated", data: updated });
   } catch (error) {
     console.error(error);
@@ -137,9 +153,13 @@ export const deletePartner = async (req: Request, res: Response) => {
     if (!deleted) {
       return res.status(404).json({ success: false, message: "Partner not found" });
     }
-    // NOTE: the logo object is intentionally left in S3. The deployed IAM
-    // role is scoped to s3:PutObject only, so a delete would fail with
-    // AccessDenied — orphaned logos are cleaned up out-of-band if needed.
+
+    // Only ever deletes an object this app uploaded itself: logoKey is empty
+    // for logos that point at a repo path or an external URL, so those are
+    // left untouched.
+    const key = deleted.logoKey?.trim();
+    if (key) await deleteUploadedObject(key);
+
     res.status(200).json({ success: true, message: "Partner deleted" });
   } catch (error) {
     console.error(error);

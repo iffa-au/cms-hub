@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ImageUp, X } from "lucide-react";
 import { postData } from "@/lib/fetch-util";
 
@@ -15,55 +15,91 @@ type PresignResponse = {
   message?: string;
 };
 
+export type UploadedLogo = { url: string; key: string };
+
+/**
+ * Uploads a confirmed logo to S3 and resolves to its public URL and object
+ * key. Called from the partners page at save time, not on file selection —
+ * an admin who picks a logo and then abandons the form should never leave a
+ * file behind in the bucket.
+ */
+export async function uploadPartnerLogo(file: File): Promise<UploadedLogo> {
+  const presign = await postData<PresignResponse>("/uploads/presign/partner", {
+    contentType: file.type,
+  });
+  if (!presign?.uploadUrl || !presign?.publicUrl || !presign?.key) {
+    throw new Error(presign?.message || "Could not start upload");
+  }
+
+  // Plain fetch, not the axios instance — the presigned URL carries its own
+  // auth in the query string and S3 rejects the extra Authorization header
+  // that fetch-util attaches to every request.
+  const put = await fetch(presign.uploadUrl, {
+    method: "PUT",
+    headers: { "Content-Type": file.type },
+    body: file,
+  });
+  if (!put.ok) throw new Error("Upload to storage failed");
+
+  return { url: presign.publicUrl, key: presign.key };
+}
+
+export function validateLogoFile(file: File): string | null {
+  if (!ACCEPTED_TYPES.includes(file.type)) {
+    return "Logo must be a PNG, WEBP or JPEG image.";
+  }
+  if (file.size > MAX_BYTES) return "Image is too large (max 15MB).";
+  return null;
+}
+
 type PartnerLogoUploadProps = {
-  value: string;
-  onChange: (logoUrl: string) => void;
+  /** Currently saved logo URL, if editing an existing partner. */
+  existingUrl: string;
+  /** Newly picked file, not yet uploaded. */
+  pendingFile: File | null;
+  onSelect: (file: File | null) => void;
+  onClearExisting: () => void;
 };
 
-export default function PartnerLogoUpload({ value, onChange }: PartnerLogoUploadProps) {
+export default function PartnerLogoUpload({
+  existingUrl,
+  pendingFile,
+  onSelect,
+  onClearExisting,
+}: PartnerLogoUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
-  const handleFile = async (file: File | undefined) => {
+  // Local preview for the pending file — no network involved.
+  useEffect(() => {
+    if (!pendingFile) {
+      setPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(pendingFile);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [pendingFile]);
+
+  const handleFile = (file: File | undefined) => {
     if (!file) return;
+    const validationError = validateLogoFile(file);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
     setError(null);
+    onSelect(file);
+  };
 
-    if (!ACCEPTED_TYPES.includes(file.type)) {
-      setError("Logo must be a PNG, WEBP or JPEG image.");
-      return;
-    }
-    if (file.size > MAX_BYTES) {
-      setError("Image is too large (max 15MB).");
-      return;
-    }
+  const shownUrl = previewUrl ?? (existingUrl || null);
 
-    try {
-      setUploading(true);
-      const presign = await postData<PresignResponse>("/uploads/presign/partner", {
-        contentType: file.type,
-      });
-      if (!presign?.uploadUrl || !presign?.publicUrl) {
-        throw new Error(presign?.message || "Could not start upload");
-      }
-
-      // Plain fetch, not the axios instance — the presigned URL carries its
-      // own auth in the query string and S3 rejects the extra Authorization
-      // header that fetch-util attaches to every request.
-      const put = await fetch(presign.uploadUrl, {
-        method: "PUT",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-      if (!put.ok) throw new Error("Upload to storage failed");
-
-      onChange(presign.publicUrl);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Upload failed");
-    } finally {
-      setUploading(false);
-      if (inputRef.current) inputRef.current.value = "";
-    }
+  const clear = () => {
+    setError(null);
+    onSelect(null);
+    onClearExisting();
+    if (inputRef.current) inputRef.current.value = "";
   };
 
   return (
@@ -73,29 +109,33 @@ export default function PartnerLogoUpload({ value, onChange }: PartnerLogoUpload
         type="file"
         accept={ACCEPTED_TYPES.join(",")}
         className="hidden"
-        onChange={(e) => void handleFile(e.target.files?.[0])}
+        onChange={(e) => handleFile(e.target.files?.[0])}
       />
 
-      {value ? (
+      {shownUrl ? (
         <div className="flex items-center gap-3 rounded border border-border bg-card/60 p-3">
           <div className="flex h-16 w-24 shrink-0 items-center justify-center rounded bg-black/40 p-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={value} alt="Partner logo" className="max-h-full max-w-full object-contain" />
+            <img src={shownUrl} alt="Partner logo" className="max-h-full max-w-full object-contain" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-xs text-muted-foreground">{value}</p>
+            <p className="truncate text-xs text-muted-foreground">
+              {pendingFile ? pendingFile.name : existingUrl}
+            </p>
+            <p className="mt-0.5 text-[10px] uppercase tracking-wide text-muted-foreground/70">
+              {pendingFile ? "Uploads when you save" : "Current logo"}
+            </p>
             <button
               type="button"
               onClick={() => inputRef.current?.click()}
-              disabled={uploading}
-              className="mt-1 text-[10px] font-bold uppercase tracking-widest text-primary hover:underline disabled:opacity-50"
+              className="mt-1 text-[10px] font-bold uppercase tracking-widest text-primary hover:underline"
             >
-              {uploading ? "Uploading..." : "Replace"}
+              Replace
             </button>
           </div>
           <button
             type="button"
-            onClick={() => onChange("")}
+            onClick={clear}
             className="shrink-0 text-muted-foreground hover:text-red-400"
             aria-label="Remove logo"
           >
@@ -106,11 +146,10 @@ export default function PartnerLogoUpload({ value, onChange }: PartnerLogoUpload
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          disabled={uploading}
-          className="flex w-full items-center justify-center gap-2 rounded border border-dashed border-border bg-card/40 px-4 py-6 text-xs text-muted-foreground transition-colors hover:border-primary hover:text-primary disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-2 rounded border border-dashed border-border bg-card/40 px-4 py-6 text-xs text-muted-foreground transition-colors hover:border-primary hover:text-primary"
         >
           <ImageUp size={16} />
-          {uploading ? "Uploading..." : "Upload logo (PNG, WEBP or JPEG)"}
+          Select logo (PNG, WEBP or JPEG)
         </button>
       )}
 

@@ -6,6 +6,13 @@ export type PartnerTier = (typeof PARTNER_TIERS)[number];
 export interface IPartner {
   name: string;
   logoUrl: string;
+  /**
+   * S3 object key backing logoUrl, set only for logos uploaded through the
+   * CMS. Absent for logos pointing at a repo path or an external URL — which
+   * is exactly what makes it safe to use as the delete target: we only ever
+   * delete objects this app put there itself.
+   */
+  logoKey?: string;
   websiteUrl?: string;
   tier: PartnerTier;
   // Sort position within a tier. Ties fall back to name so the public page
@@ -27,6 +34,11 @@ const partnerSchema = new Schema<IPartner>(
     logoUrl: {
       type: String,
       required: true,
+      trim: true,
+    },
+    logoKey: {
+      type: String,
+      default: "",
       trim: true,
     },
     websiteUrl: {

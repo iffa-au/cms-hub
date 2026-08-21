@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 const PRESIGN_EXPIRY_SECONDS = 300; // 5 minutes — plenty for a browser to start the PUT
@@ -105,6 +105,29 @@ export type PresignedUpload = {
   uploadUrl: string;
   key: string;
 };
+
+/**
+ * Best-effort delete of a previously uploaded object.
+ *
+ * Never throws: cleanup is always secondary to the database write that
+ * triggered it. If the IAM role lacks s3:DeleteObject, or the object is
+ * already gone, the partner update/delete must still succeed — the worst
+ * case is an orphaned file, which is strictly better than a failed edit.
+ * Returns whether the delete actually went through, for logging.
+ */
+export async function deleteUploadedObject(key: string): Promise<boolean> {
+  if (!key || !key.trim()) return false;
+  try {
+    const { bucket } = loadConfig();
+    await getClient().send(
+      new DeleteObjectCommand({ Bucket: bucket, Key: key }),
+    );
+    return true;
+  } catch (error) {
+    console.error(`Failed to delete S3 object "${key}":`, error);
+    return false;
+  }
+}
 
 /**
  * Turns an uploaded object key into its public CloudFront URL.
