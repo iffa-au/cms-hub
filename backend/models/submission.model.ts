@@ -8,6 +8,7 @@ export interface ISubmission {
   releaseDate: Date;
   potraitImageUrl?: string;
   landscapeImageUrl?: string;
+  assetPrefix?: string;
   isFeatured?: boolean;
   // 1-5, only set while isFeatured is true — controls slide order in the
   // public submissions-page hero carousel. Cleared when a film is removed
@@ -95,6 +96,15 @@ const submissionSchema = new Schema<ISubmission>(
     landscapeImageUrl: {
       type: String,
       default: "",
+    },
+    // S3 folder holding every image for this submission (banners + crew
+    // photos). Recorded so the whole set can be removed by prefix later
+    // rather than by reconstructing ten individual keys. Empty on records
+    // predating per-submission folders, and on hand-uploaded imports.
+    assetPrefix: {
+      type: String,
+      default: "",
+      trim: true,
     },
     status: {
       type: String,
