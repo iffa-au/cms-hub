@@ -4,6 +4,10 @@ import type { AuthedRequest } from "../middlewares/auth.middleware.js";
 import { Types } from "mongoose";
 import SubmissionGenre from "../models/submissionGenre.model.js";
 import { sendSubmissionReceipt } from "../libs/mailer.js";
+import {
+  buildSubmissionAssetPrefix,
+  isValidSubmissionRef,
+} from "../libs/s3.js";
 
 const ALLOWED_WATCH_FORMATS = new Set([
   "theatrical",
@@ -105,6 +109,11 @@ export const fetchSubmission = async (req: Request, res: Response) => {
     // the order staff picked them from the CMS carousel page.
     if (featuredOnly) {
       pipeline.push({ $sort: { featuredOrder: 1 } }, { $limit: 5 });
+    } else {
+      // Newest submission first. The 2022-2025 archives were bulk-imported
+      // straight into Mongo and carry no createdAt at all, so _id breaks that
+      // tie -- ObjectIds are monotonic in insertion order.
+      pipeline.push({ $sort: { createdAt: -1, _id: -1 } });
     }
 
     pipeline.push(
@@ -502,6 +511,7 @@ export const createSubmissionPublic = async (req, res) => {
       releaseCountryIds,
       watchFormats,
       notes = "",
+      submissionRef,
     } = req.body || {};
 
     const parsedSubmissionYear = Number(submissionYear);
@@ -592,6 +602,14 @@ export const createSubmissionPublic = async (req, res) => {
       trailerUrl,
       releaseLinkUrl: String(releaseLinkUrl || "").trim(),
       contactEmail: String(contactEmail || "").trim().toLowerCase(),
+      // Recomputed from the same ref + title the presign calls used, rather
+      // than taken from the request body: this string is a path that asset
+      // cleanup will one day delete by prefix, so it must never be
+      // client-controlled. Empty when the form sent no ref (an older client,
+      // or image URLs pasted in by hand) — better empty than a wrong path.
+      assetPrefix: isValidSubmissionRef(submissionRef)
+        ? buildSubmissionAssetPrefix(submissionRef, String(title))
+        : "",
       submission_year: resolvedSubmissionYear,
       ...parsedDuration,
       languageId,

@@ -26,6 +26,9 @@ export type UploadedLogo = { url: string; key: string };
 export async function uploadPartnerLogo(file: File): Promise<UploadedLogo> {
   const presign = await postData<PresignResponse>("/uploads/presign/partner", {
     contentType: file.type,
+    // Used only to build a readable object key — the server sanitises it and
+    // appends a unique suffix, so it can't control where the file lands.
+    fileName: file.name,
   });
   if (!presign?.uploadUrl || !presign?.publicUrl || !presign?.key) {
     throw new Error(presign?.message || "Could not start upload");
