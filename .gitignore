@@ -6,3 +6,7 @@ CODEBASE_GUIDE.md
 env.development
 CODEBASE_OVERVIEW_CMS.md
 backend/.env
+
+# Local working notes - never commit (repo is public)
+docs/STATUS.md
+CLAUDE.local.md

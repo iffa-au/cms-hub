@@ -74,6 +74,8 @@ export default function Navbar() {
       children: [
         { href: "/carousel", label: "Submissions Carousel" },
         { href: "/partners", label: "Partners" },
+        { href: "/festivals", label: "Festivals" },
+        { href: "/festivals/settings", label: "Festivals Page" },
       ],
     });
   }
