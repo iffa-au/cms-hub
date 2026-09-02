@@ -76,6 +76,7 @@ export default function Navbar() {
         { href: "/partners", label: "Partners" },
         { href: "/festivals", label: "Festivals" },
         { href: "/festivals/settings", label: "Festivals Page" },
+        { href: "/podcasts", label: "Podcast" },
       ],
     });
   }
