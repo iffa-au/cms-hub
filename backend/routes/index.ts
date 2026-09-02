@@ -17,6 +17,8 @@ import filmEnquiryRoutes from "./filmEnquiry.js";
 import mediaAssetRoutes from "./mediaAsset.js";
 import uploadRoutes from "./upload.js";
 import partnerRoutes from "./partner.js";
+import festivalRoutes from "./festival.js";
+import podcastRoutes from "./podcast.js";
 
 const router = e.Router();
 
@@ -38,5 +40,7 @@ router.use("/film-enquiries", filmEnquiryRoutes);
 router.use("/media-assets", mediaAssetRoutes);
 router.use("/uploads", uploadRoutes);
 router.use("/partners", partnerRoutes);
+router.use("/festivals", festivalRoutes);
+router.use("/podcasts", podcastRoutes);
 
 export default router;

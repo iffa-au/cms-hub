@@ -1,5 +1,11 @@
 import { randomUUID } from "crypto";
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import {
+  S3Client,
+  PutObjectCommand,
+  DeleteObjectCommand,
+  DeleteObjectsCommand,
+  ListObjectsV2Command,
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 const PRESIGN_EXPIRY_SECONDS = 300; // 5 minutes — plenty for a browser to start the PUT
@@ -9,20 +15,22 @@ type S3Config = {
   bucket: string;
   uploadPrefix: string;
   partnersPrefix: string;
+  festivalsPrefix: string;
 };
 
 /**
- * Partner logos live beside the submissions folder rather than inside it.
- * Derived from the submissions prefix by default (so
- * "iffa/images/submissions-2026" implies "iffa/images/partners"), keeping the
- * bucket layout consistent without a second env var that has to be remembered
- * on every deploy target. Override with AWS_S3_PARTNERS_PREFIX if the two ever
- * need to live somewhere unrelated.
+ * Partner logos and festival assets live beside the submissions folder rather
+ * than inside it. Derived from the submissions prefix by default (so
+ * "iffa/images/submissions-2026" implies "iffa/images/partners" and
+ * "iffa/images/festivals"), keeping the bucket layout consistent without extra
+ * env vars that have to be remembered on every deploy target. Override with
+ * AWS_S3_PARTNERS_PREFIX / AWS_S3_FESTIVALS_PREFIX if they ever need to live
+ * somewhere unrelated.
  */
-function derivePartnersPrefix(uploadPrefix: string): string {
+function deriveSiblingPrefix(uploadPrefix: string, folder: string): string {
   const lastSlash = uploadPrefix.lastIndexOf("/");
   const parent = lastSlash === -1 ? "" : uploadPrefix.slice(0, lastSlash);
-  return parent ? `${parent}/partners` : "partners";
+  return parent ? `${parent}/${folder}` : folder;
 }
 
 let cachedConfig: S3Config | null = null;
@@ -33,6 +41,49 @@ let cachedClient: S3Client | null = null;
 // AWS-side failure without parsing SDK error internals.
 export class S3ConfigError extends Error {}
 
+/**
+ * Turns an AWS SDK failure into something the admin staring at the CMS can act
+ * on, or null if it is not a recognised infrastructure problem.
+ *
+ * `S3ConfigError` above covers the case where an env var is missing outright.
+ * This covers the two ways S3 still fails once the config is complete: a server
+ * with no credentials at all (a developer laptop) and a server whose IAM role
+ * lacks a permission (the deployed instance role). Both surfaced as a bare
+ * "Internal server error", which is indistinguishable from a real bug and sent
+ * us looking in the wrong place — the upload code was fine in both cases.
+ *
+ * Returns null for anything unrecognised on purpose: a genuine bug must not be
+ * dressed up as an infrastructure problem, which would be the same mistake in
+ * the other direction.
+ */
+export function describeS3Failure(error: unknown): string | null {
+  const name = (error as { name?: string } | null)?.name ?? "";
+  const status = (error as { $metadata?: { httpStatusCode?: number } } | null)
+    ?.$metadata?.httpStatusCode;
+
+  if (name === "CredentialsProviderError") {
+    return (
+      "This server has no AWS credentials, so it cannot issue image uploads. " +
+      "Locally: add AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY to the backend's .env. " +
+      "Deployed: attach the instance role. Everything except images saves without them."
+    );
+  }
+
+  if (name === "AccessDenied" || name === "AccessDeniedException" || status === 403) {
+    return (
+      "AWS refused this request. The server's IAM role is missing an S3 permission " +
+      "on the media bucket: s3:PutObject to upload, s3:DeleteObject and s3:ListBucket " +
+      "to remove a festival's assets."
+    );
+  }
+
+  if (name === "NoSuchBucket") {
+    return "The configured S3 bucket does not exist — check AWS_S3_BUCKET on this server.";
+  }
+
+  return null;
+}
+
 function loadConfig(): S3Config {
   if (cachedConfig) return cachedConfig;
   const {
@@ -40,6 +91,7 @@ function loadConfig(): S3Config {
     AWS_S3_BUCKET,
     AWS_S3_UPLOAD_PREFIX,
     AWS_S3_PARTNERS_PREFIX,
+    AWS_S3_FESTIVALS_PREFIX,
   } = process.env;
 
   if (!AWS_REGION || !AWS_S3_BUCKET) {
@@ -64,7 +116,10 @@ function loadConfig(): S3Config {
     uploadPrefix,
     partnersPrefix: AWS_S3_PARTNERS_PREFIX
       ? trim(AWS_S3_PARTNERS_PREFIX)
-      : derivePartnersPrefix(uploadPrefix),
+      : deriveSiblingPrefix(uploadPrefix, "partners"),
+    festivalsPrefix: AWS_S3_FESTIVALS_PREFIX
+      ? trim(AWS_S3_FESTIVALS_PREFIX)
+      : deriveSiblingPrefix(uploadPrefix, "festivals"),
   };
   return cachedConfig;
 }
@@ -79,16 +134,19 @@ function getClient(): S3Client {
 export const ALLOWED_UPLOAD_CONTENT_TYPE = "image/webp";
 export const MAX_UPLOAD_BYTES = 15 * 1024 * 1024; // 15MB
 
-export type UploadFolder = "submissions" | "partners";
+export type UploadFolder = "submissions" | "partners" | "festivals";
 
 /**
  * Per-folder allowlists. The public submit-film form stays webp-only (that
  * constraint is enforced in its UI and worth keeping), while partner logos
  * also accept PNG — logos need transparency and the existing set is PNG.
+ * Festival artwork is photographic (hero banners, film posters) and comes from
+ * whatever a distributor supplied, so it accepts the same set as partners.
  */
 const ALLOWED_CONTENT_TYPES: Record<UploadFolder, readonly string[]> = {
   submissions: ["image/webp"],
   partners: ["image/webp", "image/png", "image/jpeg"],
+  festivals: ["image/webp", "image/png", "image/jpeg"],
 };
 
 const EXTENSION_BY_CONTENT_TYPE: Record<string, string> = {
@@ -192,7 +250,12 @@ export async function createPresignedUpload(
   originalName?: string,
 ): Promise<PresignedUpload> {
   const config = loadConfig();
-  const prefix = folder === "partners" ? config.partnersPrefix : config.uploadPrefix;
+  const PREFIX_BY_FOLDER: Record<UploadFolder, string> = {
+    submissions: config.uploadPrefix,
+    partners: config.partnersPrefix,
+    festivals: config.festivalsPrefix,
+  };
+  const prefix = PREFIX_BY_FOLDER[folder];
   const extension = EXTENSION_BY_CONTENT_TYPE[contentType] ?? "webp";
 
   // Readable name + short random suffix. The suffix is not decoration: two
@@ -297,4 +360,228 @@ export async function createSubmissionAssetUpload(
   });
 
   return { uploadUrl, key };
+}
+
+/* -------------------------------------------------------------------------
+ * Festivals
+ *
+ * Same folder-per-record shape as submissions, for the same reason: festival
+ * names are neither unique nor stable, and S3 PUT overwrites without error.
+ *
+ *   iffa/images/festivals/<festival-slug>-<8hex>/
+ *     hero.webp
+ *     screenings/the-arab.webp
+ *
+ * Unlike submissions, a festival's whole folder is deleted when the festival
+ * is — see deleteUploadedPrefix below.
+ * ---------------------------------------------------------------------- */
+
+export const FESTIVAL_ASSET_GROUPS = ["hero", "screenings"] as const;
+export type FestivalAssetGroup = (typeof FESTIVAL_ASSET_GROUPS)[number];
+
+/** Reserved folder name for page-wide images; never a festival's own folder. */
+export const FESTIVAL_PAGE_FOLDER = "page";
+
+/** Same 8-hex shape as SUBMISSION_REF_PATTERN, generated by the CMS. */
+export const FESTIVAL_REF_PATTERN = /^[a-f0-9]{8}$/;
+
+export function isValidFestivalRef(ref: unknown): ref is string {
+  return typeof ref === "string" && FESTIVAL_REF_PATTERN.test(ref);
+}
+
+/**
+ * Computed server-side and stored on the festival at creation, then never
+ * recomputed.
+ *
+ * Deliberately different from `buildSubmissionAssetPrefix`, which is recomputed
+ * from the current title on every write. S3 has no rename: if a festival is
+ * renamed after its artwork is uploaded, recomputing would produce a prefix the
+ * files are *not* under, and the cascade delete would then walk an empty folder
+ * and orphan every real asset. The stored prefix keeps the name it was created
+ * with — a browsing hint, never something to look a festival up by.
+ */
+export function buildFestivalAssetPrefix(ref: string, name: string): string {
+  if (!isValidFestivalRef(ref)) {
+    throw new Error(`Invalid festival asset ref: ${String(ref)}`);
+  }
+  return `${loadConfig().festivalsPrefix}/${slugify(name, "untitled")}-${ref}`;
+}
+
+export type FestivalAssetTarget = {
+  /** The festival's stored assetPrefix. Never rebuilt from a client-sent name. */
+  prefix: string;
+  group: FestivalAssetGroup;
+  /** "hero", or a film title for a screening poster. */
+  name: string;
+};
+
+/**
+ * Presigned PUT for one file inside a festival's folder.
+ *
+ * Re-uploading the same slot overwrites deliberately: replacing a poster should
+ * replace the file, not leave the old one beside it. The caller passes the
+ * festival's stored prefix so a rename can never split one festival's assets
+ * across two folders.
+ */
+export async function createFestivalAssetUpload(
+  target: FestivalAssetTarget,
+  contentType: string,
+): Promise<PresignedUpload> {
+  const config = loadConfig();
+  const extension = EXTENSION_BY_CONTENT_TYPE[contentType] ?? "webp";
+  assertDeletableFestivalPrefix(target.prefix);
+
+  const key =
+    target.group === "hero"
+      ? `${target.prefix}/hero.${extension}`
+      : `${target.prefix}/screenings/${slugify(target.name)}.${extension}`;
+
+  const command = new PutObjectCommand({
+    Bucket: config.bucket,
+    Key: key,
+    ContentType: contentType,
+  });
+
+  const uploadUrl = await getSignedUrl(getClient(), command, {
+    expiresIn: PRESIGN_EXPIRY_SECONDS,
+  });
+
+  return { uploadUrl, key };
+}
+
+/**
+ * Presigned PUT for a Festivals *page* image — the hero background, the award
+ * trophy — as opposed to one festival's artwork.
+ *
+ * Lands in a reserved `page/` folder beside the per-festival folders. It is
+ * deliberately outside any festival's prefix so a festival delete can never
+ * take a page-wide image with it; these are replaced one key at a time by the
+ * settings controller instead.
+ */
+export async function createFestivalPageUpload(
+  name: string,
+  contentType: string,
+): Promise<PresignedUpload> {
+  const config = loadConfig();
+  const extension = EXTENSION_BY_CONTENT_TYPE[contentType] ?? "webp";
+
+  // A short random suffix, so replacing an image is not a same-key overwrite
+  // that CloudFront would keep serving from cache until its TTL expires.
+  const suffix = randomUUID().slice(0, 8);
+  const key = `${config.festivalsPrefix}/page/${slugify(name, "image")}-${suffix}.${extension}`;
+
+  const command = new PutObjectCommand({
+    Bucket: config.bucket,
+    Key: key,
+    ContentType: contentType,
+  });
+
+  const uploadUrl = await getSignedUrl(getClient(), command, {
+    expiresIn: PRESIGN_EXPIRY_SECONDS,
+  });
+
+  return { uploadUrl, key };
+}
+
+/**
+ * Refuses any prefix that is not one festival's own folder.
+ *
+ * This is the guard that stands between a bug and the whole festivals folder.
+ * A prefix-delete walks whatever string it is given, so an empty value, the
+ * festivals root, or a parent directory must throw *before* anything is listed
+ * — never be treated as "delete a bit more than intended".
+ *
+ * Exported so the delete path and the upload path enforce the same rule: a
+ * prefix good enough to write into is a prefix specific enough to delete.
+ */
+export function assertDeletableFestivalPrefix(prefix: string): void {
+  const { festivalsPrefix } = loadConfig();
+  const root = `${festivalsPrefix}/`;
+  const value = String(prefix || "").trim();
+
+  if (!value.startsWith(root)) {
+    throw new Error(
+      `Refusing to use festival prefix "${value}": it is not under "${root}".`,
+    );
+  }
+
+  // Must name a folder *inside* the root, not the root itself.
+  const remainder = value.slice(root.length).replace(/\/+$/, "");
+  if (!remainder || remainder.includes("/")) {
+    throw new Error(
+      `Refusing to use festival prefix "${value}": expected exactly one folder under "${root}".`,
+    );
+  }
+
+  // `page/` holds Festivals-page images that belong to no festival. A festival
+  // whose slug happened to be "page" must not be able to delete them.
+  if (remainder === FESTIVAL_PAGE_FOLDER) {
+    throw new Error(
+      `Refusing to use festival prefix "${value}": "${FESTIVAL_PAGE_FOLDER}" is reserved for page-wide images.`,
+    );
+  }
+}
+
+const DELETE_BATCH_SIZE = 1000; // S3's per-request maximum for DeleteObjects.
+
+/**
+ * Deletes every object under one festival's folder.
+ *
+ * Best-effort in the same sense as deleteUploadedObject: the festival record is
+ * already gone by the time this runs, and a failure here (no s3:ListBucket, no
+ * s3:DeleteObject, network) must not resurface as a failed delete to the admin.
+ * Orphaned objects are recoverable; a half-deleted festival is not.
+ *
+ * The guard above is the one thing that *does* throw — a malformed prefix is a
+ * bug, not a runtime condition, and must never reach ListObjectsV2.
+ *
+ * Returns the number of objects deleted, for logging.
+ */
+export async function deleteUploadedPrefix(prefix: string): Promise<number> {
+  assertDeletableFestivalPrefix(prefix);
+
+  const { bucket } = loadConfig();
+  const client = getClient();
+  const listPrefix = prefix.replace(/\/+$/, "") + "/";
+  let deleted = 0;
+
+  try {
+    let continuationToken: string | undefined;
+
+    do {
+      const listed = await client.send(
+        new ListObjectsV2Command({
+          Bucket: bucket,
+          Prefix: listPrefix,
+          ContinuationToken: continuationToken,
+          MaxKeys: DELETE_BATCH_SIZE,
+        }),
+      );
+
+      const keys = (listed.Contents ?? [])
+        .map((object) => object.Key)
+        .filter((key): key is string => !!key);
+
+      if (keys.length > 0) {
+        await client.send(
+          new DeleteObjectsCommand({
+            Bucket: bucket,
+            Delete: { Objects: keys.map((Key) => ({ Key })), Quiet: true },
+          }),
+        );
+        deleted += keys.length;
+      }
+
+      // IsTruncated rather than the token alone: a truncated page always
+      // carries a token, and an untruncated one must end the loop even if S3
+      // echoes something back.
+      continuationToken = listed.IsTruncated
+        ? listed.NextContinuationToken
+        : undefined;
+    } while (continuationToken);
+  } catch (error) {
+    console.error(`Failed to delete S3 prefix "${listPrefix}":`, error);
+  }
+
+  return deleted;
 }
