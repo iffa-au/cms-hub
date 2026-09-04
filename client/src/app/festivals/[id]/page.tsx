@@ -13,6 +13,12 @@ import { ArrowLeft, ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
 /**
  * One festival and its screenings, edited and saved together.
  *
+ * IFFA runs one festival a year and the backend enforces it with a unique
+ * index on the year, which is derived from the start date. Moving the start
+ * date into a year that already has a festival is therefore the one edit the
+ * server will refuse — the banner under the dates says so before the save
+ * rather than after it.
+ *
  * Screenings are embedded in the festival document, so this page owns the whole
  * programme: there is one Save, and the array it sends replaces what is stored.
  * Images are the exception — they upload first (they have to exist before the
@@ -51,7 +57,6 @@ type FestivalResponse = {
   data: {
     _id: string;
     slug: string;
-    edition: string;
     name: string;
     tagline?: string;
     description?: string;
@@ -125,7 +130,6 @@ export default function FestivalEditorPage() {
 
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
-  const [edition, setEdition] = useState("01");
   const [tagline, setTagline] = useState("");
   const [description, setDescription] = useState("");
   const [city, setCity] = useState("");
@@ -158,7 +162,6 @@ export default function FestivalEditorPage() {
 
       setName(festival.name ?? "");
       setSlug(festival.slug ?? "");
-      setEdition(festival.edition ?? "01");
       setTagline(festival.tagline ?? "");
       setDescription(festival.description ?? "");
       setCity(festival.city ?? "");
@@ -256,7 +259,6 @@ export default function FestivalEditorPage() {
       await updateData(`/festivals/${festivalId}`, {
         name: name.trim(),
         slug: slug.trim(),
-        edition: edition.trim(),
         tagline: tagline.trim(),
         description: description.trim(),
         city: city.trim(),
@@ -309,8 +311,10 @@ export default function FestivalEditorPage() {
         {name || "Untitled festival"}
       </h1>
       <p className="mb-8 text-sm text-accent-foreground">
-        Everything on this page appears on the public Festivals page once the
-        festival is published.
+        Everything on this page appears on the public Festival page once the
+        festival is published. The current or next year&rsquo;s published
+        festival is the one the site is built around; earlier years become the
+        archive.
       </p>
 
       {error && (
@@ -350,13 +354,6 @@ export default function FestivalEditorPage() {
                   onChange={(e) => setSlug(e.target.value)} placeholder="night-frequencies" />
               </div>
               <div>
-                <label className={labelClass} htmlFor="f-edition">
-                  Position in its month (shown as “Festival 01”)
-                </label>
-                <input id="f-edition" className={field} value={edition}
-                  onChange={(e) => setEdition(e.target.value)} placeholder="01" />
-              </div>
-              <div>
                 <label className={labelClass} htmlFor="f-city">City</label>
                 <input id="f-city" className={field} value={city}
                   onChange={(e) => setCity(e.target.value)} placeholder="Melbourne" />
@@ -365,6 +362,11 @@ export default function FestivalEditorPage() {
                 <label className={labelClass} htmlFor="f-start">Start date *</label>
                 <input id="f-start" type="date" className={field} value={startDate}
                   onChange={(e) => setStartDate(e.target.value)} />
+                <p className="mt-1 text-xs text-muted-foreground/70">
+                  {startDate
+                    ? `This is the ${startDate.slice(0, 4)} festival. Only one festival can exist per year.`
+                    : "The year of this date decides which festival year this is."}
+                </p>
               </div>
               <div>
                 <label className={labelClass} htmlFor="f-end">End date *</label>
