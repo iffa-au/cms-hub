@@ -1,6 +1,10 @@
 import { randomUUID } from "crypto";
 import { Request, Response } from "express";
-import Festival, { SEAT_STATUSES, type IScreening } from "../models/festival.model.js";
+import Festival, {
+  SEAT_STATUSES,
+  type IFilm,
+  type IScreening,
+} from "../models/festival.model.js";
 import FestivalSettings from "../models/festivalSettings.model.js";
 import {
   buildFestivalAssetPrefix,
@@ -19,7 +23,7 @@ import {
 
 const PUBLIC_FIELDS = {
   slug: 1,
-  edition: 1,
+  year: 1,
   name: 1,
   tagline: 1,
   description: 1,
@@ -47,25 +51,48 @@ const slugify = (value: string): string =>
     .toLowerCase()
     .slice(0, 100);
 
+/**
+ * The year a festival belongs to, taken from the day it opens.
+ *
+ * Always computed, never read from the request. `year` carries the unique
+ * index that makes one-festival-a-year a rule rather than a convention, so
+ * letting a client supply it would let a client choose which slot to occupy
+ * independently of the dates it actually runs on.
+ */
+const yearOf = (startDate: string): number => Number(startDate.slice(0, 4));
+
+/**
+ * The festival already occupying a year, if there is one.
+ *
+ * Checked in the controller as well as by the unique index: the index is what
+ * guarantees correctness under a race, and this is what turns the resulting
+ * E11000 into a message that names the festival in the way.
+ */
+const festivalInYear = async (year: number, excludeId?: unknown) => {
+  const query: Record<string, unknown> = { year };
+  if (excludeId) query._id = { $ne: excludeId };
+  return Festival.findOne(query).select("_id name slug year").lean();
+};
+
 const isSeatStatus = (value: unknown): boolean =>
   typeof value === "string" && (SEAT_STATUSES as readonly string[]).includes(value);
 
 /**
- * Normalises one screening row from the CMS.
+ * Normalises one film row from the CMS.
  *
- * Everything except title and date is optional and defaulted — a festival is
- * often announced before its full programme is confirmed, and a half-filled
- * screening is more useful on the page than no screening at all.
+ * Only the title is required. A festival is often announced before its full
+ * programme is confirmed, and a half-filled film is more useful on the page
+ * than no film at all.
  */
-const normaliseScreening = (raw: unknown): IScreening | { error: string } => {
+const normaliseFilm = (
+  raw: unknown,
+  screeningTitle: string,
+): IFilm | { error: string } => {
   const row = (raw ?? {}) as Record<string, unknown>;
 
   const title = String(row.title ?? "").trim();
-  if (!title) return { error: "Every screening needs a film title" };
-
-  const date = String(row.date ?? "").trim();
-  if (!ISO_DATE.test(date)) {
-    return { error: `Screening "${title}" needs a date in YYYY-MM-DD form` };
+  if (!title) {
+    return { error: `Every film in "${screeningTitle}" needs a title` };
   }
 
   const year = Number(row.year);
@@ -81,10 +108,66 @@ const normaliseScreening = (raw: unknown): IScreening | { error: string } => {
     runtimeMinutes: Number.isFinite(runtime) ? runtime : 0,
     synopsis: String(row.synopsis ?? "").trim(),
     trailerUrl: String(row.trailerUrl ?? "").trim(),
-    date,
+  };
+};
+
+/**
+ * Normalises one screening row from the CMS, with its films.
+ *
+ * A screening needs a title and an opening date; everything else is optional
+ * and defaulted, including its lineup — a session can be announced before the
+ * films in it are confirmed.
+ *
+ * A missing end date means a single sitting, which is the common case and not
+ * worth rejecting a save over. An end date BEFORE the start is rejected rather
+ * than silently collapsed: unlike a blank, it is unambiguously a mistake, and
+ * quietly rewriting a date staff typed is how they stop trusting the form.
+ */
+const normaliseScreening = (raw: unknown): IScreening | { error: string } => {
+  const row = (raw ?? {}) as Record<string, unknown>;
+
+  const title = String(row.title ?? "").trim();
+  if (!title) return { error: "Every screening needs a title" };
+
+  const startDate = String(row.startDate ?? "").trim();
+  if (!ISO_DATE.test(startDate)) {
+    return { error: `Screening "${title}" needs a start date in YYYY-MM-DD form` };
+  }
+
+  const rawEnd = String(row.endDate ?? "").trim();
+  if (rawEnd && !ISO_DATE.test(rawEnd)) {
+    return { error: `Screening "${title}" needs an end date in YYYY-MM-DD form` };
+  }
+  if (rawEnd && rawEnd < startDate) {
+    return {
+      error: `Screening "${title}" ends before it starts — check its dates`,
+    };
+  }
+  const endDate = rawEnd || startDate;
+
+  const rawFilms = row.films;
+  if (rawFilms !== undefined && !Array.isArray(rawFilms)) {
+    return { error: `Screening "${title}": films must be a list` };
+  }
+
+  const films: IFilm[] = [];
+  for (const item of (rawFilms ?? []) as unknown[]) {
+    const result = normaliseFilm(item, title);
+    if ("error" in result) return result;
+    films.push(result);
+  }
+
+  return {
+    title,
+    description: String(row.description ?? "").trim(),
+    startDate,
+    endDate,
     time: String(row.time ?? "").trim(),
     venue: String(row.venue ?? "").trim(),
-    seatStatus: isSeatStatus(row.seatStatus) ? (row.seatStatus as IScreening["seatStatus"]) : "available",
+    seatStatus: isSeatStatus(row.seatStatus)
+      ? (row.seatStatus as IScreening["seatStatus"])
+      : "available",
+    films,
   };
 };
 
@@ -106,11 +189,16 @@ const normaliseScreenings = (
 /** Every S3 key a festival owns — used to find what a write orphaned. */
 const assetKeysOf = (festival: {
   heroImageKey?: string;
-  screenings?: { posterKey?: string }[];
+  screenings?: { films?: { posterKey?: string }[] }[];
 }): string[] =>
   [
     festival.heroImageKey,
-    ...(festival.screenings ?? []).map((screening) => screening.posterKey),
+    // Posters moved a level down when films gained their own rows. Walking
+    // only the screenings here would have reported every poster as orphaned
+    // on the next save, and deleted the lot.
+    ...(festival.screenings ?? []).flatMap((screening) =>
+      (screening.films ?? []).map((film) => film.posterKey),
+    ),
   ]
     .map((key) => (key ?? "").trim())
     .filter(Boolean);
@@ -145,7 +233,7 @@ const loadFestivalSettingsForWrite = async () =>
 export const fetchFestivals = async (_req: Request, res: Response) => {
   try {
     const [festivals, settings] = await Promise.all([
-      Festival.find({ isPublished: true }, PUBLIC_FIELDS).sort({ startDate: 1 }).lean(),
+      Festival.find({ isPublished: true }, PUBLIC_FIELDS).sort({ startDate: -1 }).lean(),
       readFestivalSettings(),
     ]);
     res.status(200).json({ success: true, data: { festivals, settings } });
@@ -188,7 +276,7 @@ export const fetchFestivalBySlug = async (req: Request, res: Response) => {
 /** Staff-only: includes drafts, so an unpublished festival can be found again. */
 export const listFestivals = async (_req: Request, res: Response) => {
   try {
-    const festivals = await Festival.find({}).sort({ startDate: 1 }).lean();
+    const festivals = await Festival.find({}).sort({ startDate: -1 }).lean();
     res.status(200).json({ success: true, data: festivals });
   } catch (error) {
     console.error(error);
@@ -240,6 +328,17 @@ export const createFestival = async (req: Request, res: Response) => {
         .json({ success: false, message: "endDate cannot be before startDate" });
     }
 
+    const year = yearOf(startDate);
+    const occupied = await festivalInYear(year);
+    if (occupied) {
+      return res.status(409).json({
+        success: false,
+        message:
+          `${year} already has a festival — "${occupied.name}". IFFA runs one festival a year, ` +
+          `so edit that one instead, or move this festival's dates into a different year.`,
+      });
+    }
+
     const slug = slugify(String(body.slug ?? "") || name);
     if (!slug) {
       return res.status(400).json({
@@ -268,9 +367,9 @@ export const createFestival = async (req: Request, res: Response) => {
 
     const created = await Festival.create({
       slug,
+      year,
       assetRef,
       assetPrefix: buildFestivalAssetPrefix(assetRef, name),
-      edition: String(body.edition ?? "01").trim() || "01",
       name,
       tagline: String(body.tagline ?? "").trim(),
       description: String(body.description ?? "").trim(),
@@ -356,7 +455,24 @@ export const updateFestival = async (req: Request, res: Response) => {
     if (body.startDate !== undefined) updates.startDate = startDate;
     if (body.endDate !== undefined) updates.endDate = endDate;
 
-    if (body.edition !== undefined) updates.edition = String(body.edition).trim() || "01";
+    // Moving a festival's dates can move it into another year, which is the
+    // only way an edit can collide with the one-a-year rule. Recomputed on
+    // every write rather than only when the dates change, so a record saved
+    // before `year` existed picks it up the next time it is touched.
+    const year = yearOf(startDate);
+    if (year !== existing.year) {
+      const occupied = await festivalInYear(year, existing._id);
+      if (occupied) {
+        return res.status(409).json({
+          success: false,
+          message:
+            `${year} already has a festival — "${occupied.name}". IFFA runs one festival a year, ` +
+            `so these dates would give ${year} two.`,
+        });
+      }
+    }
+    updates.year = year;
+
     if (body.tagline !== undefined) updates.tagline = String(body.tagline).trim();
     if (body.description !== undefined) updates.description = String(body.description).trim();
     if (body.city !== undefined) updates.city = String(body.city).trim();
@@ -528,9 +644,20 @@ export const updateFestivalSettings = async (req: Request, res: Response) => {
 
     if (body.about !== undefined) {
       const about = section("about");
+      const previousKey = settings.about.imageKey?.trim();
+
       settings.about.eyebrow = text(about.eyebrow, settings.about.eyebrow);
       settings.about.heading = text(about.heading, settings.about.heading);
       settings.about.body = lines(about.body, settings.about.body);
+      settings.about.imageUrl = text(about.imageUrl, settings.about.imageUrl);
+      settings.about.imageKey = text(about.imageKey, settings.about.imageKey);
+
+      // Replaced banner — the old object is ours to remove. Empty for an
+      // externally-hosted URL, which we never touch.
+      const nextKey = settings.about.imageKey?.trim();
+      if (previousKey && previousKey !== nextKey) {
+        replacedKeys.push(previousKey);
+      }
       if (Array.isArray(about.stats)) {
         settings.about.stats = about.stats
           .map((raw) => {

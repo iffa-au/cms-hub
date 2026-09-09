@@ -13,24 +13,19 @@ import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 /**
  * Everything on the public Festivals page that is not a festival: the hero, the
  * intro, the award spotlight, the schedule headings, the closing call to
- * action, the venue list, and the coming-soon months.
+ * action and the venue list.
  *
- * Coming-soon months are edited here rather than derived, because they are an
- * editorial decision: the months holding published festivals are simply a fact,
- * but "October — coming soon" is someone choosing to promise it. Nothing about
- * an unannounced month's programme is stored, so nothing can leak through the
- * locked panel on the public page.
+ * The coming-soon months editor was removed when IFFA moved to one festival a
+ * year: with a single annual festival there is no month to promise, and the
+ * page's own "still being programmed" state covers the gap between one year's
+ * closing night and the next year's announcement. `comingSoonMonths` is left
+ * on the settings schema so no stored document has to be migrated; nothing
+ * reads it any more.
  */
-
-const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
 
 type Cta = { label: string; href: string };
 type Venue = { name: string; suburb: string };
 type Stat = { value: string; label: string };
-type ComingSoonMonth = { year: string; month: string; note: string };
 
 /**
  * The settings document is a deep tree of optional fields, and this page reads
@@ -75,7 +70,6 @@ export default function FestivalSettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const [seriesLabel, setSeriesLabel] = useState("");
   const [city, setCity] = useState("");
   const [country, setCountry] = useState("");
 
@@ -91,6 +85,9 @@ export default function FestivalSettingsPage() {
   const [aboutEyebrow, setAboutEyebrow] = useState("");
   const [aboutHeading, setAboutHeading] = useState("");
   const [aboutBody, setAboutBody] = useState("");
+  const [aboutImageUrl, setAboutImageUrl] = useState("");
+  const [aboutImageKey, setAboutImageKey] = useState("");
+  const [pendingAbout, setPendingAbout] = useState<File | null>(null);
   const [stats, setStats] = useState<Stat[]>([]);
 
   const [awardEyebrow, setAwardEyebrow] = useState("");
@@ -101,7 +98,6 @@ export default function FestivalSettingsPage() {
   const [pendingAward, setPendingAward] = useState<File | null>(null);
   const [awardPoints, setAwardPoints] = useState("");
 
-  const [scheduleEyebrow, setScheduleEyebrow] = useState("");
   const [scheduleHeading, setScheduleHeading] = useState("");
   const [scheduleIntro, setScheduleIntro] = useState("");
 
@@ -114,7 +110,6 @@ export default function FestivalSettingsPage() {
   const [planTitle, setPlanTitle] = useState("");
   const [planBody, setPlanBody] = useState("");
   const [venues, setVenues] = useState<Venue[]>([]);
-  const [comingSoon, setComingSoon] = useState<ComingSoonMonth[]>([]);
 
   useEffect(() => {
     if (isAuthenticated && user?.role !== "admin" && user?.role !== "staff") {
@@ -133,7 +128,6 @@ export default function FestivalSettingsPage() {
         return { label: str(value.label), href: str(value.href) };
       };
 
-      setSeriesLabel(str(s.seriesLabel));
       setCity(str(s.city));
       setCountry(str(s.country));
 
@@ -148,6 +142,8 @@ export default function FestivalSettingsPage() {
       setAboutEyebrow(str(obj(s.about).eyebrow));
       setAboutHeading(str(obj(s.about).heading));
       setAboutBody(fromParagraphs(obj(s.about).body));
+      setAboutImageUrl(str(obj(s.about).imageUrl));
+      setAboutImageKey(str(obj(s.about).imageKey));
       setStats(
         arr(obj(s.about).stats).map((raw) => {
           const stat = obj(raw);
@@ -162,7 +158,6 @@ export default function FestivalSettingsPage() {
       setAwardImageKey(str(obj(s.award).imageKey));
       setAwardPoints(fromLines(obj(s.award).points));
 
-      setScheduleEyebrow(str(s.scheduleEyebrow));
       setScheduleHeading(str(s.scheduleHeading));
       setScheduleIntro(str(s.scheduleIntro));
 
@@ -180,16 +175,6 @@ export default function FestivalSettingsPage() {
           return { name: str(venue.name), suburb: str(venue.suburb) };
         }),
       );
-      setComingSoon(
-        arr(s.comingSoonMonths).map((raw) => {
-          const entry = obj(raw);
-          return {
-            year: entry.year ? String(entry.year) : "",
-            month: entry.month ? String(entry.month) : "",
-            note: str(entry.note),
-          };
-        }),
-      );
     } catch (e: unknown) {
       setError(errorMessage(e, "Failed to load settings"));
     } finally {
@@ -202,18 +187,6 @@ export default function FestivalSettingsPage() {
   }, [load]);
 
   const handleSave = async () => {
-    const badMonth = comingSoon.find(
-      (entry) =>
-        !Number.isInteger(Number(entry.year)) ||
-        Number(entry.year) < 2000 ||
-        !Number.isInteger(Number(entry.month)) ||
-        Number(entry.month) < 1 ||
-        Number(entry.month) > 12,
-    );
-    if (badMonth) {
-      setError("Every coming-soon entry needs a valid year and month.");
-      return;
-    }
 
     try {
       setSaving(true);
@@ -231,6 +204,14 @@ export default function FestivalSettingsPage() {
         nextHeroKey = uploaded.key;
       }
 
+      let nextAboutUrl = aboutImageUrl;
+      let nextAboutKey = aboutImageKey;
+      if (pendingAbout) {
+        const uploaded = await uploadFestivalPageImage(pendingAbout, "about-banner");
+        nextAboutUrl = uploaded.url;
+        nextAboutKey = uploaded.key;
+      }
+
       let nextAwardUrl = awardImageUrl;
       let nextAwardKey = awardImageKey;
       if (pendingAward) {
@@ -240,10 +221,8 @@ export default function FestivalSettingsPage() {
       }
 
       await updateData("/festivals/settings", {
-        seriesLabel: seriesLabel.trim(),
         city: city.trim(),
         country: country.trim(),
-        scheduleEyebrow: scheduleEyebrow.trim(),
         scheduleHeading: scheduleHeading.trim(),
         scheduleIntro: scheduleIntro.trim(),
         planTitle: planTitle.trim(),
@@ -261,6 +240,8 @@ export default function FestivalSettingsPage() {
           eyebrow: aboutEyebrow.trim(),
           heading: aboutHeading.trim(),
           body: toParagraphs(aboutBody),
+          imageUrl: nextAboutUrl,
+          imageKey: nextAboutKey,
           stats: stats
             .map((stat) => ({ value: stat.value.trim(), label: stat.label.trim() }))
             .filter((stat) => stat.value || stat.label),
@@ -283,14 +264,10 @@ export default function FestivalSettingsPage() {
         venues: venues
           .map((venue) => ({ name: venue.name.trim(), suburb: venue.suburb.trim() }))
           .filter((venue) => venue.name),
-        comingSoonMonths: comingSoon.map((entry) => ({
-          year: Number(entry.year),
-          month: Number(entry.month),
-          note: entry.note.trim(),
-        })),
       });
 
       setPendingHero(null);
+      setPendingAbout(null);
       setPendingAward(null);
       setSuccess("Settings saved.");
       await load();
@@ -424,6 +401,20 @@ export default function FestivalSettingsPage() {
             </div>
 
             <div>
+              <label className={labelClass}>
+                Banner — a wide image between the text and the stats. Optional;
+                the section is designed to read without one.
+              </label>
+              <FestivalImageUpload
+                existingUrl={aboutImageUrl}
+                pendingFile={pendingAbout}
+                onSelect={setPendingAbout}
+                onClearExisting={() => { setAboutImageUrl(""); setAboutImageKey(""); }}
+                label="Select banner image (PNG, WEBP or JPEG)"
+              />
+            </div>
+
+            <div>
               <div className="mb-2 flex items-center justify-between">
                 <label className={labelClass}>Stats ({stats.length})</label>
                 <button type="button"
@@ -493,18 +484,16 @@ export default function FestivalSettingsPage() {
           </section>
 
           <section className={sectionClass}>
-            <h2 className={headingClass}>Schedule heading</h2>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <label className={labelClass}>Eyebrow</label>
-                <input className={field} value={scheduleEyebrow}
-                  onChange={(e) => setScheduleEyebrow(e.target.value)} />
-              </div>
-              <div>
-                <label className={labelClass}>Heading</label>
-                <input className={field} value={scheduleHeading}
-                  onChange={(e) => setScheduleHeading(e.target.value)} />
-              </div>
+            <h2 className={headingClass}>Programme heading</h2>
+            <p className="text-xs text-muted-foreground/70">
+              Sits above the night-by-night schedule on the public page. The
+              eyebrow that used to go with these was removed along with the rest
+              of the page&rsquo;s label rows — the heading carries the section now.
+            </p>
+            <div>
+              <label className={labelClass}>Heading</label>
+              <input className={field} value={scheduleHeading}
+                onChange={(e) => setScheduleHeading(e.target.value)} />
             </div>
             <div>
               <label className={labelClass}>Intro line</label>
@@ -538,12 +527,10 @@ export default function FestivalSettingsPage() {
 
           <section className={sectionClass}>
             <h2 className={headingClass}>Venue band &amp; page details</h2>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <div>
-                <label className={labelClass}>Series label</label>
-                <input className={field} value={seriesLabel}
-                  onChange={(e) => setSeriesLabel(e.target.value)} />
-              </div>
+            {/* "Series label" was removed: nothing on the public page has
+                rendered it for some time. The field is left on the schema so no
+                stored document needs migrating. */}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <label className={labelClass}>City</label>
                 <input className={field} value={city} onChange={(e) => setCity(e.target.value)} />
@@ -592,58 +579,6 @@ export default function FestivalSettingsPage() {
                 ))}
               </div>
             </div>
-          </section>
-
-          <section className={sectionClass}>
-            <div className="flex items-center justify-between">
-              <h2 className={headingClass}>Coming soon ({comingSoon.length})</h2>
-              <button type="button"
-                onClick={() => setComingSoon((l) => [...l, { year: "", month: "", note: "" }])}
-                className="inline-flex items-center gap-2 rounded border border-border px-3 py-1.5 text-xs font-bold tracking-widest text-muted-foreground hover:border-primary hover:text-primary">
-                <Plus size={14} /> ADD MONTH
-              </button>
-            </div>
-            <p className="text-xs text-muted-foreground/70">
-              Months shown as a locked “Coming Soon” panel after the published
-              festivals. Nothing about their programme is stored.
-            </p>
-            {comingSoon.length === 0 ? (
-              <p className="text-xs text-muted-foreground/70">
-                None — the page ends after the last published month.
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {comingSoon.map((entry, index) => (
-                  <div key={index} className="rounded border border-border p-3">
-                    <div className="mb-2 flex gap-2">
-                      <select className={field} value={entry.month}
-                        onChange={(e) =>
-                          setComingSoon((l) => l.map((m, i) => (i === index ? { ...m, month: e.target.value } : m)))
-                        }>
-                        <option value="">Month…</option>
-                        {MONTHS.map((label, monthIndex) => (
-                          <option key={label} value={monthIndex + 1}>{label}</option>
-                        ))}
-                      </select>
-                      <input className={field} inputMode="numeric" placeholder="Year" value={entry.year}
-                        onChange={(e) =>
-                          setComingSoon((l) => l.map((m, i) => (i === index ? { ...m, year: e.target.value } : m)))
-                        } />
-                      <button type="button"
-                        onClick={() => setComingSoon((l) => l.filter((_, i) => i !== index))}
-                        className="shrink-0 p-2 text-muted-foreground hover:text-red-400" aria-label="Remove month">
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                    <textarea rows={2} className={field} value={entry.note}
-                      placeholder="More festivals and screening schedules will be announced soon."
-                      onChange={(e) =>
-                        setComingSoon((l) => l.map((m, i) => (i === index ? { ...m, note: e.target.value } : m)))
-                      } />
-                  </div>
-                ))}
-              </div>
-            )}
           </section>
 
           <button type="button" onClick={() => void handleSave()} disabled={saving}
