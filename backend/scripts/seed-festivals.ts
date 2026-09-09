@@ -34,7 +34,6 @@ const CF = "https://dhbdzeb2cbayq.cloudfront.net";
 
 type SeedFestival = {
   slug: string;
-  edition: string;
   name: string;
   tagline: string;
   description: string;
@@ -65,7 +64,6 @@ const screening = (
 const FESTIVALS: SeedFestival[] = [
   {
     slug: "crossings",
-    edition: "01",
     name: "Crossings",
     tagline: "Departures, returns, and the distance between",
     description:
@@ -139,7 +137,6 @@ const FESTIVALS: SeedFestival[] = [
   },
   {
     slug: "night-frequencies",
-    edition: "02",
     name: "Night Frequencies",
     tagline: "Sound, signal and the small hours",
     description:
@@ -214,7 +211,6 @@ const FESTIVALS: SeedFestival[] = [
   },
   {
     slug: "inherited-ground",
-    edition: "01",
     name: "Inherited Ground",
     tagline: "Land, family, and everything handed down",
     description:
@@ -286,7 +282,6 @@ const FESTIVALS: SeedFestival[] = [
   },
   {
     slug: "the-long-way-home",
-    edition: "02",
     name: "The Long Way Home",
     tagline: "Journeys that take longer than the road",
     description:

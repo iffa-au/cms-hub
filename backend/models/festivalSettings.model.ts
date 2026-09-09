@@ -60,6 +60,13 @@ export interface IAboutSection {
   heading: string;
   /** One paragraph per entry. */
   body: string[];
+  /**
+   * Wide banner between the statement and the stats. Empty is a normal state —
+   * the section is designed to read without one.
+   */
+  imageUrl: string;
+  /** S3 key, set only when the image was uploaded through the CMS. */
+  imageKey: string;
   stats: IStat[];
 }
 
@@ -163,11 +170,13 @@ const aboutSchema = new Schema<IAboutSection>(
         "Every screening is curated. Every filmmaker is in the room. What began as a showcase for cinema from Oman, India, Malaysia and Spain now brings work from across the world to Melbourne's screens.",
       ],
     },
+    imageUrl: { type: String, default: "", trim: true },
+    imageKey: { type: String, default: "", trim: true },
     stats: {
       type: [statSchema],
       default: () => [
-        { value: "2", label: "Festivals every month" },
-        { value: "20+", label: "Films screened a season" },
+        { value: "1", label: "Festival a year" },
+        { value: "20+", label: "Films in the programme" },
         { value: "5", label: "Venues across Melbourne" },
       ],
     },
