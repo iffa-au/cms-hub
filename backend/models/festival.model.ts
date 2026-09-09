@@ -1,7 +1,7 @@
 import { Schema, model } from "mongoose";
 
 /**
- * A festival and the screenings it programmes.
+ * A festival, the screenings it programmes, and the films in each.
  *
  * IFFA runs ONE festival a year. `year` is stored rather than derived, and
  * carries a unique index, so that rule is enforced by the database instead of
@@ -14,11 +14,12 @@ import { Schema, model } from "mongoose";
  * month -> festival -> screening; it now renders one festival and files the
  * rest as an archive.
  *
- * Screenings are embedded rather than a collection of their own: a screening
- * belongs to exactly one festival, is never queried on its own, and is always
- * read with its parent. Embedding keeps a festival one atomic document, keeps
- * programme order without a sort key war, and means a delete takes the
- * screenings with it.
+ * Screenings are embedded rather than a collection of their own, and films are
+ * embedded in screenings: a screening belongs to exactly one festival, a film
+ * to exactly one screening, neither is ever queried on its own, and both are
+ * always read with their parent. Embedding keeps a festival one atomic
+ * document, keeps programme order without a sort key war, and means a delete
+ * takes the whole tree with it.
  *
  * MONGOOSE TRAP (see AGENTS.md): a field declared only on the TypeScript
  * interface is silently dropped on save. Every field below appears in BOTH the
@@ -29,7 +30,14 @@ import { Schema, model } from "mongoose";
 export const SEAT_STATUSES = ["available", "limited", "sold-out"] as const;
 export type SeatStatus = (typeof SEAT_STATUSES)[number];
 
-export interface IScreening {
+/**
+ * One film in a screening.
+ *
+ * Carries nothing about when or where it plays. That used to live here,
+ * because a screening WAS a film; it now lives on the screening, which is the
+ * thing a time and a venue actually describe.
+ */
+export interface IFilm {
   title: string;
   /** CloudFront URL. Empty means "no artwork yet" — the site draws a typographic poster. */
   posterUrl?: string;
@@ -48,12 +56,34 @@ export interface IScreening {
   synopsis?: string;
   /** Raw YouTube URL. Empty means no trailer is available. */
   trailerUrl?: string;
-  /** ISO date of this screening, e.g. "2026-08-07". */
-  date: string;
-  /** Display-ready local time, e.g. "7:30 PM". */
+}
+
+/**
+ * One session on the programme: a named block of films at a time and place.
+ *
+ * A screening used to be a single film. That collapsed as soon as a session
+ * programmed more than one title — a shorts block of six had to be entered as
+ * six screenings sharing a time and a venue, with nothing tying them together
+ * and nowhere to put the block's own name or blurb.
+ *
+ * `startDate` and `endDate` are usually the same day. A strand that repeats
+ * across several days sets a real range, which is why the public programme
+ * cannot group by night any more.
+ */
+export interface IScreening {
+  title: string;
+  /** A short blurb for the session as a whole. */
+  description?: string;
+  /** ISO date the session opens, e.g. "2026-08-07". */
+  startDate: string;
+  /** ISO date it closes. Equal to startDate for a single sitting. */
+  endDate: string;
+  /** Display-ready local start time, e.g. "7:30 PM". */
   time: string;
   venue?: string;
   seatStatus: SeatStatus;
+  /** In programme order, as entered in the CMS. */
+  films: IFilm[];
 }
 
 export interface IFestival {
@@ -92,7 +122,7 @@ export interface IFestival {
   screenings: IScreening[];
 }
 
-const screeningSchema = new Schema<IScreening>(
+const filmSchema = new Schema<IFilm>(
   {
     title: { type: String, required: true, trim: true, maxLength: 300 },
     posterUrl: { type: String, default: "", trim: true },
@@ -103,13 +133,26 @@ const screeningSchema = new Schema<IScreening>(
     runtimeMinutes: { type: Number, default: 0 },
     synopsis: { type: String, default: "", trim: true, maxLength: 4000 },
     trailerUrl: { type: String, default: "", trim: true },
-    date: { type: String, required: true, trim: true },
+  },
+  { _id: true },
+);
+
+const screeningSchema = new Schema<IScreening>(
+  {
+    title: { type: String, required: true, trim: true, maxLength: 300 },
+    description: { type: String, default: "", trim: true, maxLength: 4000 },
+    // MONGOOSE TRAP (see AGENTS.md): startDate/endDate/films must exist here
+    // as well as on the interface, or they are silently dropped on save.
+    startDate: { type: String, required: true, trim: true },
+    endDate: { type: String, required: true, trim: true },
     time: { type: String, default: "", trim: true, maxLength: 40 },
     venue: { type: String, default: "", trim: true, maxLength: 200 },
     seatStatus: { type: String, enum: SEAT_STATUSES, default: "available" },
+    films: { type: [filmSchema], default: [] },
   },
-  // Subdocument _ids are kept: the CMS edits screenings by id, and the public
-  // site uses them as the #anchor a rail card deep-links to.
+  // Subdocument _ids are kept: the CMS edits screenings by id. The public site
+  // does NOT use them as links — it mints its own ids from the title, because
+  // saving a festival rewrites the embedded array and reissues these.
   { _id: true },
 );
 

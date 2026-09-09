@@ -33,7 +33,8 @@ const SEAT_STATUSES = [
 
 type SeatStatus = (typeof SEAT_STATUSES)[number]["value"];
 
-type ScreeningRow = {
+/** One film inside a screening. Carries nothing about when or where it plays. */
+type FilmRow = {
   /** Client-side only, stable across re-renders. Never sent to the server. */
   localId: string;
   title: string;
@@ -45,10 +46,25 @@ type ScreeningRow = {
   runtimeMinutes: string;
   synopsis: string;
   trailerUrl: string;
-  date: string;
+};
+
+/**
+ * One session: a named block of films at a time and place.
+ *
+ * Time, venue and seat status sit here rather than on each film, because that
+ * is what they describe. A shorts block used to be six separate screenings
+ * repeating the same time and venue six times, with nothing naming the block.
+ */
+type ScreeningRow = {
+  localId: string;
+  title: string;
+  description: string;
+  startDate: string;
+  endDate: string;
   time: string;
   venue: string;
   seatStatus: SeatStatus;
+  films: FilmRow[];
 };
 
 type FestivalResponse = {
@@ -75,7 +91,7 @@ const newLocalId = () =>
     ? crypto.randomUUID()
     : String(Math.random());
 
-const emptyScreening = (date: string): ScreeningRow => ({
+const emptyFilm = (): FilmRow => ({
   localId: newLocalId(),
   title: "",
   posterUrl: "",
@@ -86,13 +102,23 @@ const emptyScreening = (date: string): ScreeningRow => ({
   runtimeMinutes: "",
   synopsis: "",
   trailerUrl: "",
-  date,
+});
+
+const emptyScreening = (date: string): ScreeningRow => ({
+  localId: newLocalId(),
+  title: "",
+  description: "",
+  startDate: date,
+  // Most sessions run once, so the end date starts equal to the start and
+  // staff only touch it for a strand that actually repeats.
+  endDate: date,
   time: "",
   venue: "",
   seatStatus: "available",
+  films: [emptyFilm()],
 });
 
-const toRow = (raw: Record<string, unknown>): ScreeningRow => ({
+const toFilmRow = (raw: Record<string, unknown>): FilmRow => ({
   localId: newLocalId(),
   title: String(raw.title ?? ""),
   posterUrl: String(raw.posterUrl ?? ""),
@@ -103,12 +129,37 @@ const toRow = (raw: Record<string, unknown>): ScreeningRow => ({
   runtimeMinutes: raw.runtimeMinutes ? String(raw.runtimeMinutes) : "",
   synopsis: String(raw.synopsis ?? ""),
   trailerUrl: String(raw.trailerUrl ?? ""),
-  date: String(raw.date ?? ""),
-  time: String(raw.time ?? ""),
-  venue: String(raw.venue ?? ""),
-  seatStatus: (SEAT_STATUSES.find((s) => s.value === raw.seatStatus)?.value ??
-    "available") as SeatStatus,
 });
+
+/**
+ * Reads a stored screening, in either shape.
+ *
+ * A pre-migration row IS a film: it has `date` and the film's own fields, and
+ * no `films` array. Reading it as a session of one means staff can open and
+ * save a festival that has not been through
+ * `scripts/migrate-screenings-to-sessions.ts` yet, rather than being shown an
+ * empty programme and re-typing it. Saving writes the new shape back.
+ */
+const toRow = (raw: Record<string, unknown>): ScreeningRow => {
+  const legacy = !Array.isArray(raw.films);
+  const startDate = String(raw.startDate ?? raw.date ?? "");
+  const rawEnd = String(raw.endDate ?? "");
+
+  return {
+    localId: newLocalId(),
+    title: String(raw.title ?? ""),
+    description: String(raw.description ?? ""),
+    startDate,
+    endDate: rawEnd || startDate,
+    time: String(raw.time ?? ""),
+    venue: String(raw.venue ?? ""),
+    seatStatus: (SEAT_STATUSES.find((s) => s.value === raw.seatStatus)?.value ??
+      "available") as SeatStatus,
+    films: legacy
+      ? [toFilmRow(raw)]
+      : (raw.films as Record<string, unknown>[]).map(toFilmRow),
+  };
+};
 
 const errorMessage = (e: unknown, fallback: string) =>
   e instanceof Error && e.message ? e.message : fallback;
@@ -143,7 +194,8 @@ export default function FestivalEditorPage() {
 
   const [screenings, setScreenings] = useState<ScreeningRow[]>([]);
   const [pendingPosters, setPendingPosters] = useState<Record<string, File>>({});
-  const [openRow, setOpenRow] = useState<string | null>(null);
+  const [openScreening, setOpenScreening] = useState<string | null>(null);
+  const [openFilm, setOpenFilm] = useState<string | null>(null);
 
   useEffect(() => {
     if (isAuthenticated && user?.role !== "admin" && user?.role !== "staff") {
@@ -182,27 +234,88 @@ export default function FestivalEditorPage() {
     void load();
   }, [load]);
 
-  const patchRow = (localId: string, patch: Partial<ScreeningRow>) =>
+  const patchScreening = (localId: string, patch: Partial<ScreeningRow>) =>
     setScreenings((rows) =>
       rows.map((row) => (row.localId === localId ? { ...row, ...patch } : row)),
     );
 
-  const moveRow = (index: number, direction: -1 | 1) =>
-    setScreenings((rows) => {
-      const target = index + direction;
-      if (target < 0 || target >= rows.length) return rows;
-      const next = [...rows];
-      [next[index], next[target]] = [next[target], next[index]];
+  const patchFilm = (
+    screeningId: string,
+    filmId: string,
+    patch: Partial<FilmRow>,
+  ) =>
+    setScreenings((rows) =>
+      rows.map((row) =>
+        row.localId === screeningId
+          ? {
+              ...row,
+              films: row.films.map((film) =>
+                film.localId === filmId ? { ...film, ...patch } : film,
+              ),
+            }
+          : row,
+      ),
+    );
+
+  /** Swaps an item with its neighbour. Shared by both levels — same operation. */
+  const swap = <T,>(items: T[], index: number, direction: -1 | 1): T[] => {
+    const target = index + direction;
+    if (target < 0 || target >= items.length) return items;
+    const next = [...items];
+    [next[index], next[target]] = [next[target], next[index]];
+    return next;
+  };
+
+  const moveScreening = (index: number, direction: -1 | 1) =>
+    setScreenings((rows) => swap(rows, index, direction));
+
+  const moveFilm = (screeningId: string, index: number, direction: -1 | 1) =>
+    setScreenings((rows) =>
+      rows.map((row) =>
+        row.localId === screeningId
+          ? { ...row, films: swap(row.films, index, direction) }
+          : row,
+      ),
+    );
+
+  /**
+   * Drops any pending poster belonging to the removed rows.
+   *
+   * Keyed by film localId, so removing a whole screening has to clear every
+   * film under it — otherwise an upload fires on save for a film that is no
+   * longer in the payload, and lands an orphan in the bucket.
+   */
+  const forgetPosters = (filmIds: string[]) =>
+    setPendingPosters((pending) => {
+      const next = { ...pending };
+      for (const id of filmIds) delete next[id];
       return next;
     });
 
-  const removeRow = (localId: string) => {
-    setScreenings((rows) => rows.filter((row) => row.localId !== localId));
-    setPendingPosters((pending) => {
-      const next = { ...pending };
-      delete next[localId];
-      return next;
-    });
+  const removeScreening = (localId: string) => {
+    const row = screenings.find((entry) => entry.localId === localId);
+    setScreenings((rows) => rows.filter((entry) => entry.localId !== localId));
+    forgetPosters((row?.films ?? []).map((film) => film.localId));
+  };
+
+  const addFilm = (screeningId: string) =>
+    setScreenings((rows) =>
+      rows.map((row) =>
+        row.localId === screeningId
+          ? { ...row, films: [...row.films, emptyFilm()] }
+          : row,
+      ),
+    );
+
+  const removeFilm = (screeningId: string, filmId: string) => {
+    setScreenings((rows) =>
+      rows.map((row) =>
+        row.localId === screeningId
+          ? { ...row, films: row.films.filter((film) => film.localId !== filmId) }
+          : row,
+      ),
+    );
+    forgetPosters([filmId]);
   };
 
   const handleSave = async () => {
@@ -217,12 +330,28 @@ export default function FestivalEditorPage() {
     }
     const untitled = screenings.find((row) => !row.title.trim());
     if (untitled) {
-      setError("Every screening needs a film title");
+      setError("Every screening needs a title");
       return;
     }
-    const undated = screenings.find((row) => !row.date);
+    const undated = screenings.find((row) => !row.startDate);
     if (undated) {
-      setError(`"${undated.title}" needs a screening date`);
+      setError(`"${undated.title}" needs a start date`);
+      return;
+    }
+    // Caught here as well as on the server so staff see it against the field
+    // they just typed, rather than as a rejected save a scroll away.
+    const backwards = screenings.find(
+      (row) => row.endDate && row.endDate < row.startDate,
+    );
+    if (backwards) {
+      setError(`"${backwards.title}" ends before it starts — check its dates`);
+      return;
+    }
+    const namelessFilm = screenings.find((row) =>
+      row.films.some((film) => !film.title.trim()),
+    );
+    if (namelessFilm) {
+      setError(`Every film in "${namelessFilm.title}" needs a title`);
       return;
     }
 
@@ -242,18 +371,26 @@ export default function FestivalEditorPage() {
         nextHeroKey = uploaded.key;
       }
 
+      // Posters upload per film, in parallel across the whole programme. The
+      // folder group stays "screenings" so previously uploaded posters keep
+      // resolving — the S3 layout is not what changed here.
       const uploadedRows = await Promise.all(
-        screenings.map(async (row) => {
-          const file = pendingPosters[row.localId];
-          if (!file) return row;
-          const uploaded = await uploadFestivalImage(
-            file,
-            festivalId,
-            "screenings",
-            row.title,
-          );
-          return { ...row, posterUrl: uploaded.url, posterKey: uploaded.key };
-        }),
+        screenings.map(async (row) => ({
+          ...row,
+          films: await Promise.all(
+            row.films.map(async (film) => {
+              const file = pendingPosters[film.localId];
+              if (!file) return film;
+              const uploaded = await uploadFestivalImage(
+                file,
+                festivalId,
+                "screenings",
+                film.title,
+              );
+              return { ...film, posterUrl: uploaded.url, posterKey: uploaded.key };
+            }),
+          ),
+        })),
       );
 
       await updateData(`/festivals/${festivalId}`, {
@@ -269,18 +406,25 @@ export default function FestivalEditorPage() {
         heroImageKey: nextHeroKey,
         screenings: uploadedRows.map((row) => ({
           title: row.title.trim(),
-          posterUrl: row.posterUrl,
-          posterKey: row.posterKey,
-          country: row.country.trim(),
-          year: Number(row.year) || 0,
-          genre: row.genre.trim(),
-          runtimeMinutes: Number(row.runtimeMinutes) || 0,
-          synopsis: row.synopsis.trim(),
-          trailerUrl: row.trailerUrl.trim(),
-          date: row.date,
+          description: row.description.trim(),
+          startDate: row.startDate,
+          // A blank end date means a single sitting. Sent as the start rather
+          // than as "" so the stored document always carries a real range.
+          endDate: row.endDate || row.startDate,
           time: row.time.trim(),
           venue: row.venue.trim(),
           seatStatus: row.seatStatus,
+          films: row.films.map((film) => ({
+            title: film.title.trim(),
+            posterUrl: film.posterUrl,
+            posterKey: film.posterKey,
+            country: film.country.trim(),
+            year: Number(film.year) || 0,
+            genre: film.genre.trim(),
+            runtimeMinutes: Number(film.runtimeMinutes) || 0,
+            synopsis: film.synopsis.trim(),
+            trailerUrl: film.trailerUrl.trim(),
+          })),
         })),
       });
 
@@ -421,6 +565,12 @@ export default function FestivalEditorPage() {
               </button>
             </div>
 
+            <p className="mb-3 text-xs text-muted-foreground/70">
+              A screening is one session — what a ticket admits someone to. It
+              holds however many films play in it, so a shorts block is one
+              screening with six films rather than six screenings.
+            </p>
+
             {screenings.length === 0 ? (
               <p className="rounded border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
                 No screenings yet. A festival can be published without them, but the
@@ -429,7 +579,12 @@ export default function FestivalEditorPage() {
             ) : (
               <div className="space-y-2">
                 {screenings.map((row, index) => {
-                  const isOpen = openRow === row.localId;
+                  const isOpen = openScreening === row.localId;
+                  const dates =
+                    row.startDate && row.endDate && row.endDate !== row.startDate
+                      ? `${row.startDate} → ${row.endDate}`
+                      : row.startDate;
+
                   return (
                     <div key={row.localId} className="rounded border border-border bg-card/60">
                       <div className="flex items-center gap-3 p-3">
@@ -438,32 +593,37 @@ export default function FestivalEditorPage() {
                         </span>
                         <button
                           type="button"
-                          onClick={() => setOpenRow(isOpen ? null : row.localId)}
+                          onClick={() => setOpenScreening(isOpen ? null : row.localId)}
                           className="min-w-0 flex-1 text-left"
                         >
                           <p className="truncate text-sm font-semibold text-white">
-                            {row.title || "Untitled film"}
+                            {row.title || "Untitled screening"}
                           </p>
                           <p className="truncate text-xs text-muted-foreground">
-                            {[row.country, row.date, row.time, row.venue]
+                            {[
+                              dates,
+                              row.time,
+                              row.venue,
+                              `${row.films.length} ${row.films.length === 1 ? "film" : "films"}`,
+                            ]
                               .filter(Boolean)
-                              .join(" · ") || "No details yet"}
+                              .join(" · ")}
                           </p>
                         </button>
                         <div className="flex shrink-0 items-center gap-1">
-                          <button type="button" onClick={() => moveRow(index, -1)}
+                          <button type="button" onClick={() => moveScreening(index, -1)}
                             disabled={index === 0}
                             className="p-1.5 text-muted-foreground hover:text-primary disabled:opacity-30"
-                            aria-label="Move up">
+                            aria-label="Move screening up">
                             <ChevronUp size={15} />
                           </button>
-                          <button type="button" onClick={() => moveRow(index, 1)}
+                          <button type="button" onClick={() => moveScreening(index, 1)}
                             disabled={index === screenings.length - 1}
                             className="p-1.5 text-muted-foreground hover:text-primary disabled:opacity-30"
-                            aria-label="Move down">
+                            aria-label="Move screening down">
                             <ChevronDown size={15} />
                           </button>
-                          <button type="button" onClick={() => removeRow(row.localId)}
+                          <button type="button" onClick={() => removeScreening(row.localId)}
                             className="p-1.5 text-muted-foreground hover:text-red-400"
                             aria-label={`Remove ${row.title || "screening"}`}>
                             <Trash2 size={15} />
@@ -472,97 +632,222 @@ export default function FestivalEditorPage() {
                       </div>
 
                       {isOpen && (
-                        <div className="grid grid-cols-1 gap-4 border-t border-border p-4 md:grid-cols-2">
-                          <div>
-                            <label className={labelClass}>Film title *</label>
-                            <input className={field} value={row.title}
-                              onChange={(e) => patchRow(row.localId, { title: e.target.value })} />
+                        <div className="border-t border-border p-4">
+                          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div className="md:col-span-2">
+                              <label className={labelClass}>Screening title *</label>
+                              <input className={field} value={row.title}
+                                onChange={(e) => patchScreening(row.localId, { title: e.target.value })}
+                                placeholder="Opening Night Gala" />
+                            </div>
+                            <div>
+                              <label className={labelClass}>Start date *</label>
+                              <input type="date" className={field} value={row.startDate}
+                                onChange={(e) => {
+                                  const startDateValue = e.target.value;
+                                  // A session that ran one day keeps doing so
+                                  // when its date moves. Only a real range,
+                                  // already set, is left for staff to adjust.
+                                  patchScreening(row.localId, {
+                                    startDate: startDateValue,
+                                    endDate:
+                                      !row.endDate || row.endDate === row.startDate
+                                        ? startDateValue
+                                        : row.endDate,
+                                  });
+                                }} />
+                            </div>
+                            <div>
+                              <label className={labelClass}>End date</label>
+                              <input type="date" className={field} value={row.endDate}
+                                min={row.startDate || undefined}
+                                onChange={(e) => patchScreening(row.localId, { endDate: e.target.value })} />
+                              <p className="mt-1 text-xs text-muted-foreground/70">
+                                Same as the start date for a single sitting. Set a
+                                later date only for a strand that runs across days.
+                              </p>
+                            </div>
+                            <div>
+                              <label className={labelClass}>Time — as it should read</label>
+                              <input className={field} value={row.time}
+                                onChange={(e) => patchScreening(row.localId, { time: e.target.value })}
+                                placeholder="7:30 PM" />
+                            </div>
+                            <div>
+                              <label className={labelClass}>Venue</label>
+                              <input className={field} value={row.venue}
+                                onChange={(e) => patchScreening(row.localId, { venue: e.target.value })}
+                                placeholder="Main Theatre" />
+                            </div>
+                            <div>
+                              <label className={labelClass}>Seat status</label>
+                              <select className={field} value={row.seatStatus}
+                                onChange={(e) =>
+                                  patchScreening(row.localId, {
+                                    seatStatus: e.target.value as SeatStatus,
+                                  })
+                                }>
+                                {SEAT_STATUSES.map((status) => (
+                                  <option key={status.value} value={status.value}>
+                                    {status.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="md:col-span-2">
+                              <label className={labelClass}>
+                                Description — a short blurb for the session as a whole
+                              </label>
+                              <textarea rows={2} className={field} value={row.description}
+                                onChange={(e) => patchScreening(row.localId, { description: e.target.value })} />
+                            </div>
                           </div>
-                          <div>
-                            <label className={labelClass}>Country</label>
-                            <input className={field} value={row.country}
-                              onChange={(e) => patchRow(row.localId, { country: e.target.value })}
-                              placeholder="Oman" />
-                          </div>
-                          <div>
-                            <label className={labelClass}>Year of production</label>
-                            <input className={field} inputMode="numeric" value={row.year}
-                              onChange={(e) => patchRow(row.localId, { year: e.target.value })} />
-                          </div>
-                          <div>
-                            <label className={labelClass}>Genre</label>
-                            <input className={field} value={row.genre}
-                              onChange={(e) => patchRow(row.localId, { genre: e.target.value })}
-                              placeholder="Drama" />
-                          </div>
-                          <div>
-                            <label className={labelClass}>Runtime (minutes)</label>
-                            <input className={field} inputMode="numeric" value={row.runtimeMinutes}
-                              onChange={(e) => patchRow(row.localId, { runtimeMinutes: e.target.value })} />
-                          </div>
-                          <div>
-                            <label className={labelClass}>Screening date *</label>
-                            <input type="date" className={field} value={row.date}
-                              onChange={(e) => patchRow(row.localId, { date: e.target.value })} />
-                          </div>
-                          <div>
-                            <label className={labelClass}>Time — as it should read</label>
-                            <input className={field} value={row.time}
-                              onChange={(e) => patchRow(row.localId, { time: e.target.value })}
-                              placeholder="7:30 PM" />
-                          </div>
-                          <div>
-                            <label className={labelClass}>Venue</label>
-                            <input className={field} value={row.venue}
-                              onChange={(e) => patchRow(row.localId, { venue: e.target.value })}
-                              placeholder="Main Theatre" />
-                          </div>
-                          <div>
-                            <label className={labelClass}>Seat status</label>
-                            <select className={field} value={row.seatStatus}
-                              onChange={(e) =>
-                                patchRow(row.localId, { seatStatus: e.target.value as SeatStatus })
-                              }>
-                              {SEAT_STATUSES.map((status) => (
-                                <option key={status.value} value={status.value}>
-                                  {status.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div>
-                            <label className={labelClass}>Trailer URL — YouTube</label>
-                            <input className={field} value={row.trailerUrl}
-                              onChange={(e) => patchRow(row.localId, { trailerUrl: e.target.value })}
-                              placeholder="https://youtu.be/…" />
-                          </div>
-                          <div className="md:col-span-2">
-                            <label className={labelClass}>Synopsis</label>
-                            <textarea rows={3} className={field} value={row.synopsis}
-                              onChange={(e) => patchRow(row.localId, { synopsis: e.target.value })} />
-                          </div>
-                          <div className="md:col-span-2">
-                            <label className={labelClass}>
-                              Poster — portrait. Leave empty and the website draws a
-                              typographic poster from the title.
-                            </label>
-                            <FestivalImageUpload
-                              shape="portrait"
-                              existingUrl={row.posterUrl}
-                              pendingFile={pendingPosters[row.localId] ?? null}
-                              onSelect={(file) =>
-                                setPendingPosters((pending) => {
-                                  const next = { ...pending };
-                                  if (file) next[row.localId] = file;
-                                  else delete next[row.localId];
-                                  return next;
-                                })
-                              }
-                              onClearExisting={() =>
-                                patchRow(row.localId, { posterUrl: "", posterKey: "" })
-                              }
-                              label="Select poster (PNG, WEBP or JPEG)"
-                            />
+
+                          <div className="mt-6 rounded border border-border/70 bg-background/40 p-3">
+                            <div className="mb-3 flex items-center justify-between">
+                              <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                                Films in this screening ({row.films.length})
+                              </h3>
+                              <button
+                                type="button"
+                                onClick={() => addFilm(row.localId)}
+                                className="inline-flex items-center gap-2 rounded border border-border px-2.5 py-1 text-xs font-bold tracking-widest text-muted-foreground hover:border-primary hover:text-primary"
+                              >
+                                <Plus size={13} /> ADD FILM
+                              </button>
+                            </div>
+
+                            {row.films.length === 0 ? (
+                              <p className="rounded border border-dashed border-border py-6 text-center text-xs text-muted-foreground">
+                                No films yet. The website will show this screening
+                                with its lineup to be announced.
+                              </p>
+                            ) : (
+                              <div className="space-y-2">
+                                {row.films.map((film, filmIndex) => {
+                                  const filmOpen = openFilm === film.localId;
+                                  return (
+                                    <div key={film.localId} className="rounded border border-border bg-card/60">
+                                      <div className="flex items-center gap-3 p-2.5">
+                                        <span className="w-5 shrink-0 text-center text-xs text-muted-foreground">
+                                          {filmIndex + 1}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={() => setOpenFilm(filmOpen ? null : film.localId)}
+                                          className="min-w-0 flex-1 text-left"
+                                        >
+                                          <p className="truncate text-sm font-semibold text-white">
+                                            {film.title || "Untitled film"}
+                                          </p>
+                                          <p className="truncate text-xs text-muted-foreground">
+                                            {[
+                                              film.country,
+                                              film.year,
+                                              film.genre,
+                                              film.runtimeMinutes && `${film.runtimeMinutes} min`,
+                                            ]
+                                              .filter(Boolean)
+                                              .join(" · ") || "No details yet"}
+                                          </p>
+                                        </button>
+                                        <div className="flex shrink-0 items-center gap-1">
+                                          <button type="button"
+                                            onClick={() => moveFilm(row.localId, filmIndex, -1)}
+                                            disabled={filmIndex === 0}
+                                            className="p-1.5 text-muted-foreground hover:text-primary disabled:opacity-30"
+                                            aria-label="Move film up">
+                                            <ChevronUp size={14} />
+                                          </button>
+                                          <button type="button"
+                                            onClick={() => moveFilm(row.localId, filmIndex, 1)}
+                                            disabled={filmIndex === row.films.length - 1}
+                                            className="p-1.5 text-muted-foreground hover:text-primary disabled:opacity-30"
+                                            aria-label="Move film down">
+                                            <ChevronDown size={14} />
+                                          </button>
+                                          <button type="button"
+                                            onClick={() => removeFilm(row.localId, film.localId)}
+                                            className="p-1.5 text-muted-foreground hover:text-red-400"
+                                            aria-label={`Remove ${film.title || "film"}`}>
+                                            <Trash2 size={14} />
+                                          </button>
+                                        </div>
+                                      </div>
+
+                                      {filmOpen && (
+                                        <div className="grid grid-cols-1 gap-4 border-t border-border p-4 md:grid-cols-2">
+                                          <div>
+                                            <label className={labelClass}>Film title *</label>
+                                            <input className={field} value={film.title}
+                                              onChange={(e) => patchFilm(row.localId, film.localId, { title: e.target.value })} />
+                                          </div>
+                                          <div>
+                                            <label className={labelClass}>Country</label>
+                                            <input className={field} value={film.country}
+                                              onChange={(e) => patchFilm(row.localId, film.localId, { country: e.target.value })}
+                                              placeholder="Oman" />
+                                          </div>
+                                          <div>
+                                            <label className={labelClass}>Year of production</label>
+                                            <input className={field} inputMode="numeric" value={film.year}
+                                              onChange={(e) => patchFilm(row.localId, film.localId, { year: e.target.value })} />
+                                          </div>
+                                          <div>
+                                            <label className={labelClass}>Genre</label>
+                                            <input className={field} value={film.genre}
+                                              onChange={(e) => patchFilm(row.localId, film.localId, { genre: e.target.value })}
+                                              placeholder="Drama" />
+                                          </div>
+                                          <div>
+                                            <label className={labelClass}>Runtime (minutes)</label>
+                                            <input className={field} inputMode="numeric" value={film.runtimeMinutes}
+                                              onChange={(e) => patchFilm(row.localId, film.localId, { runtimeMinutes: e.target.value })} />
+                                          </div>
+                                          <div>
+                                            <label className={labelClass}>Trailer URL — YouTube</label>
+                                            <input className={field} value={film.trailerUrl}
+                                              onChange={(e) => patchFilm(row.localId, film.localId, { trailerUrl: e.target.value })}
+                                              placeholder="https://youtu.be/…" />
+                                          </div>
+                                          <div className="md:col-span-2">
+                                            <label className={labelClass}>Synopsis</label>
+                                            <textarea rows={3} className={field} value={film.synopsis}
+                                              onChange={(e) => patchFilm(row.localId, film.localId, { synopsis: e.target.value })} />
+                                          </div>
+                                          <div className="md:col-span-2">
+                                            <label className={labelClass}>
+                                              Poster — portrait. Leave empty and the website draws a
+                                              typographic poster from the title.
+                                            </label>
+                                            <FestivalImageUpload
+                                              shape="portrait"
+                                              existingUrl={film.posterUrl}
+                                              pendingFile={pendingPosters[film.localId] ?? null}
+                                              onSelect={(file) =>
+                                                setPendingPosters((pending) => {
+                                                  const next = { ...pending };
+                                                  if (file) next[film.localId] = file;
+                                                  else delete next[film.localId];
+                                                  return next;
+                                                })
+                                              }
+                                              onClearExisting={() =>
+                                                patchFilm(row.localId, film.localId, {
+                                                  posterUrl: "",
+                                                  posterKey: "",
+                                                })
+                                              }
+                                              label="Select poster (PNG, WEBP or JPEG)"
+                                            />
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </div>
                         </div>
                       )}

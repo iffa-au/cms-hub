@@ -27,7 +27,27 @@ import { Pencil, Trash2, Settings2, Eye, EyeOff, Plus } from "lucide-react";
  * exists.
  */
 
-type Screening = { _id?: string; title: string; date: string };
+type Screening = {
+  _id?: string;
+  title: string;
+  startDate?: string;
+  films?: { title: string }[];
+};
+
+/**
+ * Films across every session.
+ *
+ * A screening count stopped being a film count when a session gained a
+ * lineup — a three-session festival can hold twenty films — so both are
+ * shown. `films` is optional because a festival that has not been through
+ * `migrate-screenings-to-sessions.ts` yet has no such array; those rows were
+ * one film each, which is what the fallback counts.
+ */
+const countFilms = (screenings: Screening[]): number =>
+  screenings.reduce(
+    (total, screening) => total + (screening.films?.length ?? 1),
+    0,
+  );
 
 type Festival = {
   _id: string;
@@ -165,7 +185,8 @@ export default function FestivalsAdminPage() {
     const confirmed = window.confirm(
       `Delete "${festival.name}"?\n\n` +
         `This removes the festival, its ${festival.screenings.length} screening(s), ` +
-        `and every image uploaded for it from storage. This cannot be undone.`,
+        `${countFilms(festival.screenings)} film(s), and every image uploaded for it ` +
+        `from storage. This cannot be undone.`,
     );
     if (!confirmed) return;
 
@@ -244,7 +265,10 @@ export default function FestivalsAdminPage() {
                     <p className="truncate text-xs text-muted-foreground">
                       {dateRange(festival.startDate, festival.endDate)} ·{" "}
                       {festival.screenings.length} screening
-                      {festival.screenings.length === 1 ? "" : "s"} · /{festival.slug}
+                      {festival.screenings.length === 1 ? "" : "s"} ·{" "}
+                      {countFilms(festival.screenings)} film
+                      {countFilms(festival.screenings) === 1 ? "" : "s"} · /
+                      {festival.slug}
                     </p>
                   </div>
 

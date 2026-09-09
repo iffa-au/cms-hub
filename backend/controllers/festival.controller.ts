@@ -1,6 +1,10 @@
 import { randomUUID } from "crypto";
 import { Request, Response } from "express";
-import Festival, { SEAT_STATUSES, type IScreening } from "../models/festival.model.js";
+import Festival, {
+  SEAT_STATUSES,
+  type IFilm,
+  type IScreening,
+} from "../models/festival.model.js";
 import FestivalSettings from "../models/festivalSettings.model.js";
 import {
   buildFestivalAssetPrefix,
@@ -74,21 +78,21 @@ const isSeatStatus = (value: unknown): boolean =>
   typeof value === "string" && (SEAT_STATUSES as readonly string[]).includes(value);
 
 /**
- * Normalises one screening row from the CMS.
+ * Normalises one film row from the CMS.
  *
- * Everything except title and date is optional and defaulted — a festival is
- * often announced before its full programme is confirmed, and a half-filled
- * screening is more useful on the page than no screening at all.
+ * Only the title is required. A festival is often announced before its full
+ * programme is confirmed, and a half-filled film is more useful on the page
+ * than no film at all.
  */
-const normaliseScreening = (raw: unknown): IScreening | { error: string } => {
+const normaliseFilm = (
+  raw: unknown,
+  screeningTitle: string,
+): IFilm | { error: string } => {
   const row = (raw ?? {}) as Record<string, unknown>;
 
   const title = String(row.title ?? "").trim();
-  if (!title) return { error: "Every screening needs a film title" };
-
-  const date = String(row.date ?? "").trim();
-  if (!ISO_DATE.test(date)) {
-    return { error: `Screening "${title}" needs a date in YYYY-MM-DD form` };
+  if (!title) {
+    return { error: `Every film in "${screeningTitle}" needs a title` };
   }
 
   const year = Number(row.year);
@@ -104,10 +108,66 @@ const normaliseScreening = (raw: unknown): IScreening | { error: string } => {
     runtimeMinutes: Number.isFinite(runtime) ? runtime : 0,
     synopsis: String(row.synopsis ?? "").trim(),
     trailerUrl: String(row.trailerUrl ?? "").trim(),
-    date,
+  };
+};
+
+/**
+ * Normalises one screening row from the CMS, with its films.
+ *
+ * A screening needs a title and an opening date; everything else is optional
+ * and defaulted, including its lineup — a session can be announced before the
+ * films in it are confirmed.
+ *
+ * A missing end date means a single sitting, which is the common case and not
+ * worth rejecting a save over. An end date BEFORE the start is rejected rather
+ * than silently collapsed: unlike a blank, it is unambiguously a mistake, and
+ * quietly rewriting a date staff typed is how they stop trusting the form.
+ */
+const normaliseScreening = (raw: unknown): IScreening | { error: string } => {
+  const row = (raw ?? {}) as Record<string, unknown>;
+
+  const title = String(row.title ?? "").trim();
+  if (!title) return { error: "Every screening needs a title" };
+
+  const startDate = String(row.startDate ?? "").trim();
+  if (!ISO_DATE.test(startDate)) {
+    return { error: `Screening "${title}" needs a start date in YYYY-MM-DD form` };
+  }
+
+  const rawEnd = String(row.endDate ?? "").trim();
+  if (rawEnd && !ISO_DATE.test(rawEnd)) {
+    return { error: `Screening "${title}" needs an end date in YYYY-MM-DD form` };
+  }
+  if (rawEnd && rawEnd < startDate) {
+    return {
+      error: `Screening "${title}" ends before it starts — check its dates`,
+    };
+  }
+  const endDate = rawEnd || startDate;
+
+  const rawFilms = row.films;
+  if (rawFilms !== undefined && !Array.isArray(rawFilms)) {
+    return { error: `Screening "${title}": films must be a list` };
+  }
+
+  const films: IFilm[] = [];
+  for (const item of (rawFilms ?? []) as unknown[]) {
+    const result = normaliseFilm(item, title);
+    if ("error" in result) return result;
+    films.push(result);
+  }
+
+  return {
+    title,
+    description: String(row.description ?? "").trim(),
+    startDate,
+    endDate,
     time: String(row.time ?? "").trim(),
     venue: String(row.venue ?? "").trim(),
-    seatStatus: isSeatStatus(row.seatStatus) ? (row.seatStatus as IScreening["seatStatus"]) : "available",
+    seatStatus: isSeatStatus(row.seatStatus)
+      ? (row.seatStatus as IScreening["seatStatus"])
+      : "available",
+    films,
   };
 };
 
@@ -129,11 +189,16 @@ const normaliseScreenings = (
 /** Every S3 key a festival owns — used to find what a write orphaned. */
 const assetKeysOf = (festival: {
   heroImageKey?: string;
-  screenings?: { posterKey?: string }[];
+  screenings?: { films?: { posterKey?: string }[] }[];
 }): string[] =>
   [
     festival.heroImageKey,
-    ...(festival.screenings ?? []).map((screening) => screening.posterKey),
+    // Posters moved a level down when films gained their own rows. Walking
+    // only the screenings here would have reported every poster as orphaned
+    // on the next save, and deleted the lot.
+    ...(festival.screenings ?? []).flatMap((screening) =>
+      (screening.films ?? []).map((film) => film.posterKey),
+    ),
   ]
     .map((key) => (key ?? "").trim())
     .filter(Boolean);

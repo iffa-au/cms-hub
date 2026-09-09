@@ -26,7 +26,10 @@ import "dotenv/config";
 import { randomUUID } from "crypto";
 import mongoose from "mongoose";
 
-import Festival, { type IScreening } from "../models/festival.model.js";
+import Festival, {
+  type IScreening,
+  type SeatStatus,
+} from "../models/festival.model.js";
 import FestivalSettings from "../models/festivalSettings.model.js";
 import { buildFestivalAssetPrefix } from "../libs/s3.js";
 
@@ -43,22 +46,54 @@ type SeedFestival = {
   screenings: IScreening[];
 };
 
-/** Fills the fields every screening shares, so the payload below stays readable. */
-const screening = (
-  partial: Partial<IScreening> & Pick<IScreening, "title" | "date">,
-): IScreening => ({
-  posterUrl: "",
-  posterKey: "",
-  country: "",
-  year: 2026,
-  genre: "",
-  runtimeMinutes: 0,
-  synopsis: "",
-  trailerUrl: "",
-  time: "",
-  venue: "",
-  seatStatus: "available",
-  ...partial,
+/**
+ * One row of the original hardcoded schedule, where a screening WAS a film.
+ *
+ * The payload below is left exactly as it was imported — this helper is what
+ * absorbed the restructure. Each old row becomes a session of one film, which
+ * is precisely what it meant: these rows carried their own time and venue, so
+ * collapsing same-date rows into one session would have merged the 7:30 in the
+ * Main Theatre with the 8:00 in Cinema Two and lost both.
+ */
+type SeedRow = {
+  title: string;
+  date: string;
+  description?: string;
+  posterUrl?: string;
+  posterKey?: string;
+  country?: string;
+  year?: number;
+  genre?: string;
+  runtimeMinutes?: number;
+  synopsis?: string;
+  trailerUrl?: string;
+  time?: string;
+  venue?: string;
+  seatStatus?: SeatStatus;
+};
+
+const screening = (row: SeedRow): IScreening => ({
+  title: row.title,
+  description: row.description ?? "",
+  // A single sitting: the old model had one date and no notion of a run.
+  startDate: row.date,
+  endDate: row.date,
+  time: row.time ?? "",
+  venue: row.venue ?? "",
+  seatStatus: row.seatStatus ?? "available",
+  films: [
+    {
+      title: row.title,
+      posterUrl: row.posterUrl ?? "",
+      posterKey: row.posterKey ?? "",
+      country: row.country ?? "",
+      year: row.year ?? 2026,
+      genre: row.genre ?? "",
+      runtimeMinutes: row.runtimeMinutes ?? 0,
+      synopsis: row.synopsis ?? "",
+      trailerUrl: row.trailerUrl ?? "",
+    },
+  ],
 });
 
 const FESTIVALS: SeedFestival[] = [
