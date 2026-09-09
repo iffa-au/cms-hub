@@ -362,6 +362,7 @@ export const createSubmission = async (req: AuthedRequest, res) => {
       landscapeImageUrl = "",
       imdbUrl = "",
       trailerUrl = "",
+      trailerPassword = "",
       releaseLinkUrl = "",
       durationHours,
       durationMinutes,
@@ -420,6 +421,7 @@ export const createSubmission = async (req: AuthedRequest, res) => {
       landscapeImageUrl,
       imdbUrl,
       trailerUrl,
+      trailerPassword: String(trailerPassword || "").trim(),
       releaseLinkUrl: String(releaseLinkUrl || "").trim(),
       ...parsedDuration,
       submission_year: resolvedSubmissionYear,
@@ -470,6 +472,7 @@ export const createSubmissionPublic = async (req, res) => {
       landscapeImageUrl = "",
       imdbUrl = "",
       trailerUrl = "",
+      trailerPassword = "",
       releaseLinkUrl = "",
       submissionYear,
       durationHours,
@@ -497,6 +500,18 @@ export const createSubmissionPublic = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Duration hours must be 0-10 and minutes must be 0-59",
+      });
+    }
+
+    // A runtime of 0h 0m is indistinguishable from not answering, and every
+    // such record has to be chased up by hand before the film can be
+    // judged. The public form blocks it too; this is the backstop, and is
+    // deliberately not applied to the staff-facing createSubmission, where
+    // an incomplete record is sometimes entered on purpose.
+    if (!parsedDuration.durationHours && !parsedDuration.durationMinutes) {
+      return res.status(400).json({
+        success: false,
+        message: "Duration is required — a runtime of 0h 0m is not accepted",
       });
     }
 
@@ -573,6 +588,7 @@ export const createSubmissionPublic = async (req, res) => {
       landscapeImageUrl,
       imdbUrl,
       trailerUrl,
+      trailerPassword: String(trailerPassword || "").trim(),
       releaseLinkUrl: String(releaseLinkUrl || "").trim(),
       contactEmail: String(contactEmail || "").trim().toLowerCase(),
       submission_year: resolvedSubmissionYear,
@@ -669,6 +685,7 @@ export const updateSubmission = async (req: AuthedRequest, res) => {
       landscapeImageUrl,
       imdbUrl,
       trailerUrl,
+      trailerPassword,
       releaseLinkUrl,
       contactEmail,
       durationHours,
@@ -707,6 +724,8 @@ export const updateSubmission = async (req: AuthedRequest, res) => {
       updates.landscapeImageUrl = landscapeImageUrl;
     if (imdbUrl !== undefined) updates.imdbUrl = imdbUrl;
     if (trailerUrl !== undefined) updates.trailerUrl = trailerUrl;
+    if (trailerPassword !== undefined)
+      updates.trailerPassword = String(trailerPassword || "").trim();
     if (releaseLinkUrl !== undefined)
       updates.releaseLinkUrl = String(releaseLinkUrl || "").trim();
     if (contactEmail !== undefined)
@@ -855,10 +874,12 @@ export const getSubmission = async (req: Request, res: Response) => {
     if (!Types.ObjectId.isValid(id)) {
       return res.status(400).json({ success: false, message: "Invalid ID" });
     }
-    // Public endpoint (synopsis page) — contactEmail is submitter PII and
-    // must never be exposed here.
+    // Public endpoint (synopsis page). This returns the whole document, so
+    // every staff-only field has to be excluded by name: contactEmail is
+    // submitter PII, and trailerPassword would hand anyone with a film's id
+    // the key to its private screener folder.
     const item = await Submission.findById(id)
-      .select("-contactEmail")
+      .select("-contactEmail -trailerPassword")
       .populate("genreIds");
     if (!item) {
       return res
@@ -951,6 +972,7 @@ export const getSubmissionOverview = async (req, res) => {
           contentTypeId: 1,
           imdbUrl: 1,
           trailerUrl: 1,
+          trailerPassword: 1,
           releaseLinkUrl: 1,
           contactEmail: 1,
           durationHours: 1,
@@ -1201,6 +1223,7 @@ export const adminListSubmissions = async (req, res) => {
           contentTypeId: 1,
           imdbUrl: 1,
           trailerUrl: 1,
+          trailerPassword: 1,
           contactEmail: 1,
           durationHours: 1,
           durationMinutes: 1,

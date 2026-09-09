@@ -21,6 +21,7 @@ export type SubmissionOverview = {
   status?: string;
   imdbUrl?: string;
   trailerUrl?: string;
+  trailerPassword?: string;
   releaseLinkUrl?: string;
   contactEmail?: string;
   productionHouse?: string;
@@ -140,49 +141,68 @@ export const buildSubmissionPdf = (doc: jsPDF, details: SubmissionOverview) => {
     y += 18;
   };
 
-  const addField = (label: string, value?: string) => {
-    ensureSpace(24);
+  // Labels print at `margin`, values at `margin + LABEL_COL`. A label wider
+  // than that column used to print straight through its own value — at 10pt
+  // bold, "Release, Broadcast or Exhibition Link:" measures ~182pt against
+  // the old fixed 110pt column, so the two overlapped on the page. Labels
+  // that don't fit now drop their value onto the next line at full width.
+  const LABEL_COL = 130;
+  const LINE_HEIGHT = 13;
+
+  /**
+   * Draws a field label and reports where its value belongs — either to the
+   * right of the label, or on the line below when the label is too wide.
+   */
+  const drawLabel = (label: string) => {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
     doc.text(`${label}:`, margin, y);
+
+    const wraps = doc.getTextWidth(`${label}:`) + 8 > LABEL_COL;
+    if (wraps) y += LINE_HEIGHT;
+
+    return {
+      x: wraps ? margin : margin + LABEL_COL,
+      width: wraps ? maxWidth : maxWidth - LABEL_COL,
+    };
+  };
+
+  const addField = (label: string, value?: string) => {
+    ensureSpace(24 + LINE_HEIGHT);
+    const { x, width } = drawLabel(label);
 
     doc.setFont('helvetica', 'normal');
     const text = value?.trim() ? value : '—';
-    const lines = doc.splitTextToSize(text, maxWidth - 110);
-    doc.text(lines, margin + 110, y);
-    y += Math.max(16, lines.length * 13);
+    const lines = doc.splitTextToSize(text, width);
+    doc.text(lines, x, y);
+    y += Math.max(16, lines.length * LINE_HEIGHT);
   };
 
   const addLinkField = (label: string, url?: string) => {
-    ensureSpace(24);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.text(`${label}:`, margin, y);
+    ensureSpace(24 + LINE_HEIGHT);
+    const { x, width } = drawLabel(label);
 
     const text = url?.trim() || '—';
-    const xStart = margin + 110;
-    const lineHeight = 13;
 
     if (text === '—') {
       doc.setFont('helvetica', 'normal');
-      doc.text(text, xStart, y);
+      doc.text(text, x, y);
       y += 16;
       return;
     }
 
-    const lines = doc.splitTextToSize(text, maxWidth - 110);
-    const blockHeight = Math.max(16, lines.length * lineHeight);
+    const lines = doc.splitTextToSize(text, width);
+    const blockHeight = Math.max(16, lines.length * LINE_HEIGHT);
 
     // Draw text in blue/underlined style to signal it's clickable
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(37, 99, 235);
-    doc.text(lines, xStart, y);
+    doc.text(lines, x, y);
     doc.setTextColor(0, 0, 0);
 
     // Single link annotation covering the full wrapped text block
     // so clicking anywhere on the text opens the complete URL
-    const textWidth = maxWidth - 110;
-    doc.link(xStart, y - 10, textWidth, blockHeight, { url: text });
+    doc.link(x, y - 10, width, blockHeight, { url: text });
 
     y += blockHeight;
   };
@@ -225,6 +245,7 @@ export const buildSubmissionPdf = (doc: jsPDF, details: SubmissionOverview) => {
   addField('Submitter Email', details.contactEmail || '—');
   addLinkField('IMDB URL', details.imdbUrl);
   addLinkField('Trailer Download URL', details.trailerUrl);
+  addField('Trailer Password', details.trailerPassword?.trim() || 'Not password-protected');
   addLinkField('Release, Broadcast or Exhibition Link', details.releaseLinkUrl);
   addLinkField('Portrait Image', details.potraitImageUrl);
   addLinkField('Landscape Image', details.landscapeImageUrl);

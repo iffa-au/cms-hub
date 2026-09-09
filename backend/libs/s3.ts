@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { S3Client } from "@aws-sdk/client-s3";
+import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
 
 const PRESIGN_EXPIRY_SECONDS = 300; // 5 minutes — plenty for a browser to start the PUT
 
@@ -54,33 +54,57 @@ function getClient(): S3Client {
 }
 
 export const ALLOWED_UPLOAD_CONTENT_TYPE = "image/webp";
-export const MAX_UPLOAD_BYTES = 15 * 1024 * 1024; // 15MB
+
+/**
+ * 5MB — mirrors MAX_UPLOAD_MB in the public site's WebpImageUpload.
+ *
+ * Enforced by S3 itself via the content-length-range condition in the
+ * presigned POST policy below, so an oversized upload is rejected at the
+ * edge with EntityTooLarge and never reaches the bucket. The browser-side
+ * check in WebpImageUpload is only there to give a friendly message first.
+ */
+export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+
+/** Rejects a zero-byte upload as well as an oversized one. */
+const MIN_UPLOAD_BYTES = 1;
 
 export type PresignedUpload = {
   uploadUrl: string;
+  /** Policy fields that must be sent as form fields *before* the file. */
+  fields: Record<string, string>;
   key: string;
 };
 
 /**
- * Issues a presigned PUT URL scoped to a single, server-generated key so the
+ * Issues a presigned POST scoped to a single, server-generated key so the
  * browser can upload the file bytes straight to S3. The key is never derived
  * from client-supplied input (filename, etc.) to avoid path traversal or
  * collisions — only the fixed .webp extension is used, since content type is
  * already restricted to image/webp.
+ *
+ * POST rather than PUT specifically so the policy can carry
+ * `content-length-range`: a presigned PUT URL has no way to express a size
+ * limit, which left the 5MB cap enforceable only in the browser and
+ * trivially bypassed by posting straight at the signed URL.
  */
 export async function createPresignedUpload(): Promise<PresignedUpload> {
   const { bucket, uploadPrefix } = loadConfig();
   const key = `${uploadPrefix}/${randomUUID()}.webp`;
 
-  const command = new PutObjectCommand({
+  const { url, fields } = await createPresignedPost(getClient(), {
     Bucket: bucket,
     Key: key,
-    ContentType: ALLOWED_UPLOAD_CONTENT_TYPE,
+    Expires: PRESIGN_EXPIRY_SECONDS,
+    // Conditions are what S3 actually checks on upload. Fields set defaults;
+    // conditions constrain them, including against a tampered client.
+    Conditions: [
+      ["content-length-range", MIN_UPLOAD_BYTES, MAX_UPLOAD_BYTES],
+      ["eq", "$Content-Type", ALLOWED_UPLOAD_CONTENT_TYPE],
+    ],
+    Fields: {
+      "Content-Type": ALLOWED_UPLOAD_CONTENT_TYPE,
+    },
   });
 
-  const uploadUrl = await getSignedUrl(getClient(), command, {
-    expiresIn: PRESIGN_EXPIRY_SECONDS,
-  });
-
-  return { uploadUrl, key };
+  return { uploadUrl: url, fields, key };
 }
