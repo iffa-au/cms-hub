@@ -23,6 +23,7 @@ export interface ISubmission {
   notes?: string;
   imdbUrl?: string;
   trailerUrl?: string;
+  trailerPassword?: string;
   releaseLinkUrl?: string;
   contactEmail?: string;
   genreIds: Types.ObjectId[];
@@ -167,6 +168,14 @@ const submissionSchema = new Schema<ISubmission>(
     trailerUrl: {
       type: String,
       default: "",
+    },
+    // Password for a protected trailer folder/file, as supplied by the
+    // submitter. Staff-only, like contactEmail: it must stay out of every
+    // public projection — see the explicit exclusion in getSubmission.
+    trailerPassword: {
+      type: String,
+      default: "",
+      trim: true,
     },
     releaseLinkUrl: {
       type: String,

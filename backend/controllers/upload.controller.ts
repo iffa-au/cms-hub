@@ -9,6 +9,7 @@ import {
   createSubmissionAssetUpload,
   describeS3Failure,
   isValidSubmissionRef,
+  MAX_UPLOAD_BYTES,
   S3ConfigError,
   SUBMISSION_ASSET_GROUPS,
   FESTIVAL_ASSET_GROUPS,
@@ -25,11 +26,13 @@ const isFestivalAssetGroup = (value: unknown): value is FestivalAssetGroup =>
   typeof value === "string" &&
   (FESTIVAL_ASSET_GROUPS as readonly string[]).includes(value);
 
+const MAX_UPLOAD_MB = Math.round(MAX_UPLOAD_BYTES / (1024 * 1024));
+
 /**
- * Public API: Issues a presigned S3 upload URL for a single webp image.
- * The frontend PUTs the file directly to `uploadUrl` with a
- * `Content-Type: image/webp` header, then builds the public/CloudFront URL
- * from `key` once the upload succeeds.
+ * Public API: Issues a presigned S3 POST for a single webp image. The
+ * frontend posts `fields` plus the file as multipart/form-data to
+ * `uploadUrl`, then builds the public/CloudFront URL from `key` once the
+ * upload succeeds.
  *
  * `submissionRef` + `title` + `group` + `name` place the file inside that
  * submission's own folder. They're required together: a half-specified
@@ -39,17 +42,37 @@ const isFestivalAssetGroup = (value: unknown): value is FestivalAssetGroup =>
  */
 export const requestUploadUrl = async (req: Request, res: Response) => {
   try {
-    const { contentType, submissionRef, title, group, name } =
+    const { contentType, contentLength, submissionRef, title, group, name } =
       req.body as Record<string, unknown>;
 
     // Enforced server-side, not just via the <input accept> hint — the
-    // presigned PUT itself is also locked to this content type, so a
+    // presigned POST policy is also locked to this content type, so a
     // mismatched upload will be rejected by S3.
     if (contentType !== ALLOWED_UPLOAD_CONTENT_TYPE) {
       return res.status(400).json({
         success: false,
         message: `Only ${ALLOWED_UPLOAD_CONTENT_TYPE} uploads are allowed`,
       });
+    }
+
+    // Size is ultimately enforced by the content-length-range condition in
+    // the policy, which S3 applies to the real body whatever a client claims
+    // here. This check is the courteous half: when the client is honest we
+    // refuse before issuing a URL, so the browser gets a readable JSON error
+    // rather than an S3 EntityTooLarge XML document after a wasted upload.
+    if (contentLength !== undefined) {
+      const size = Number(contentLength);
+      if (!Number.isFinite(size) || size <= 0) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid file size" });
+      }
+      if (size > MAX_UPLOAD_BYTES) {
+        return res.status(413).json({
+          success: false,
+          message: `Image is too large. The limit is ${MAX_UPLOAD_MB}MB.`,
+        });
+      }
     }
 
     if (!isValidSubmissionRef(submissionRef)) {
@@ -72,13 +95,13 @@ export const requestUploadUrl = async (req: Request, res: Response) => {
         .json({ success: false, message: "An asset name is required" });
     }
 
-    const { uploadUrl, key } = await createSubmissionAssetUpload({
+    const { uploadUrl, fields, key } = await createSubmissionAssetUpload({
       ref: submissionRef,
       title: typeof title === "string" ? title : "",
       group,
       name,
     });
-    res.status(200).json({ success: true, uploadUrl, key });
+    res.status(200).json({ success: true, uploadUrl, fields, key });
   } catch (error) {
     console.error(error);
     if (error instanceof S3ConfigError) {

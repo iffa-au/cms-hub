@@ -109,6 +109,49 @@ function UrlField({ label, value }: { label: string; value?: string }) {
   );
 }
 
+/**
+ * The trailer link plus, when the submitter told us the folder is locked,
+ * the password to open it — sat right beside the URL so a reviewer never
+ * has to go hunting or email the filmmaker to get in.
+ */
+function TrailerField({ url, password }: { url?: string; password?: string }) {
+  const [copied, setCopied] = useState(false);
+  const secret = password?.trim();
+
+  const copy = async () => {
+    if (!secret) return;
+    try {
+      await navigator.clipboard.writeText(secret);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard is blocked in some browsers/contexts; the password is
+      // on screen in full, so selecting it by hand still works.
+    }
+  };
+
+  return (
+    <div className='min-w-0'>
+      <UrlField label='Trailer URL' value={url} />
+      {secret ? (
+        <div className='mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2'>
+          <span className={LABEL}>Password</span>
+          <code className='font-mono text-white text-sm break-all'>{secret}</code>
+          <button
+            type='button'
+            onClick={copy}
+            className='ml-auto rounded border border-border px-2 py-1 text-[10px] font-bold tracking-widest text-foreground hover:border-primary transition-colors'
+          >
+            {copied ? 'COPIED' : 'COPY'}
+          </button>
+        </div>
+      ) : (
+        <p className='mt-2 text-muted-foreground text-xs'>No password provided</p>
+      )}
+    </div>
+  );
+}
+
 export default function ViewSubmissionPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -310,7 +353,7 @@ export default function ViewSubmissionPage() {
                 <UrlField label='Portrait Image URL' value={details.potraitImageUrl} />
                 <UrlField label='Landscape Image URL' value={details.landscapeImageUrl} />
                 <UrlField label='IMDb URL' value={details.imdbUrl} />
-                <UrlField label='Trailer URL' value={details.trailerUrl} />
+                <TrailerField url={details.trailerUrl} password={details.trailerPassword} />
                 <UrlField label='Release, Broadcast or Exhibition Link' value={details.releaseLinkUrl} />
               </div>
             </section>
