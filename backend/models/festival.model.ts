@@ -33,9 +33,20 @@ export type SeatStatus = (typeof SEAT_STATUSES)[number];
 /**
  * One film in a screening.
  *
- * Carries nothing about when or where it plays. That used to live here,
- * because a screening WAS a film; it now lives on the screening, which is the
- * thing a time and a venue actually describe.
+ * Carries nothing about WHERE it plays — a venue describes the session, and a
+ * venue copied onto each film is how a lineup starts disagreeing with its own
+ * header. When it plays is different: a session's date range and door time
+ * answer for the whole block, which is right for a feature and wrong for a
+ * shorts programme where six films start at six different minutes, or for a
+ * strand running Thursday to Saturday that plays a different film each day.
+ *
+ * So `startDate` and `startTime` are optional overrides, and blank is the
+ * normal state. The public site falls back to the session's for whichever half
+ * is missing, half by half — see `filmScreeningWhen` in ../iffa-2026.
+ *
+ * Safe to store per film precisely because films are embedded: a title
+ * programmed in two sessions is two rows, each with its own slot, so the two
+ * copies cannot disagree the way a shared film document would.
  */
 export interface IFilm {
   title: string;
@@ -52,7 +63,27 @@ export interface IFilm {
   /** Year of production, not of the screening. */
   year: number;
   genre?: string;
+  /**
+   * When this film plays, if it does not simply play with its session.
+   *
+   * `startDate` is an ISO date, "2026-10-16", and is rejected on save if it
+   * falls outside its screening's own range — unlike a blank, a film playing
+   * on a day its session does not run is unambiguously a typo.
+   *
+   * `startTime` is display-ready and free text, e.g. "7:45 PM", matching
+   * `IScreening.time`: staff type the string the website prints, so a session
+   * billed "Doors 7, film 7:30" stays sayable.
+   */
+  startDate?: string;
+  startTime?: string;
+  /**
+   * Runtime, split across two fields rather than held as one decimal number.
+   * Staff read a runtime off a submission as "14 min 32 sec"; 14.53 minutes is
+   * a number nobody types and nobody checks. Seconds are 0-59 — anything
+   * larger belongs in the minutes.
+   */
   runtimeMinutes?: number;
+  runtimeSeconds?: number;
   synopsis?: string;
   /** Raw YouTube URL. Empty means no trailer is available. */
   trailerUrl?: string;
@@ -130,7 +161,14 @@ const filmSchema = new Schema<IFilm>(
     country: { type: String, default: "", trim: true, maxLength: 120 },
     year: { type: Number, default: 0 },
     genre: { type: String, default: "", trim: true, maxLength: 120 },
+    // MONGOOSE TRAP (see AGENTS.md): startDate/startTime must exist here as
+    // well as on the interface, or they are silently dropped on save.
+    startDate: { type: String, default: "", trim: true },
+    startTime: { type: String, default: "", trim: true, maxLength: 40 },
+    // MONGOOSE TRAP (see AGENTS.md): runtimeSeconds must exist here as well
+    // as on the interface, or it is silently dropped on save.
     runtimeMinutes: { type: Number, default: 0 },
+    runtimeSeconds: { type: Number, default: 0, min: 0, max: 59 },
     synopsis: { type: String, default: "", trim: true, maxLength: 4000 },
     trailerUrl: { type: String, default: "", trim: true },
   },

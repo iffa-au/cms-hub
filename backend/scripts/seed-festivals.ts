@@ -381,18 +381,6 @@ const SETTINGS = {
   heroTitle: "Festivals",
   heroIntro:
     "Discover upcoming festivals and explore the films screening throughout each festival.",
-  city: "Melbourne",
-  country: "Australia",
-  planTitle: "Plan your festival nights",
-  planBody:
-    "Booking opens closer to each festival weekend — until then, every screening time and venue below is confirmed programming.",
-  venues: [
-    { name: "Main Theatre", suburb: "Melbourne CBD" },
-    { name: "Cinema Two", suburb: "Melbourne CBD" },
-    { name: "Docklands Screen", suburb: "Docklands" },
-    { name: "Federation Hall", suburb: "Southbank" },
-    { name: "Riverside Pavilion", suburb: "South Wharf" },
-  ],
   comingSoonMonths: [
     {
       year: 2026,
@@ -419,7 +407,7 @@ async function main() {
   console.log(
     `Payload: ${FESTIVALS.length} festivals, ` +
       `${FESTIVALS.reduce((total, f) => total + f.screenings.length, 0)} screenings, ` +
-      `${SETTINGS.venues.length} venues, ${SETTINGS.comingSoonMonths.length} coming-soon month(s).\n`,
+      `${SETTINGS.comingSoonMonths.length} coming-soon month(s).\n`,
   );
 
   await mongoose.connect(uri);
@@ -465,7 +453,7 @@ async function main() {
         assetRef,
         assetPrefix: buildFestivalAssetPrefix(assetRef, festival.name),
         heroImageKey: "",
-        city: SETTINGS.city,
+        city: "Melbourne",
         isPublished: true,
       });
       console.log(`  created ${festival.slug}`);

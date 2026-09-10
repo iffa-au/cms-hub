@@ -83,20 +83,58 @@ const isSeatStatus = (value: unknown): boolean =>
  * Only the title is required. A festival is often announced before its full
  * programme is confirmed, and a half-filled film is more useful on the page
  * than no film at all.
+ *
+ * The session's own range is passed in for one reason: a film may override the
+ * session's date, and an override outside that range is checked here rather
+ * than trusted. See the date handling below.
  */
 const normaliseFilm = (
   raw: unknown,
-  screeningTitle: string,
+  screening: { title: string; startDate: string; endDate: string },
 ): IFilm | { error: string } => {
   const row = (raw ?? {}) as Record<string, unknown>;
 
   const title = String(row.title ?? "").trim();
   if (!title) {
-    return { error: `Every film in "${screeningTitle}" needs a title` };
+    return { error: `Every film in "${screening.title}" needs a title` };
+  }
+
+  /**
+   * A film's own date is optional — blank means it simply plays with its
+   * session, which is the normal case. What is not tolerated is a date outside
+   * the session's own range: a film playing on a day its session does not run
+   * is unambiguously a typo, and the same reasoning that rejects an end date
+   * before a start date applies. Rejected rather than silently clamped, for
+   * the same reason: quietly rewriting a date staff typed is how they stop
+   * trusting the form.
+   */
+  const rawStart = String(row.startDate ?? "").trim();
+  if (rawStart && !ISO_DATE.test(rawStart)) {
+    return {
+      error: `"${title}" needs a screening date in YYYY-MM-DD form, or none at all`,
+    };
+  }
+  if (rawStart && (rawStart < screening.startDate || rawStart > screening.endDate)) {
+    return {
+      error:
+        `"${title}" is set to play on ${rawStart}, but "${screening.title}" ` +
+        `only runs ${screening.startDate} to ${screening.endDate}`,
+    };
   }
 
   const year = Number(row.year);
   const runtime = Number(row.runtimeMinutes);
+
+  /**
+   * Seconds are clamped to 0-59 rather than rolled into the minutes. The
+   * schema caps them at 59, and a validation error there would fail the whole
+   * festival save over one mistyped field — the rest of this function exists
+   * precisely so a half-filled film still lands.
+   */
+  const runtimeSecs = Number(row.runtimeSeconds);
+  const seconds = Number.isFinite(runtimeSecs)
+    ? Math.min(Math.max(Math.trunc(runtimeSecs), 0), 59)
+    : 0;
 
   return {
     title,
@@ -105,7 +143,10 @@ const normaliseFilm = (
     country: String(row.country ?? "").trim(),
     year: Number.isFinite(year) ? year : 0,
     genre: String(row.genre ?? "").trim(),
+    startDate: rawStart,
+    startTime: String(row.startTime ?? "").trim(),
     runtimeMinutes: Number.isFinite(runtime) ? runtime : 0,
+    runtimeSeconds: seconds,
     synopsis: String(row.synopsis ?? "").trim(),
     trailerUrl: String(row.trailerUrl ?? "").trim(),
   };
@@ -152,7 +193,7 @@ const normaliseScreening = (raw: unknown): IScreening | { error: string } => {
 
   const films: IFilm[] = [];
   for (const item of (rawFilms ?? []) as unknown[]) {
-    const result = normaliseFilm(item, title);
+    const result = normaliseFilm(item, { title, startDate, endDate });
     if ("error" in result) return result;
     films.push(result);
   }
@@ -608,10 +649,6 @@ export const updateFestivalSettings = async (req: Request, res: Response) => {
         : fallback;
 
     settings.seriesLabel = text(body.seriesLabel, settings.seriesLabel);
-    settings.city = text(body.city, settings.city);
-    settings.country = text(body.country, settings.country);
-    settings.planTitle = text(body.planTitle, settings.planTitle);
-    settings.planBody = text(body.planBody, settings.planBody);
     settings.scheduleEyebrow = text(body.scheduleEyebrow, settings.scheduleEyebrow);
     settings.scheduleHeading = text(body.scheduleHeading, settings.scheduleHeading);
     settings.scheduleIntro = text(body.scheduleIntro, settings.scheduleIntro);
@@ -642,35 +679,6 @@ export const updateFestivalSettings = async (req: Request, res: Response) => {
       }
     }
 
-    if (body.about !== undefined) {
-      const about = section("about");
-      const previousKey = settings.about.imageKey?.trim();
-
-      settings.about.eyebrow = text(about.eyebrow, settings.about.eyebrow);
-      settings.about.heading = text(about.heading, settings.about.heading);
-      settings.about.body = lines(about.body, settings.about.body);
-      settings.about.imageUrl = text(about.imageUrl, settings.about.imageUrl);
-      settings.about.imageKey = text(about.imageKey, settings.about.imageKey);
-
-      // Replaced banner — the old object is ours to remove. Empty for an
-      // externally-hosted URL, which we never touch.
-      const nextKey = settings.about.imageKey?.trim();
-      if (previousKey && previousKey !== nextKey) {
-        replacedKeys.push(previousKey);
-      }
-      if (Array.isArray(about.stats)) {
-        settings.about.stats = about.stats
-          .map((raw) => {
-            const stat = (raw ?? {}) as Record<string, unknown>;
-            return {
-              value: String(stat.value ?? "").trim(),
-              label: String(stat.label ?? "").trim(),
-            };
-          })
-          .filter((stat) => stat.value || stat.label);
-      }
-    }
-
     if (body.award !== undefined) {
       const award = section("award");
       const previousKey = settings.award.imageKey?.trim();
@@ -695,18 +703,6 @@ export const updateFestivalSettings = async (req: Request, res: Response) => {
       settings.cta.body = text(ctaSection.body, settings.cta.body);
       settings.cta.primaryCta = cta(ctaSection.primaryCta, settings.cta.primaryCta);
       settings.cta.secondaryCta = cta(ctaSection.secondaryCta, settings.cta.secondaryCta);
-    }
-
-    if (Array.isArray(body.venues)) {
-      settings.venues = body.venues
-        .map((raw) => {
-          const venue = (raw ?? {}) as Record<string, unknown>;
-          return {
-            name: String(venue.name ?? "").trim(),
-            suburb: String(venue.suburb ?? "").trim(),
-          };
-        })
-        .filter((venue) => venue.name);
     }
 
     if (Array.isArray(body.comingSoonMonths)) {
