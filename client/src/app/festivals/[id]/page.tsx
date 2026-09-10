@@ -33,7 +33,15 @@ const SEAT_STATUSES = [
 
 type SeatStatus = (typeof SEAT_STATUSES)[number]["value"];
 
-/** One film inside a screening. Carries nothing about when or where it plays. */
+/**
+ * One film inside a screening.
+ *
+ * Carries nothing about where it plays — the venue is the session's. When it
+ * plays is an optional override: blank means "plays with its session", which
+ * is the normal case, and a value is for the shorts block whose six films
+ * start at six different minutes or the strand that plays a different film
+ * each day of its run.
+ */
 type FilmRow = {
   /** Client-side only, stable across re-renders. Never sent to the server. */
   localId: string;
@@ -43,7 +51,13 @@ type FilmRow = {
   country: string;
   year: string;
   genre: string;
+  /** Blank unless this film overrides its session's date. ISO, within the session's range. */
+  startDate: string;
+  /** Blank unless this film overrides its session's time. Free text: "7:45 PM". */
+  startTime: string;
+  /** Kept as strings so a half-typed field stays exactly what staff typed. */
   runtimeMinutes: string;
+  runtimeSeconds: string;
   synopsis: string;
   trailerUrl: string;
 };
@@ -99,7 +113,13 @@ const emptyFilm = (): FilmRow => ({
   country: "",
   year: String(new Date().getFullYear()),
   genre: "",
+  // Blank, not the session's date: a copy would be indistinguishable from a
+  // deliberate override, and every film would then need clearing by hand when
+  // the session moved.
+  startDate: "",
+  startTime: "",
   runtimeMinutes: "",
+  runtimeSeconds: "",
   synopsis: "",
   trailerUrl: "",
 });
@@ -126,7 +146,10 @@ const toFilmRow = (raw: Record<string, unknown>): FilmRow => ({
   country: String(raw.country ?? ""),
   year: raw.year ? String(raw.year) : "",
   genre: String(raw.genre ?? ""),
+  startDate: String(raw.startDate ?? ""),
+  startTime: String(raw.startTime ?? ""),
   runtimeMinutes: raw.runtimeMinutes ? String(raw.runtimeMinutes) : "",
+  runtimeSeconds: raw.runtimeSeconds ? String(raw.runtimeSeconds) : "",
   synopsis: String(raw.synopsis ?? ""),
   trailerUrl: String(raw.trailerUrl ?? ""),
 });
@@ -160,6 +183,13 @@ const toRow = (raw: Record<string, unknown>): ScreeningRow => {
       : (raw.films as Record<string, unknown>[]).map(toFilmRow),
   };
 };
+
+/**
+ * Runtime for the collapsed film row. Either half can be blank while a film is
+ * being entered, so each is shown only when it holds something.
+ */
+const runtimeLabel = (minutes: string, seconds: string): string =>
+  [minutes && `${minutes} min`, seconds && `${seconds} sec`].filter(Boolean).join(" ");
 
 const errorMessage = (e: unknown, fallback: string) =>
   e instanceof Error && e.message ? e.message : fallback;
@@ -421,7 +451,10 @@ export default function FestivalEditorPage() {
             country: film.country.trim(),
             year: Number(film.year) || 0,
             genre: film.genre.trim(),
+            startDate: film.startDate,
+            startTime: film.startTime.trim(),
             runtimeMinutes: Number(film.runtimeMinutes) || 0,
+            runtimeSeconds: Number(film.runtimeSeconds) || 0,
             synopsis: film.synopsis.trim(),
             trailerUrl: film.trailerUrl.trim(),
           })),
@@ -742,10 +775,18 @@ export default function FestivalEditorPage() {
                                           </p>
                                           <p className="truncate text-xs text-muted-foreground">
                                             {[
+                                              // Only when this film overrides its
+                                              // session — the collapsed row is for
+                                              // spotting what differs, and the
+                                              // session's own slot is in the header
+                                              // right above.
+                                              [film.startDate, film.startTime]
+                                                .filter(Boolean)
+                                                .join(" "),
                                               film.country,
                                               film.year,
                                               film.genre,
-                                              film.runtimeMinutes && `${film.runtimeMinutes} min`,
+                                              runtimeLabel(film.runtimeMinutes, film.runtimeSeconds),
                                             ]
                                               .filter(Boolean)
                                               .join(" · ") || "No details yet"}
@@ -777,10 +818,41 @@ export default function FestivalEditorPage() {
 
                                       {filmOpen && (
                                         <div className="grid grid-cols-1 gap-4 border-t border-border p-4 md:grid-cols-2">
-                                          <div>
+                                          <div className="md:col-span-2">
                                             <label className={labelClass}>Film title *</label>
                                             <input className={field} value={film.title}
                                               onChange={(e) => patchFilm(row.localId, film.localId, { title: e.target.value })} />
+                                          </div>
+                                          {/* Both blank is the normal state. Filled in only
+                                              where a film does not simply play with its
+                                              session — a shorts block that starts its six
+                                              films at six different minutes, or a strand
+                                              across days that plays a different film each
+                                              day. The date input is bounded by the
+                                              session's own range; the server rejects a
+                                              date outside it rather than clamping. */}
+                                          <div className="md:col-span-2">
+                                            <label className={labelClass}>
+                                              Plays on — leave blank to use the screening&apos;s own date and time
+                                            </label>
+                                            <div className="flex items-center gap-2">
+                                              <input type="date" className={field} value={film.startDate}
+                                                min={row.startDate || undefined}
+                                                max={row.endDate || row.startDate || undefined}
+                                                onChange={(e) => patchFilm(row.localId, film.localId, { startDate: e.target.value })}
+                                                aria-label={`Date ${film.title || "this film"} plays`} />
+                                              <input className={field} value={film.startTime}
+                                                onChange={(e) => patchFilm(row.localId, film.localId, { startTime: e.target.value })}
+                                                aria-label={`Time ${film.title || "this film"} starts`}
+                                                placeholder="7:45 PM" />
+                                            </div>
+                                            <p className="mt-1 text-xs text-muted-foreground">
+                                              Must fall inside the screening&apos;s dates
+                                              {row.startDate
+                                                ? `, ${row.startDate}${row.endDate && row.endDate !== row.startDate ? ` to ${row.endDate}` : ""}`
+                                                : ""}
+                                              . The time reads exactly as typed.
+                                            </p>
                                           </div>
                                           <div>
                                             <label className={labelClass}>Country</label>
@@ -800,9 +872,16 @@ export default function FestivalEditorPage() {
                                               placeholder="Drama" />
                                           </div>
                                           <div>
-                                            <label className={labelClass}>Runtime (minutes)</label>
-                                            <input className={field} inputMode="numeric" value={film.runtimeMinutes}
-                                              onChange={(e) => patchFilm(row.localId, film.localId, { runtimeMinutes: e.target.value })} />
+                                            <label className={labelClass}>Runtime</label>
+                                            <div className="flex items-center gap-2">
+                                              <input className={field} inputMode="numeric" value={film.runtimeMinutes}
+                                                onChange={(e) => patchFilm(row.localId, film.localId, { runtimeMinutes: e.target.value })}
+                                                aria-label="Runtime minutes" placeholder="Minutes" />
+                                              <input className={field} inputMode="numeric" value={film.runtimeSeconds}
+                                                onChange={(e) => patchFilm(row.localId, film.localId, { runtimeSeconds: e.target.value })}
+                                                aria-label="Runtime seconds" placeholder="Seconds" />
+                                            </div>
+                                            <p className="mt-1 text-xs text-muted-foreground">Minutes, then seconds (0-59).</p>
                                           </div>
                                           <div>
                                             <label className={labelClass}>Trailer URL — YouTube</label>

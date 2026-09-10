@@ -1,9 +1,20 @@
 import { Schema, model } from "mongoose";
 
 /**
- * Everything on the Festivals page that is not a festival: the hero, the
- * intro, the award spotlight, the closing call to action, the venue list, and
- * the months announced as coming without a programme.
+ * Everything on the Festivals page that is not a festival: the hero, the award
+ * spotlight, the closing call to action, and the months announced as coming
+ * without a programme.
+ *
+ * The `about` section — eyebrow, heading, body paragraphs, banner and stats —
+ * was removed along with the statement section that rendered it. Stored copies
+ * are cleared by `scripts/drop-festival-settings-about.ts`.
+ *
+ * The venue band went the same way: `venues`, `planTitle`, `planBody`, `city`
+ * and `country` are gone from the schema, the controller and the CMS form. A
+ * venue belongs to the screening that happens there — it is already edited on
+ * every screening and shown on the site's screening and film pages — so the
+ * festival-wide list was a second place to keep the same fact in step. Stored
+ * copies are cleared by `scripts/drop-festival-settings-venue-band.ts`.
  *
  * A singleton — there is one Festivals page. Read paths never create it (see
  * `readFestivalSettings`); every field carries a schema default so a database
@@ -17,11 +28,6 @@ import { Schema, model } from "mongoose";
  * interface is silently dropped on save. Every field below appears in BOTH the
  * interface and the Schema object.
  */
-
-export interface IFestivalVenue {
-  name: string;
-  suburb?: string;
-}
 
 export interface IComingSoonMonth {
   year: number;
@@ -50,26 +56,6 @@ export interface IHeroSection {
   secondaryCta: ILinkedCta;
 }
 
-export interface IStat {
-  value: string;
-  label: string;
-}
-
-export interface IAboutSection {
-  eyebrow: string;
-  heading: string;
-  /** One paragraph per entry. */
-  body: string[];
-  /**
-   * Wide banner between the statement and the stats. Empty is a normal state —
-   * the section is designed to read without one.
-   */
-  imageUrl: string;
-  /** S3 key, set only when the image was uploaded through the CMS. */
-  imageKey: string;
-  stats: IStat[];
-}
-
 export interface IAwardSection {
   eyebrow: string;
   heading: string;
@@ -90,14 +76,8 @@ export interface ICtaSection {
 
 export interface IFestivalSettings {
   seriesLabel: string;
-  city: string;
-  country: string;
-  planTitle: string;
-  planBody: string;
-  venues: IFestivalVenue[];
   comingSoonMonths: IComingSoonMonth[];
   hero: IHeroSection;
-  about: IAboutSection;
   award: IAwardSection;
   cta: ICtaSection;
   /** Heading above the month-by-month schedule. */
@@ -105,14 +85,6 @@ export interface IFestivalSettings {
   scheduleHeading: string;
   scheduleIntro: string;
 }
-
-const venueSchema = new Schema<IFestivalVenue>(
-  {
-    name: { type: String, required: true, trim: true, maxLength: 200 },
-    suburb: { type: String, default: "", trim: true, maxLength: 200 },
-  },
-  { _id: true },
-);
 
 const comingSoonMonthSchema = new Schema<IComingSoonMonth>(
   {
@@ -131,14 +103,6 @@ const ctaSchema = new Schema<ILinkedCta>(
   { _id: false },
 );
 
-const statSchema = new Schema<IStat>(
-  {
-    value: { type: String, default: "", trim: true, maxLength: 40 },
-    label: { type: String, default: "", trim: true, maxLength: 120 },
-  },
-  { _id: true },
-);
-
 const heroSchema = new Schema<IHeroSection>(
   {
     eyebrow: { type: String, default: "International Film Festival of Australia", trim: true, maxLength: 200 },
@@ -155,31 +119,6 @@ const heroSchema = new Schema<IHeroSection>(
     backgroundImageKey: { type: String, default: "", trim: true },
     primaryCta: { type: ctaSchema, default: () => ({ label: "Explore Festivals", href: "#schedule" }) },
     secondaryCta: { type: ctaSchema, default: () => ({ label: "Submit Your Film", href: "/submit-film" }) },
-  },
-  { _id: false },
-);
-
-const aboutSchema = new Schema<IAboutSection>(
-  {
-    eyebrow: { type: String, default: "The Festival", trim: true, maxLength: 200 },
-    heading: { type: String, default: "A festival built around the films, not the fanfare", trim: true, maxLength: 300 },
-    body: {
-      type: [String],
-      default: [
-        "IFFA programmes two festivals every month — compact, themed weekends that put a handful of films in front of an audience properly, rather than burying them in a fortnight-long schedule nobody can follow.",
-        "Every screening is curated. Every filmmaker is in the room. What began as a showcase for cinema from Oman, India, Malaysia and Spain now brings work from across the world to Melbourne's screens.",
-      ],
-    },
-    imageUrl: { type: String, default: "", trim: true },
-    imageKey: { type: String, default: "", trim: true },
-    stats: {
-      type: [statSchema],
-      default: () => [
-        { value: "1", label: "Festival a year" },
-        { value: "20+", label: "Films in the programme" },
-        { value: "5", label: "Venues across Melbourne" },
-      ],
-    },
   },
   { _id: false },
 );
@@ -228,17 +167,10 @@ const ctaSectionSchema = new Schema<ICtaSection>(
 
 const festivalSettingsSchema = new Schema<IFestivalSettings>(
   {
+    // Nothing on the public page has rendered `seriesLabel` for some time and
+    // the CMS has no input for it. Kept on the schema so no stored document
+    // needs migrating; delete it here if that ever stops being worth the row.
     seriesLabel: { type: String, default: "Festival Series 2026", trim: true, maxLength: 200 },
-    city: { type: String, default: "Melbourne", trim: true, maxLength: 120 },
-    country: { type: String, default: "Australia", trim: true, maxLength: 120 },
-    planTitle: { type: String, default: "Plan your festival nights", trim: true, maxLength: 200 },
-    planBody: {
-      type: String,
-      default:
-        "Booking opens closer to each festival weekend — until then, every screening time and venue below is confirmed programming.",
-      trim: true,
-      maxLength: 2000,
-    },
     scheduleEyebrow: { type: String, default: "What's on", trim: true, maxLength: 200 },
     scheduleHeading: { type: String, default: "Upcoming festivals", trim: true, maxLength: 300 },
     scheduleIntro: {
@@ -248,10 +180,8 @@ const festivalSettingsSchema = new Schema<IFestivalSettings>(
       trim: true,
       maxLength: 1000,
     },
-    venues: { type: [venueSchema], default: [] },
     comingSoonMonths: { type: [comingSoonMonthSchema], default: [] },
     hero: { type: heroSchema, default: () => ({}) },
-    about: { type: aboutSchema, default: () => ({}) },
     award: { type: awardSchema, default: () => ({}) },
     cta: { type: ctaSectionSchema, default: () => ({}) },
   },

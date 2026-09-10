@@ -8,12 +8,16 @@ import { getData, updateData } from "@/lib/fetch-util";
 import FestivalImageUpload, {
   uploadFestivalPageImage,
 } from "@/components/festivals/festival-image-upload";
-import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
 /**
  * Everything on the public Festivals page that is not a festival: the hero, the
- * intro, the award spotlight, the schedule headings, the closing call to
- * action and the venue list.
+ * award spotlight, the schedule headings and the closing call to action.
+ *
+ * The "About the festival" editor was removed with the statement section it
+ * fed. Unlike `comingSoonMonths` below, `about` is gone from the schema too and
+ * cleared from the stored document by a backend script — it was carrying a
+ * banner in S3, and a field nothing reads is not a field worth paying to keep.
  *
  * The coming-soon months editor was removed when IFFA moved to one festival a
  * year: with a single annual festival there is no month to promise, and the
@@ -24,8 +28,6 @@ import { ArrowLeft, Plus, Trash2 } from "lucide-react";
  */
 
 type Cta = { label: string; href: string };
-type Venue = { name: string; suburb: string };
-type Stat = { value: string; label: string };
 
 /**
  * The settings document is a deep tree of optional fields, and this page reads
@@ -38,7 +40,6 @@ type SettingsResponse = { success: boolean; message?: string; data: Json };
 const obj = (value: unknown): Json =>
   value && typeof value === "object" ? (value as Json) : {};
 const str = (value: unknown): string => (typeof value === "string" ? value : "");
-const arr = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
 
 const errorMessage = (e: unknown, fallback: string) =>
   e instanceof Error && e.message ? e.message : fallback;
@@ -49,12 +50,6 @@ const labelClass = "mb-1 block text-xs text-muted-foreground";
 const sectionClass = "mb-6 space-y-4 rounded-lg border border-border bg-card/60 p-6";
 const headingClass =
   "text-sm font-bold uppercase tracking-[0.2em] text-muted-foreground";
-
-/** Paragraphs are edited as one textarea, split on blank lines. */
-const toParagraphs = (text: string) =>
-  text.split(/\n\s*\n/).map((line) => line.trim()).filter(Boolean);
-const fromParagraphs = (list: unknown) =>
-  Array.isArray(list) ? list.join("\n\n") : "";
 
 /** Short lines are one per row. */
 const toLines = (text: string) =>
@@ -70,9 +65,6 @@ export default function FestivalSettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const [city, setCity] = useState("");
-  const [country, setCountry] = useState("");
-
   const [heroEyebrow, setHeroEyebrow] = useState("");
   const [heroTitle, setHeroTitle] = useState("");
   const [heroSubtitle, setHeroSubtitle] = useState("");
@@ -81,14 +73,6 @@ export default function FestivalSettingsPage() {
   const [pendingHero, setPendingHero] = useState<File | null>(null);
   const [heroPrimary, setHeroPrimary] = useState<Cta>({ label: "", href: "" });
   const [heroSecondary, setHeroSecondary] = useState<Cta>({ label: "", href: "" });
-
-  const [aboutEyebrow, setAboutEyebrow] = useState("");
-  const [aboutHeading, setAboutHeading] = useState("");
-  const [aboutBody, setAboutBody] = useState("");
-  const [aboutImageUrl, setAboutImageUrl] = useState("");
-  const [aboutImageKey, setAboutImageKey] = useState("");
-  const [pendingAbout, setPendingAbout] = useState<File | null>(null);
-  const [stats, setStats] = useState<Stat[]>([]);
 
   const [awardEyebrow, setAwardEyebrow] = useState("");
   const [awardHeading, setAwardHeading] = useState("");
@@ -107,10 +91,6 @@ export default function FestivalSettingsPage() {
   const [ctaPrimary, setCtaPrimary] = useState<Cta>({ label: "", href: "" });
   const [ctaSecondary, setCtaSecondary] = useState<Cta>({ label: "", href: "" });
 
-  const [planTitle, setPlanTitle] = useState("");
-  const [planBody, setPlanBody] = useState("");
-  const [venues, setVenues] = useState<Venue[]>([]);
-
   useEffect(() => {
     if (isAuthenticated && user?.role !== "admin" && user?.role !== "staff") {
       router.replace("/");
@@ -128,9 +108,6 @@ export default function FestivalSettingsPage() {
         return { label: str(value.label), href: str(value.href) };
       };
 
-      setCity(str(s.city));
-      setCountry(str(s.country));
-
       setHeroEyebrow(str(obj(s.hero).eyebrow));
       setHeroTitle(str(obj(s.hero).title));
       setHeroSubtitle(str(obj(s.hero).subtitle));
@@ -138,18 +115,6 @@ export default function FestivalSettingsPage() {
       setHeroImageKey(str(obj(s.hero).backgroundImageKey));
       setHeroPrimary(cta(obj(s.hero).primaryCta));
       setHeroSecondary(cta(obj(s.hero).secondaryCta));
-
-      setAboutEyebrow(str(obj(s.about).eyebrow));
-      setAboutHeading(str(obj(s.about).heading));
-      setAboutBody(fromParagraphs(obj(s.about).body));
-      setAboutImageUrl(str(obj(s.about).imageUrl));
-      setAboutImageKey(str(obj(s.about).imageKey));
-      setStats(
-        arr(obj(s.about).stats).map((raw) => {
-          const stat = obj(raw);
-          return { value: str(stat.value), label: str(stat.label) };
-        }),
-      );
 
       setAwardEyebrow(str(obj(s.award).eyebrow));
       setAwardHeading(str(obj(s.award).heading));
@@ -166,15 +131,6 @@ export default function FestivalSettingsPage() {
       setCtaBody(str(obj(s.cta).body));
       setCtaPrimary(cta(obj(s.cta).primaryCta));
       setCtaSecondary(cta(obj(s.cta).secondaryCta));
-
-      setPlanTitle(str(s.planTitle));
-      setPlanBody(str(s.planBody));
-      setVenues(
-        arr(s.venues).map((raw) => {
-          const venue = obj(raw);
-          return { name: str(venue.name), suburb: str(venue.suburb) };
-        }),
-      );
     } catch (e: unknown) {
       setError(errorMessage(e, "Failed to load settings"));
     } finally {
@@ -204,14 +160,6 @@ export default function FestivalSettingsPage() {
         nextHeroKey = uploaded.key;
       }
 
-      let nextAboutUrl = aboutImageUrl;
-      let nextAboutKey = aboutImageKey;
-      if (pendingAbout) {
-        const uploaded = await uploadFestivalPageImage(pendingAbout, "about-banner");
-        nextAboutUrl = uploaded.url;
-        nextAboutKey = uploaded.key;
-      }
-
       let nextAwardUrl = awardImageUrl;
       let nextAwardKey = awardImageKey;
       if (pendingAward) {
@@ -221,12 +169,8 @@ export default function FestivalSettingsPage() {
       }
 
       await updateData("/festivals/settings", {
-        city: city.trim(),
-        country: country.trim(),
         scheduleHeading: scheduleHeading.trim(),
         scheduleIntro: scheduleIntro.trim(),
-        planTitle: planTitle.trim(),
-        planBody: planBody.trim(),
         hero: {
           eyebrow: heroEyebrow.trim(),
           title: heroTitle.trim(),
@@ -235,16 +179,6 @@ export default function FestivalSettingsPage() {
           backgroundImageKey: nextHeroKey,
           primaryCta: heroPrimary,
           secondaryCta: heroSecondary,
-        },
-        about: {
-          eyebrow: aboutEyebrow.trim(),
-          heading: aboutHeading.trim(),
-          body: toParagraphs(aboutBody),
-          imageUrl: nextAboutUrl,
-          imageKey: nextAboutKey,
-          stats: stats
-            .map((stat) => ({ value: stat.value.trim(), label: stat.label.trim() }))
-            .filter((stat) => stat.value || stat.label),
         },
         award: {
           eyebrow: awardEyebrow.trim(),
@@ -261,13 +195,9 @@ export default function FestivalSettingsPage() {
           primaryCta: ctaPrimary,
           secondaryCta: ctaSecondary,
         },
-        venues: venues
-          .map((venue) => ({ name: venue.name.trim(), suburb: venue.suburb.trim() }))
-          .filter((venue) => venue.name),
       });
 
       setPendingHero(null);
-      setPendingAbout(null);
       setPendingAward(null);
       setSuccess("Settings saved.");
       await load();
@@ -379,72 +309,6 @@ export default function FestivalSettingsPage() {
           </section>
 
           <section className={sectionClass}>
-            <h2 className={headingClass}>About the festival</h2>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <label className={labelClass}>Eyebrow</label>
-                <input className={field} value={aboutEyebrow}
-                  onChange={(e) => setAboutEyebrow(e.target.value)} />
-              </div>
-              <div>
-                <label className={labelClass}>Heading</label>
-                <input className={field} value={aboutHeading}
-                  onChange={(e) => setAboutHeading(e.target.value)} />
-              </div>
-            </div>
-            <div>
-              <label className={labelClass}>
-                Body — leave a blank line between paragraphs
-              </label>
-              <textarea rows={7} className={field} value={aboutBody}
-                onChange={(e) => setAboutBody(e.target.value)} />
-            </div>
-
-            <div>
-              <label className={labelClass}>
-                Banner — a wide image between the text and the stats. Optional;
-                the section is designed to read without one.
-              </label>
-              <FestivalImageUpload
-                existingUrl={aboutImageUrl}
-                pendingFile={pendingAbout}
-                onSelect={setPendingAbout}
-                onClearExisting={() => { setAboutImageUrl(""); setAboutImageKey(""); }}
-                label="Select banner image (PNG, WEBP or JPEG)"
-              />
-            </div>
-
-            <div>
-              <div className="mb-2 flex items-center justify-between">
-                <label className={labelClass}>Stats ({stats.length})</label>
-                <button type="button"
-                  onClick={() => setStats((list) => [...list, { value: "", label: "" }])}
-                  className="inline-flex items-center gap-1.5 rounded border border-border px-2.5 py-1 text-[10px] font-bold tracking-widest text-muted-foreground hover:border-primary hover:text-primary">
-                  <Plus size={12} /> ADD
-                </button>
-              </div>
-              <div className="space-y-2">
-                {stats.map((stat, index) => (
-                  <div key={index} className="flex gap-2">
-                    <input className={`${field} max-w-[120px]`} value={stat.value} placeholder="20+"
-                      onChange={(e) =>
-                        setStats((l) => l.map((s, i) => (i === index ? { ...s, value: e.target.value } : s)))
-                      } />
-                    <input className={field} value={stat.label} placeholder="Films screened a season"
-                      onChange={(e) =>
-                        setStats((l) => l.map((s, i) => (i === index ? { ...s, label: e.target.value } : s)))
-                      } />
-                    <button type="button" onClick={() => setStats((l) => l.filter((_, i) => i !== index))}
-                      className="shrink-0 p-2 text-muted-foreground hover:text-red-400" aria-label="Remove stat">
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          <section className={sectionClass}>
             <h2 className={headingClass}>Award spotlight</h2>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
@@ -523,62 +387,6 @@ export default function FestivalSettingsPage() {
             </div>
             <CtaFields legend="Primary button" value={ctaPrimary} onChange={setCtaPrimary} />
             <CtaFields legend="Secondary button" value={ctaSecondary} onChange={setCtaSecondary} />
-          </section>
-
-          <section className={sectionClass}>
-            <h2 className={headingClass}>Venue band &amp; page details</h2>
-            {/* "Series label" was removed: nothing on the public page has
-                rendered it for some time. The field is left on the schema so no
-                stored document needs migrating. */}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <label className={labelClass}>City</label>
-                <input className={field} value={city} onChange={(e) => setCity(e.target.value)} />
-              </div>
-              <div>
-                <label className={labelClass}>Country</label>
-                <input className={field} value={country} onChange={(e) => setCountry(e.target.value)} />
-              </div>
-            </div>
-            <div>
-              <label className={labelClass}>Band heading</label>
-              <input className={field} value={planTitle}
-                onChange={(e) => setPlanTitle(e.target.value)} />
-            </div>
-            <div>
-              <label className={labelClass}>Band body</label>
-              <textarea rows={3} className={field} value={planBody}
-                onChange={(e) => setPlanBody(e.target.value)} />
-            </div>
-
-            <div>
-              <div className="mb-2 flex items-center justify-between">
-                <label className={labelClass}>Venues ({venues.length})</label>
-                <button type="button"
-                  onClick={() => setVenues((l) => [...l, { name: "", suburb: "" }])}
-                  className="inline-flex items-center gap-1.5 rounded border border-border px-2.5 py-1 text-[10px] font-bold tracking-widest text-muted-foreground hover:border-primary hover:text-primary">
-                  <Plus size={12} /> ADD
-                </button>
-              </div>
-              <div className="space-y-2">
-                {venues.map((venue, index) => (
-                  <div key={index} className="flex gap-2">
-                    <input className={field} value={venue.name} placeholder="Main Theatre"
-                      onChange={(e) =>
-                        setVenues((l) => l.map((v, i) => (i === index ? { ...v, name: e.target.value } : v)))
-                      } />
-                    <input className={field} value={venue.suburb} placeholder="Melbourne CBD"
-                      onChange={(e) =>
-                        setVenues((l) => l.map((v, i) => (i === index ? { ...v, suburb: e.target.value } : v)))
-                      } />
-                    <button type="button" onClick={() => setVenues((l) => l.filter((_, i) => i !== index))}
-                      className="shrink-0 p-2 text-muted-foreground hover:text-red-400" aria-label="Remove venue">
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
           </section>
 
           <button type="button" onClick={() => void handleSave()} disabled={saving}
