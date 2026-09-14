@@ -50,6 +50,10 @@ export default function SubmissionNominationPage() {
   const [eSaving, setESaving] = useState(false);
   const [eError, setEError] = useState<string | null>(null);
 
+  // Undo (remove a nomination -> film returns to submissions) confirmation
+  const [undoTarget, setUndoTarget] = useState<Nomination | null>(null);
+  const [undoing, setUndoing] = useState(false);
+
   const load = async () => {
     try {
       setLoading(true);
@@ -111,12 +115,19 @@ export default function SubmissionNominationPage() {
     }
   };
 
-  const onDelete = async (nomId: string) => {
+  // Removing the nomination is what sends the film back to submissions: the
+  // submission itself is untouched, only this award entry goes away.
+  const onUndo = async () => {
+    if (!undoTarget) return;
+    setUndoing(true);
     try {
-      await deleteData(`/nominations/${nomId}`);
+      await deleteData(`/nominations/${undoTarget._id}`);
+      setUndoTarget(null);
       await load();
     } catch {
       /* ignore */
+    } finally {
+      setUndoing(false);
     }
   };
 
@@ -223,10 +234,10 @@ export default function SubmissionNominationPage() {
                           EDIT
                         </button>
                         <button
-                          onClick={() => void onDelete(n._id)}
-                          className='text-red-500 hover:text-red-400 transition-colors text-[10px] font-bold tracking-widest'
+                          onClick={() => setUndoTarget(n)}
+                          className='text-amber-500 hover:text-amber-400 transition-colors text-[10px] font-bold tracking-widest'
                         >
-                          DELETE
+                          UNDO
                         </button>
                       </div>
                     </td>
@@ -404,6 +415,42 @@ export default function SubmissionNominationPage() {
             </div>
           </div>
         </section>
+      ) : null}
+
+      {undoTarget ? (
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !undoing) setUndoTarget(null);
+          }}
+          className='fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4'
+        >
+          <div className='bg-card border border-border rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl'>
+            <h2 className='text-white font-serif text-xl font-bold mb-2'>Move Back to Submissions</h2>
+            <p className='text-foreground text-sm'>
+              Remove this nomination for{' '}
+              <span className='text-primary font-semibold'>{submission ? `"${submission.title}"` : 'this film'}</span>?
+            </p>
+            <p className='text-muted-foreground text-sm mt-2'>
+              {`It drops the ${undoTarget.awardCategoryName ? `"${undoTarget.awardCategoryName}" ` : ''}nomination for ${undoTarget.year}. The film itself is not deleted — it stays an approved submission and simply leaves the Nominations list.`}
+            </p>
+            <div className='flex justify-end gap-3 mt-6'>
+              <button
+                onClick={() => setUndoTarget(null)}
+                disabled={undoing}
+                className='px-5 py-2.5 rounded border border-border text-foreground text-xs font-bold tracking-widest hover:border-primary transition-colors disabled:opacity-50'
+              >
+                CANCEL
+              </button>
+              <button
+                onClick={() => void onUndo()}
+                disabled={undoing}
+                className='px-5 py-2.5 rounded bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold tracking-widest transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+              >
+                {undoing ? 'MOVING...' : 'MOVE TO SUBMISSIONS'}
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
     </main>
   );

@@ -60,6 +60,17 @@ export default function Navbar() {
     commonLinks.splice(insertAfterCrew, 0, { href: "/admin/metadata", label: "Metadata" });
     commonLinks.splice(insertAfterCrew + 1, 0, { href: "/admin/film-enquiry", label: "Film Enquiry" });
   }
+  // Winners sits immediately beside Nominations. Anchored to the Nominations
+  // link's actual position so the admin crew/metadata splices above can't wedge
+  // other items between the two.
+  if (user?.role === "admin" || user?.role === "staff") {
+    const nomIndex = commonLinks.findIndex(
+      (l) => !isGroup(l) && l.href === "/nomination",
+    );
+    if (nomIndex >= 0) {
+      commonLinks.splice(nomIndex + 1, 0, { href: "/winners", label: "Winners" });
+    }
+  }
   // Staff and Admin: review queue, plus everything that controls what the
   // public website shows. Grouped under one dropdown so adding future
   // website-content tools doesn't keep widening the nav bar.
