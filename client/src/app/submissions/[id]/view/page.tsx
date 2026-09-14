@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { getData, patchData } from '@/lib/fetch-util';
+import { getData, patchData, deleteData } from '@/lib/fetch-util';
 import {
   buildSubmissionPdf,
   sanitizeSubmissionFileName,
@@ -165,6 +165,10 @@ export default function ViewSubmissionPage() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
   const [isRejectConfirmOpen, setIsRejectConfirmOpen] = useState(false);
+  const [isUndoConfirmOpen, setIsUndoConfirmOpen] = useState(false);
+  const [isUndoing, setIsUndoing] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -213,12 +217,15 @@ export default function ViewSubmissionPage() {
     }
   };
 
+  // Where a completed action returns to depends on where the reviewer came from.
+  const returnPath = from === 'submissions' ? '/submissions' : '/review-queue';
+
   const approve = async () => {
     try {
       setError(null);
       setIsApproving(true);
       await patchData(`/submissions/${id}/approve`, {});
-      router.push('/review-queue');
+      router.push(returnPath);
     } catch (e: unknown) {
       setError(getErrorMessage(e, 'Failed to approve submission'));
     } finally {
@@ -236,6 +243,34 @@ export default function ViewSubmissionPage() {
     }
   };
 
+  // Undo: send an approved/rejected film back to the review queue (status
+  // SUBMITTED). The film leaves the submissions list, so we return there.
+  const undo = async () => {
+    try {
+      setError(null);
+      setIsUndoing(true);
+      await patchData(`/submissions/${id}/restore`, {});
+      router.push('/submissions');
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Failed to move submission to review queue'));
+      setIsUndoing(false);
+      setIsUndoConfirmOpen(false);
+    }
+  };
+
+  const remove = async () => {
+    try {
+      setError(null);
+      setIsDeleting(true);
+      await deleteData(`/submissions/${id}`);
+      router.push('/submissions');
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Failed to delete submission'));
+      setIsDeleting(false);
+      setIsDeleteConfirmOpen(false);
+    }
+  };
+
   const goBack = () => {
     if (from === 'review-queue') {
       router.push('/review-queue');
@@ -243,6 +278,10 @@ export default function ViewSubmissionPage() {
     }
     if (from === 'archive') {
       router.push('/review-queue/archive');
+      return;
+    }
+    if (from === 'submissions') {
+      router.push('/submissions');
       return;
     }
     router.push('/dashboard');
@@ -296,6 +335,47 @@ export default function ViewSubmissionPage() {
                   className='rounded-lg border border-red-500 text-red-500 px-4 py-2 text-xs font-bold tracking-widest hover:bg-red-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
                 >
                   REJECT
+                </button>
+              </>
+            )}
+            {from === 'submissions' && (
+              <>
+                <button
+                  onClick={() => router.push(`/submissions/${id}/crew`)}
+                  className='rounded-lg border border-border text-foreground px-4 py-2 text-xs font-bold tracking-widest hover:border-primary transition-colors'
+                >
+                  MANAGE CREW
+                </button>
+                <button
+                  onClick={() => router.push(`/submissions/${id}/nomination`)}
+                  className='rounded-lg border border-border text-foreground px-4 py-2 text-xs font-bold tracking-widest hover:border-primary transition-colors'
+                >
+                  NOMINATE
+                </button>
+                {details?.status === 'REJECTED' && (
+                  <button
+                    onClick={() => void approve()}
+                    disabled={isApproving || !details}
+                    className='rounded-lg border border-green-500 text-green-500 px-4 py-2 text-xs font-bold tracking-widest hover:bg-green-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
+                  >
+                    {isApproving ? 'APPROVING...' : 'APPROVE'}
+                  </button>
+                )}
+                {details?.status !== 'SUBMITTED' && (
+                  <button
+                    onClick={() => setIsUndoConfirmOpen(true)}
+                    disabled={!details}
+                    className='rounded-lg border border-amber-500 text-amber-500 px-4 py-2 text-xs font-bold tracking-widest hover:bg-amber-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
+                  >
+                    UNDO
+                  </button>
+                )}
+                <button
+                  onClick={() => setIsDeleteConfirmOpen(true)}
+                  disabled={!details}
+                  className='rounded-lg border border-red-500 text-red-500 px-4 py-2 text-xs font-bold tracking-widest hover:bg-red-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
+                >
+                  DELETE
                 </button>
               </>
             )}
@@ -476,6 +556,81 @@ export default function ViewSubmissionPage() {
                 className='px-5 py-2.5 rounded bg-red-600 hover:bg-red-500 text-white text-xs font-bold tracking-widest transition-colors'
               >
                 REJECT
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isUndoConfirmOpen && (
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isUndoing) setIsUndoConfirmOpen(false);
+          }}
+          className='fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center'
+        >
+          <div className='bg-card border border-border rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl'>
+            <h2 className='text-white font-serif text-xl font-bold mb-2'>Move Back to Review Queue</h2>
+            <p className='text-foreground text-sm'>
+              Send this film back to the review queue:
+              <br />
+              <span className='text-primary font-semibold'>{details?.title}</span>
+            </p>
+            <p className='text-muted-foreground text-sm mt-2'>
+              It will leave the submissions list and reappear as a pending submission awaiting review.
+            </p>
+            <div className='flex justify-end gap-3 mt-6'>
+              <button
+                onClick={() => setIsUndoConfirmOpen(false)}
+                disabled={isUndoing}
+                className='px-5 py-2.5 rounded border border-border text-foreground text-xs font-bold tracking-widest hover:border-primary transition-colors disabled:opacity-50'
+              >
+                CANCEL
+              </button>
+              <button
+                onClick={() => void undo()}
+                disabled={isUndoing}
+                className='px-5 py-2.5 rounded bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold tracking-widest transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+              >
+                {isUndoing ? 'MOVING...' : 'MOVE TO REVIEW QUEUE'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isDeleteConfirmOpen && (
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isDeleting) setIsDeleteConfirmOpen(false);
+          }}
+          className='fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center'
+        >
+          <div className='bg-card border border-border rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl'>
+            <h2 className='text-white font-serif text-xl font-bold mb-2'>Delete Submission</h2>
+            <p className='text-foreground text-sm'>
+              Are you sure you want to delete:
+              <br />
+              <span className='text-primary font-semibold'>{details?.title}</span>
+            </p>
+            <p className='text-muted-foreground text-sm mt-2'>
+              This permanently removes the submission and its crew assignments, nominations and genre links. This
+              action cannot be undone.
+            </p>
+            <div className='flex justify-end gap-3 mt-6'>
+              <button
+                onClick={() => setIsDeleteConfirmOpen(false)}
+                disabled={isDeleting}
+                className='px-5 py-2.5 rounded border border-border text-foreground text-xs font-bold tracking-widest hover:border-primary transition-colors disabled:opacity-50'
+              >
+                CANCEL
+              </button>
+              <button
+                onClick={() => void remove()}
+                disabled={isDeleting}
+                className='px-5 py-2.5 rounded bg-red-600 hover:bg-red-500 text-white text-xs font-bold tracking-widest transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+              >
+                {isDeleting ? 'DELETING...' : 'DELETE'}
               </button>
             </div>
           </div>

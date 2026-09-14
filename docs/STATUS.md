@@ -1,12 +1,43 @@
 # Status
 
-Updated: 2026-09-04
+Updated: 2026-09-14
 
 Short by design — delete finished items rather than accumulating a changelog.
 The public site's status lives in `../iffa-2026/docs/STATUS.md`; the AWS
 blockers listed there affect this repo too.
 
 ## Committed, not deployed
+
+**Winners CMS page + step-back "undo" flows.** New admin/staff endpoint
+`GET /winners` (`controllers/winner.controller.ts`, `routes/winner.ts`, mounted
+in `routes/index.ts`): always filters `isWinner: true` and, unlike
+`GET /nominations`, is safe to filter by `year`. That existing route hands off
+to the public nomination feed the moment a `year` query is present, so a
+year-scoped winners list cannot be built on it — hence the dedicated route.
+**This is the only backend change and it gates the whole feature:** until App
+Runner redeploys, `/winners` 404s and the CMS Winners page cannot load.
+
+Client (Amplify, undeployed):
+
+- `/winners` list (year + content-type filter) and `/winners/[id]` detail —
+  edit the win (category / year / awarded-to) and an **Undo Winner** that sets
+  `isWinner: false` via `PUT /nominations/:id`, returning the film to
+  Nominations (kept, not deleted). Navbar "Winners" link sits beside Nominations.
+- Submissions rows collapsed to a single **VIEW**; the old row actions (edit,
+  manage crew, nominate, approve-if-rejected, delete) now live at the top of
+  `/submissions/[id]/view` under `?from=submissions`, plus an **Undo**
+  (`PATCH /submissions/:id/restore` → back to review queue) and a confirmed
+  Delete. Both use styled warning modals.
+- Nomination manage page (`/submissions/[id]/nomination`): the per-row DELETE
+  (which only ever removed the one nomination record, never the film) is now a
+  confirmed **Undo** with the same effect — the film drops off Nominations and
+  stays an approved submission.
+
+Everything except `GET /winners` reuses already-deployed endpoints (restore,
+delete, approve, `PUT /nominations/:id`), so the undo flows work against the
+live backend once the client ships.
+
+
 
 **One festival a year.** `festival.model.ts` gains `year` — derived from
 `startDate`, never accepted from the client, and carrying a **unique index**.
