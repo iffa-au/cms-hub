@@ -473,12 +473,19 @@ export default function EditSubmissionPage() {
             className='scroll-mt-24 rounded-xl border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50'
           >
             <div className='p-8'>
-              <CrewEditor
-                submissionId={String(id)}
-                initialCrew={proposedCrew}
-                onSaved={setProposedCrew}
-                heading='Crew'
-              />
+              {/* Held back until the fetch resolves. The editor tolerates crew
+                  arriving late, but rendering it empty first invites someone to
+                  start typing into a film whose real crew has not loaded yet. */}
+              {loading ? (
+                <p className='text-sm text-muted-foreground'>Loading crew…</p>
+              ) : (
+                <CrewEditor
+                  submissionId={String(id)}
+                  initialCrew={proposedCrew}
+                  onSaved={setProposedCrew}
+                  heading='Crew'
+                />
+              )}
             </div>
           </section>
 
