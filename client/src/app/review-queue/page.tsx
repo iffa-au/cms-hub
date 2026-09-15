@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { getData } from '@/lib/fetch-util';
 import { useRouter } from 'next/navigation';
 import DownloadAllPdfButton from '@/components/review-queue/download-all-pdf-button';
+import CrewModal from '@/components/crew/crew-modal';
 
 type Submission = {
   _id: string;
@@ -57,6 +58,7 @@ export default function ReviewQueuePage() {
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [pageMeta, setPageMeta] = useState<{ page: number; limit: number; total: number } | null>(null);
+  const [crewTarget, setCrewTarget] = useState<{ id: string; title: string } | null>(null);
 
   const getErrorMessage = (value: unknown, fallback: string) => {
     if (value instanceof Error && value.message) return value.message;
@@ -248,6 +250,12 @@ export default function ReviewQueuePage() {
                     <td className='px-4 py-6 text-right'>
                       <div className='flex items-center justify-end space-x-3'>
                         <button
+                          onClick={() => setCrewTarget({ id: item._id, title: item.title })}
+                          className='text-primary hover:text-foreground transition-colors text-[10px] font-bold tracking-widest'
+                        >
+                          CREW
+                        </button>
+                        <button
                           onClick={() => router.push(`/submissions/${item._id}/view?from=review-queue`)}
                           className='text-primary hover:text-foreground transition-colors text-[10px] font-bold tracking-widest'
                         >
@@ -307,6 +315,14 @@ export default function ReviewQueuePage() {
           )}
         </div>
       </div>
+
+      {crewTarget && (
+        <CrewModal
+          submissionId={crewTarget.id}
+          title={crewTarget.title}
+          onClose={() => setCrewTarget(null)}
+        />
+      )}
     </main>
   );
 }
