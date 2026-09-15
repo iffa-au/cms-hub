@@ -1,22 +1,28 @@
 import { Request, Response } from "express";
+import { Types } from "mongoose";
 import {
   ALLOWED_UPLOAD_CONTENT_TYPE,
   allowedContentTypesFor,
   buildPublicUrl,
+  buildSubmissionAssetPrefix,
   createFestivalAssetUpload,
   createFestivalPageUpload,
   createPresignedUpload,
   createSubmissionAssetUpload,
+  createSubmissionAssetUploadAtPrefix,
   describeS3Failure,
+  generateSubmissionRef,
   isValidSubmissionRef,
   MAX_UPLOAD_BYTES,
   S3ConfigError,
+  STAFF_CREW_CONTENT_TYPES,
   SUBMISSION_ASSET_GROUPS,
   FESTIVAL_ASSET_GROUPS,
   type SubmissionAssetGroup,
   type FestivalAssetGroup,
 } from "../libs/s3.js";
 import Festival from "../models/festival.model.js";
+import Submission from "../models/submission.model.js";
 
 const isAssetGroup = (value: unknown): value is SubmissionAssetGroup =>
   typeof value === "string" &&
@@ -242,6 +248,110 @@ export const requestFestivalPageUploadUrl = async (req: Request, res: Response) 
  * to write into the partners folder, and so logos can allow PNG (for
  * transparency) without loosening what the public form accepts.
  */
+/**
+ * Staff-only: presigns one crew photo for an existing submission.
+ *
+ * Unlike the public presign, the caller sends a submission id rather than a
+ * ref and title. The folder is resolved server-side from the stored record —
+ * a client-supplied prefix is a path that asset cleanup would later delete by
+ * prefix, so it must never cross the wire.
+ *
+ * Submissions predating per-submission folders (and every bulk import) have no
+ * assetPrefix. Rather than backfilling all ~316 of them up front, one is minted
+ * here the first time staff actually upload for that record, and persisted so
+ * every later asset lands in the same folder.
+ */
+export const requestSubmissionCrewUploadUrl = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const { submissionId, name, contentType, contentLength } =
+      req.body as Record<string, unknown>;
+
+    if (typeof contentType !== "string" || !STAFF_CREW_CONTENT_TYPES.includes(contentType as any)) {
+      return res.status(400).json({
+        success: false,
+        message: `Photo must be one of: ${STAFF_CREW_CONTENT_TYPES.join(", ")}`,
+      });
+    }
+
+    if (contentLength !== undefined) {
+      const size = Number(contentLength);
+      if (!Number.isFinite(size) || size <= 0) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid file size" });
+      }
+      if (size > MAX_UPLOAD_BYTES) {
+        return res.status(413).json({
+          success: false,
+          message: `Image is too large. The limit is ${MAX_UPLOAD_MB}MB.`,
+        });
+      }
+    }
+
+    if (typeof name !== "string" || !name.trim()) {
+      return res
+        .status(400)
+        .json({ success: false, message: "A crew credit name is required" });
+    }
+
+    if (typeof submissionId !== "string" || !Types.ObjectId.isValid(submissionId)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "A valid submissionId is required" });
+    }
+
+    const submission = await Submission.findById(submissionId).select(
+      "title assetPrefix",
+    );
+    if (!submission) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Submission not found" });
+    }
+
+    let prefix = String(submission.assetPrefix || "").trim();
+    if (!prefix) {
+      prefix = buildSubmissionAssetPrefix(
+        generateSubmissionRef(),
+        String(submission.title || ""),
+      );
+      // Persisted before the file is uploaded, not after: a presign the client
+      // never uses is harmless, but a photo written to a folder no record
+      // points at is an orphan nothing can find again.
+      submission.assetPrefix = prefix;
+      await submission.save();
+    }
+
+    const { uploadUrl, fields, key } = await createSubmissionAssetUploadAtPrefix(
+      prefix,
+      "crews",
+      name,
+      contentType,
+    );
+
+    res.status(200).json({
+      success: true,
+      uploadUrl,
+      fields,
+      key,
+      publicUrl: buildPublicUrl(key),
+    });
+  } catch (error) {
+    console.error(error);
+    if (error instanceof S3ConfigError) {
+      return res.status(500).json({ success: false, message: error.message });
+    }
+    const explained = describeS3Failure(error);
+    if (explained) {
+      return res.status(500).json({ success: false, message: explained });
+    }
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
 export const requestPartnerUploadUrl = async (req: Request, res: Response) => {
   try {
     const { contentType, fileName } = req.body as Record<string, unknown>;

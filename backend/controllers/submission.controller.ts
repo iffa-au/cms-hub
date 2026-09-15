@@ -39,6 +39,43 @@ function normalizeNotes(value: unknown): string {
   return String(value).trim().slice(0, 1000);
 }
 
+/**
+ * Array position is the display order — the schema has no `order` path, so a
+ * sort key would be silently dropped by Mongoose strict mode.
+ */
+function normalizeCrewGroup(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .slice(0, 200)
+    .map((x: any) => ({
+      fullName: String(x?.fullName || "").trim(),
+      role: String(x?.role || "").trim(),
+      imageUrl: String(x?.imageUrl || "").trim(),
+      biography: String(x?.biography || "").trim(),
+      instagramUrl: String(x?.instagramUrl || "").trim(),
+      email: String(x?.email || "").trim().toLowerCase(),
+    }))
+    .filter((x) => x.fullName);
+}
+
+/**
+ * Shared by the public create path and the CMS update path so the two can't
+ * drift into normalizing the same payload differently.
+ *
+ * A group the caller omits comes back empty rather than untouched: `crew` is
+ * written as a whole object, so a partial payload would otherwise silently
+ * keep stale members in the missing groups.
+ */
+export function normalizeCrewPayload(crew: unknown) {
+  const source = crew && typeof crew === "object" ? (crew as any) : {};
+  return {
+    actors: normalizeCrewGroup(source.actors),
+    directors: normalizeCrewGroup(source.directors),
+    producers: normalizeCrewGroup(source.producers),
+    other: normalizeCrewGroup(source.other),
+  };
+}
+
 // Sentinel distinguishing "field not provided" (undefined) from
 // "field provided but out of range / not a whole number" (INVALID_DURATION).
 const INVALID_DURATION = Symbol("invalid-duration");
@@ -578,31 +615,7 @@ export const createSubmissionPublic = async (req, res) => {
     // Create anonymous creator id for public submission
     const creatorId = new Types.ObjectId();
 
-    // Normalize crew payload if present
-    const normalizeGroup = (arr: any) =>
-      Array.isArray(arr)
-        ? arr
-            .slice(0, 200)
-            .map((x) => ({
-              fullName: String(x?.fullName || "").trim(),
-              role: String(x?.role || "").trim(),
-              imageUrl: String(x?.imageUrl || "").trim(),
-              biography: String(x?.biography || "").trim(),
-              instagramUrl: String(x?.instagramUrl || "").trim(),
-              email: String(x?.email || "").trim().toLowerCase(),
-              order: Number.isFinite(x?.order) ? Number(x.order) : 0,
-            }))
-            .filter((x) => x.fullName)
-        : [];
-    const crewGroups =
-      crew && typeof crew === "object"
-        ? {
-            actors: normalizeGroup((crew as any).actors),
-            directors: normalizeGroup((crew as any).directors),
-            producers: normalizeGroup((crew as any).producers),
-            other: normalizeGroup((crew as any).other),
-          }
-        : { actors: [], directors: [], producers: [], other: [] };
+    const crewGroups = normalizeCrewPayload(crew);
 
     const uniqueGenreIds = Array.from(new Set(providedGenreIds)) as string[];
 
@@ -736,6 +749,7 @@ export const updateSubmission = async (req: AuthedRequest, res) => {
       releaseCountryIds,
       watchFormats,
       notes,
+      crew,
     } = req.body || {};
 
     const updates: Record<string, unknown> = {};
@@ -821,6 +835,19 @@ export const updateSubmission = async (req: AuthedRequest, res) => {
       updates.watchFormats = normalized;
     }
     if (notes !== undefined) updates.notes = normalizeNotes(notes);
+    // Sent as a whole object, never a partial: an omitted group is cleared,
+    // so the CMS editor must always post all four. Staff-only because crew is
+    // curated after submission — a submitter editing their own entry should
+    // not be able to rewrite the credits a reviewer has already corrected.
+    if (crew !== undefined) {
+      if (!isAdmin && role !== "staff") {
+        return res.status(403).json({
+          success: false,
+          message: "Only staff can edit crew",
+        });
+      }
+      updates.crew = normalizeCrewPayload(crew);
+    }
 
     // Handle genres update if provided
     const updatingGenres = Array.isArray(genreIds);
