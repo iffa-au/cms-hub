@@ -1,127 +1,111 @@
 # Status
 
-Updated: 2026-09-14
+Updated: 2026-09-15
 
 Short by design — delete finished items rather than accumulating a changelog.
 The public site's status lives in `../iffa-2026/docs/STATUS.md`; the AWS
 blockers listed there affect this repo too.
 
+**App Runner auto-deploys from `main`.** Verified 2026-09-15: a route merged
+the previous day answered 401 rather than 404. Amplify does the same for the
+client. They are not atomic, so a change spanning both wants two PRs with the
+backend merged first — otherwise the UI can land against an API that has not
+caught up, and writes silently no-op.
+
 ## Committed, not deployed
 
-**Winners CMS page + step-back "undo" flows.** New admin/staff endpoint
-`GET /winners` (`controllers/winner.controller.ts`, `routes/winner.ts`, mounted
-in `routes/index.ts`): always filters `isWinner: true` and, unlike
-`GET /nominations`, is safe to filter by `year`. That existing route hands off
-to the public nomination feed the moment a `year` query is present, so a
-year-scoped winners list cannot be built on it — hence the dedicated route.
-**This is the only backend change and it gates the whole feature:** until App
-Runner redeploys, `/winners` 404s and the CMS Winners page cannot load.
-
-Client (Amplify, undeployed):
-
-- `/winners` list (year + content-type filter) and `/winners/[id]` detail —
-  edit the win (category / year / awarded-to) and an **Undo Winner** that sets
-  `isWinner: false` via `PUT /nominations/:id`, returning the film to
-  Nominations (kept, not deleted). Navbar "Winners" link sits beside Nominations.
-- Submissions rows collapsed to a single **VIEW**; the old row actions (edit,
-  manage crew, nominate, approve-if-rejected, delete) now live at the top of
-  `/submissions/[id]/view` under `?from=submissions`, plus an **Undo**
-  (`PATCH /submissions/:id/restore` → back to review queue) and a confirmed
-  Delete. Both use styled warning modals.
-- Nomination manage page (`/submissions/[id]/nomination`): the per-row DELETE
-  (which only ever removed the one nomination record, never the film) is now a
-  confirmed **Undo** with the same effect — the film drops off Nominations and
-  stays an approved submission.
-
-Everything except `GET /winners` reuses already-deployed endpoints (restore,
-delete, approve, `PUT /nominations/:id`), so the undo flows work against the
-live backend once the client ships.
-
-
-
-**One festival a year.** `festival.model.ts` gains `year` — derived from
-`startDate`, never accepted from the client, and carrying a **unique index**.
-`festival.controller.ts` recomputes it on every write and returns a 409 naming
-the festival already holding that year. Public and staff lists now sort newest
-first. The CMS is keyed by year: the list groups by it, "New festival" opens on
-the next free year, and the coming-soon months editor is gone (the field stays
-on the settings schema so no document needs migrating; nothing reads it).
-
-**RUN THE BACKFILL BEFORE APP RUNNER REDEPLOYS:**
-
-```bash
-cd backend
-npx tsx scripts/backfill-festival-year.ts            # dry run, writes nothing
-npx tsx scripts/backfill-festival-year.ts --confirm  # writes
-```
-
-Mongo counts a missing field as null, so two festivals without `year` collide
-on the unique index — deploying the model first fails the index build on boot
-and every write after it errors. Not yet run in any environment; the dry run is
-read-only and also reports any year already holding two festivals, which it
-refuses to write through.
-
-Also in the same batch, all undeployed:
-
-- `edition` removed from `festival.model.ts`, the controller and the CMS editor.
-  One festival a year makes a position-within-the-year meaningless. Existing
-  documents keep the stored value; nothing reads it.
-- `about.imageUrl` / `about.imageKey` added to `festivalSettings.model.ts` and
-  handled in `updateFestivalSettings`, including orphan cleanup on replace. The
-  CMS settings page uploads it through the existing `festival-page` presign.
-- The CMS festivals page is now a **year calendar**, not a list. There is no
-  free-form "new festival" button — it could only ever produce a second
-  festival in a year that already has one, which the API refuses. Years are
-  created by opening the empty year you want.
-
-The public site's matching redesign is in `../iffa-2026` on `page/festivals`.
-
-
-**Podcast is entirely new and entirely undeployed.** Backend: `podcast.model.ts`,
-`podcast.controller.ts`, `routes/podcast.ts`, and the `/podcasts` mount in
-`routes/index.ts`. Until App Runner redeploys, every podcast route 404s and the
-public site's `/podcast` page shows its "No podcasts yet" state — which is the
-correct-looking failure, so check the endpoint rather than the page:
+**Crew editing from the CMS.** Two stacked PRs: #22 (backend) and #23 (UI,
+based on #22 so it cannot reach production first). Confirmed still pending:
 
 ```
-curl <app-runner>/api/v1/podcasts   # want {"success":true,"data":[]}
+curl -X POST <app-runner>/api/v1/uploads/presign/submission-crew   # 404 now, want 401 after deploy
 ```
 
-The CMS pages (`client/src/app/podcasts/`) and the public pages in
-`../iffa-2026` are both ready and waiting on that deploy. No podcast has been
-created yet, in any environment — the collection does not exist.
+The crew a filmmaker enters on the public form is stored on the submission
+document, and nothing could edit it afterwards — `updateSubmission` whitelists
+the fields it accepts and `crew` was not one, so it was dropped from every
+update while the request still returned success. #22 accepts it (staff-only,
+whole object: an omitted group is cleared) and adds
+`POST /uploads/presign/submission-crew`, which takes a submission id and
+resolves the S3 folder server-side rather than accepting a path. #23 turns the
+read-only crew block on `/submissions/[id]/edit` into an editor and adds a
+`CREW` action to each review-queue row.
 
-The featured episode is `isFeatured` on the podcast document, kept exclusive by
-`clearOtherFeatured` in the controller — setting it on one clears it on the
-rest, so "featured" is always exactly one or none. With none set, the public
-page falls back to the newest `publishedAt`. A featured *draft* loses to that
-fallback, because the public endpoint never returns drafts; the CMS editor warns
-about that combination rather than letting it look broken on the site.
+Submissions with no `assetPrefix` (345 of 370 — they predate per-submission
+folders or were bulk-imported) get one **minted on first CMS upload**, not by
+backfill. Only records staff actually edit are touched.
 
-App Runner has also **not** picked up the per-submission S3 folder work:
+**"Crew" is gone from the admin nav**, but `/admin/crew` and the
+`CrewMember`/`CrewAssignment` collections are untouched. ~29 older films have
+no embedded crew and render their director names from that directory through
+the public API's `directors` fallback, and 12 nominations reference a
+`crewMemberId`. Deleting that data is a separate decision, not yet taken.
 
-- `libs/s3.ts` — `buildSubmissionAssetPrefix`, `createSubmissionAssetUpload`
-- `controllers/upload.controller.ts` — presign now requires `submissionRef`,
-  `group`, `name` and rejects malformed input
-- `models/submission.model.ts` — `assetPrefix`
-- `controllers/submission.controller.ts` — recomputes `assetPrefix` server-side
+**No crew photo has been uploaded through the new path.** All 25 stored
+`assetPrefix` values pass the new guard, and crew round-trips through the model
+with every field intact (checked with a direct query, not by reading the
+schema) — but there are no AWS credentials outside App Runner, so nothing has
+been written to S3. Do one photo replace in the CMS after deploying and check
+the bucket.
 
-The frontend already sends these fields. Until this deploys, the live backend
-ignores them and uploads keep landing in the flat `submissions-2026/` folder.
-
-**No real upload has been run through the new path.** Presigning was tested
-with dummy credentials, which exercises validation and key construction but
-never touches S3. Do one test submission after deploying and check the bucket.
+**Neither screen has been opened in a browser.** Both need an authenticated CMS
+session. Worth confirming a Drive-linked photo renders as a link chip and a
+bucket photo renders as a thumbnail.
 
 ## Verified and live
 
-`{ createdAt: -1, _id: -1 }` sort on the public submissions endpoint is
-deployed — the API returns newest-first.
+Everything this file previously listed as "committed, not deployed" has in fact
+shipped. Probed 2026-09-15:
+
+| | |
+|---|---|
+| `GET /winners` | 401 — deployed (the Winners CMS page's gating endpoint) |
+| `GET /podcasts` | 200 — deployed |
+| `GET /festivals` | 200 — deployed |
+| `PATCH /submissions/:id/restore` | 401 — deployed (the undo flows) |
+
+**The festival year work is live and the data is safe.** Both festivals carry a
+`year` (2026, 2027 — distinct) and the `year_1` unique index exists and built
+cleanly, so the null-collision this file used to warn about can no longer
+happen. `scripts/backfill-festival-year.ts` is spent; it is read-only without
+`--confirm` if you want to re-check.
+
+**Per-submission S3 folders are live.** Submissions from ~2026-08-28 carry an
+`assetPrefix` and their crew photos sit under `<slug>-<8hex>/crews/`, serving
+200 through CloudFront.
+
+`{ createdAt: -1, _id: -1 }` sort on the public submissions endpoint.
+
+## Know this before touching crew
+
+Of 855 crew entries carrying a photo:
+
+- **189** are in the proper `crews/` folder
+- **71** are older flat uploads at `submissions-2026/<uuid>.webp`
+- **594 are Google Drive share links** pasted into the public form, never
+  uploaded
+- 1 other
+
+Any feature that assumes a crew photo is an S3 object will be wrong two thirds
+of the time. They are also not direct image URLs, so they cannot be rendered in
+an `<img>`.
+
+There are also **two unrelated crew systems**: the grouped `crew` object on the
+submission (what the public form writes, 2026 and most of 2024–25) and the
+normalised `CrewMember`/`CrewRole`/`CrewAssignment` collections (1,182 / 90 /
+1,516 docs, covering 2022–2025 only, **zero overlap with 2026**). The public
+API returns both — `crewDirectors` from the first, `directors` from the second
+— and `../iffa-2026` prefers the first, falling back to the second.
 
 ## Blocked on AWS console
 
 See `../iffa-2026/docs/STATUS.md` — CloudFront `OPTIONS`, S3 CORS trailing
 slash, IAM put/delete on `iffa-media-vault`.
+
+Treat that list as unconfirmed rather than current: presigned uploads are
+demonstrably working in production (189 crew photos landed between 2026-09-08
+and 09-14), so the put path is fine. The `OPTIONS` and delete items have not
+been retested.
 
 ## Never verified
 
