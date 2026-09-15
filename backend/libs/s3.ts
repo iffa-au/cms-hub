@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { randomBytes, randomUUID } from "crypto";
 import {
   S3Client,
   PutObjectCommand,
@@ -351,6 +351,58 @@ export function buildSubmissionAssetPrefix(ref: string, title: string): string {
   return `${loadConfig().uploadPrefix}/${slugify(title, "untitled")}-${ref}`;
 }
 
+/**
+ * Mints the folder token for a submission that has none.
+ *
+ * The public form generates this in the browser at form-open time. Records
+ * created before per-submission folders — and every bulk import — have no ref
+ * at all, so the CMS mints one the first time staff upload an asset for them.
+ */
+export function generateSubmissionRef(): string {
+  return randomBytes(4).toString("hex");
+}
+
+/**
+ * Wider than the public form's webp-only rule: staff replacing a crew photo
+ * work from whatever a distributor supplied and have no in-browser converter.
+ * Deliberately not folded into ALLOWED_CONTENT_TYPES.submissions, which must
+ * stay webp-only — that entry governs the anonymous public upload path.
+ */
+export const STAFF_CREW_CONTENT_TYPES = [
+  "image/webp",
+  "image/png",
+  "image/jpeg",
+] as const;
+
+/**
+ * Same contract as assertDeletableFestivalPrefix, for submissions.
+ *
+ * Applied to a prefix read back from the database rather than one supplied by
+ * a caller: a stored value can still be empty, truncated, or left over from an
+ * older layout, and every one of those would put a write in the wrong place —
+ * or point a future prefix-delete at the whole season.
+ */
+export function assertSubmissionAssetPrefix(prefix: string): void {
+  const root = `${loadConfig().uploadPrefix}/`;
+  const value = String(prefix || "").trim();
+
+  if (!value.startsWith(root)) {
+    throw new Error(
+      `Refusing to use submission prefix "${value}": it is not under "${root}".`,
+    );
+  }
+
+  // Allowlisted to exactly the charset slugify emits, so "/", "." and ".."
+  // are structurally impossible rather than individually blacklisted — a
+  // remainder of ".." has no slash in it and would otherwise pass.
+  const remainder = value.slice(root.length).replace(/\/+$/, "");
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(remainder)) {
+    throw new Error(
+      `Refusing to use submission prefix "${value}": expected exactly one folder under "${root}".`,
+    );
+  }
+}
+
 export type SubmissionAssetTarget = {
   ref: string;
   title: string;
@@ -390,6 +442,52 @@ export async function createSubmissionAssetUpload(
     Expires: PRESIGN_EXPIRY_SECONDS,
     // Conditions are what S3 actually checks on upload. Fields set defaults;
     // conditions constrain them, including against a tampered client.
+    Conditions: [
+      ["content-length-range", MIN_UPLOAD_BYTES, MAX_UPLOAD_BYTES],
+      ["eq", "$Content-Type", contentType],
+    ],
+    Fields: {
+      "Content-Type": contentType,
+    },
+  });
+
+  return { uploadUrl: url, fields, key };
+}
+
+/**
+ * Presigned POST into a submission folder that already exists.
+ *
+ * Distinct from createSubmissionAssetUpload, which derives the folder from
+ * ref + title. That derivation is only correct at submit time: the slug is a
+ * snapshot of the title, so recomputing it later for a retitled film would
+ * point at a folder that does not hold the film's existing assets. The CMS
+ * edit path therefore passes the stored prefix through verbatim (validated,
+ * never client-supplied) so a replacement photo lands beside the originals.
+ *
+ * Accepts png and jpeg as well as webp: staff replacing a photo are working
+ * from whatever a distributor sent, and unlike the public form there is no
+ * browser-side converter in front of them.
+ */
+export async function createSubmissionAssetUploadAtPrefix(
+  prefix: string,
+  group: SubmissionAssetGroup,
+  name: string,
+  contentType: string,
+): Promise<PresignedUpload> {
+  assertSubmissionAssetPrefix(prefix);
+
+  const extension = EXTENSION_BY_CONTENT_TYPE[contentType];
+  if (!extension) {
+    throw new Error(`Unsupported content type for submission asset: ${contentType}`);
+  }
+
+  const config = loadConfig();
+  const key = `${prefix}/${group}/${slugify(name)}.${extension}`;
+
+  const { url, fields } = await createPresignedPost(getClient(), {
+    Bucket: config.bucket,
+    Key: key,
+    Expires: PRESIGN_EXPIRY_SECONDS,
     Conditions: [
       ["content-length-range", MIN_UPLOAD_BYTES, MAX_UPLOAD_BYTES],
       ["eq", "$Content-Type", contentType],
