@@ -155,7 +155,22 @@ export default function CrewEditor({
 }: CrewEditorProps) {
   const [crew, setCrew] = useState<CrewGroups>(() => toCrewGroups(initialCrew));
   const [saved, setSaved] = useState<CrewGroups>(() => toCrewGroups(initialCrew));
+  const [syncedFrom, setSyncedFrom] = useState(initialCrew);
   const [saving, setSaving] = useState(false);
+
+  // A parent that renders this before its fetch resolves passes empty crew
+  // first and the real crew a moment later. Without this the lazy useState
+  // initialisers above would keep the empty snapshot forever — the editor
+  // would show "0 people" for a film that has crew, and saving after adding
+  // one person would replace the whole group, deleting the rest.
+  //
+  // Adjusting state during render is React's documented alternative to a
+  // useEffect for this; it also avoids the set-state-in-effect lint rule.
+  if (initialCrew !== syncedFrom) {
+    setSyncedFrom(initialCrew);
+    setCrew(toCrewGroups(initialCrew));
+    setSaved(toCrewGroups(initialCrew));
+  }
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
