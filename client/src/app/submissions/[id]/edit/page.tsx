@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { getData, postData, updateData } from '@/lib/fetch-util';
+import CrewEditor, { EMPTY_CREW, toCrewGroups, type CrewGroups } from '@/components/crew/crew-editor';
 
 const INPUT =
   'w-full bg-[#0a0a0a] border border-[#393528] rounded px-4 py-3 text-white placeholder-[#544e3b] focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all mt-2';
@@ -68,12 +69,7 @@ type SubmissionDetail = {
   notes?: string;
   createdAt?: string;
   releaseCountries?: Array<{ _id: string; name: string }>;
-  crew?: {
-    actors: Array<{ fullName: string; role: string; imageUrl?: string; instagramUrl?: string; biography?: string }>;
-    directors: Array<{ fullName: string; role: string; imageUrl?: string; instagramUrl?: string; biography?: string }>;
-    producers: Array<{ fullName: string; role: string; imageUrl?: string; instagramUrl?: string; biography?: string }>;
-    other: Array<{ fullName: string; role: string; imageUrl?: string; instagramUrl?: string; biography?: string }>;
-  };
+  crew?: CrewGroups;
 };
 
 export default function EditSubmissionPage() {
@@ -114,12 +110,7 @@ export default function EditSubmissionPage() {
   const [watchFormats, setWatchFormats] = useState<string[]>([]);
   const [releaseCountries, setReleaseCountries] = useState<MetaItem[]>([]);
   const [submittedAt, setSubmittedAt] = useState<string>('');
-  const [proposedCrew, setProposedCrew] = useState<NonNullable<SubmissionDetail['crew']>>({
-    actors: [],
-    directors: [],
-    producers: [],
-    other: [],
-  });
+  const [proposedCrew, setProposedCrew] = useState<CrewGroups>({ ...EMPTY_CREW });
 
   useEffect(() => {
     let cancelled = false;
@@ -169,12 +160,7 @@ export default function EditSubmissionPage() {
                   ? (d.genreIds as any[]).map((g: any) => (typeof g === "string" ? g : g?._id)).filter(Boolean)
                   : [];
             setGenreIds(genreIdList);
-            setProposedCrew({
-              actors: Array.isArray(d.crew?.actors) ? d.crew.actors : [],
-              directors: Array.isArray(d.crew?.directors) ? d.crew.directors : [],
-              producers: Array.isArray(d.crew?.producers) ? d.crew.producers : [],
-              other: Array.isArray(d.crew?.other) ? d.crew.other : [],
-            });
+            setProposedCrew(toCrewGroups(d.crew));
           }
         } catch {
           // Fallback: fetch lists individually if meta not included/failed
@@ -211,12 +197,7 @@ export default function EditSubmissionPage() {
             setProductionHouse(d2.productionHouse || '');
             setDistributor(d2.distributor || '');
             setGenreIds(d2.genreIds && d2.genreIds.length > 0 ? (d2.genreIds as any[]).map((g: any) => typeof g === "string" ? g : g?._id).filter(Boolean) : []);
-            setProposedCrew({
-              actors: Array.isArray(d2.crew?.actors) ? d2.crew.actors : [],
-              directors: Array.isArray(d2.crew?.directors) ? d2.crew.directors : [],
-              producers: Array.isArray(d2.crew?.producers) ? d2.crew.producers : [],
-              other: Array.isArray(d2.crew?.other) ? d2.crew.other : [],
-            });
+            setProposedCrew(toCrewGroups(d2.crew));
           }
         }
       } catch (e: any) {
@@ -487,85 +468,16 @@ export default function EditSubmissionPage() {
             </div>
           </section>
 
-          {(
-            proposedCrew.actors.length ||
-            proposedCrew.directors.length ||
-            proposedCrew.producers.length ||
-            proposedCrew.other.length
-          ) ? (
-            <section className='rounded-xl border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50'>
-              <div className='px-8 py-6 border-b border-border flex justify-between items-center bg-surface-dark'>
-                <div className='flex items-center gap-4'>
-                  <h3 className='text-white text-lg font-bold tracking-widest uppercase font-serif'>
-                    Proposed Crew (Public Submission)
-                  </h3>
-                </div>
-                <div className='text-xs uppercase tracking-widest text-[#bab29c]'>Read-only</div>
-              </div>
-              <div className='p-8 space-y-10'>
-                {([
-                  ['Directors', proposedCrew.directors],
-                  ['Producers', proposedCrew.producers],
-                  ['Actors', proposedCrew.actors],
-                  ['Other', proposedCrew.other],
-                ] as const).map(([label, list]) =>
-                  list.length ? (
-                    <div key={label} className='space-y-4'>
-                      <h4 className='text-white font-semibold tracking-widest uppercase text-sm'>{label}</h4>
-                      <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
-                        {list.map((p, idx) => (
-                          <div
-                            key={`${label}-${idx}-${p.fullName}-${p.role}`}
-                            className='rounded border border-[#393528] p-4 bg-[#0b0b0b]'
-                          >
-                            <div className='flex flex-col gap-2'>
-                              <div className='flex items-baseline justify-between'>
-                                <div className='text-white font-medium'>{p.fullName || '—'}</div>
-                                <div className='text-xs uppercase tracking-widest text-[#bab29c]'>{p.role || '—'}</div>
-                              </div>
-                              <div className='text-xs text-[#8a845f] break-all'>
-                                Image URL:{' '}
-                                {p.imageUrl ? (
-                                  <a
-                                    href={p.imageUrl}
-                                    target='_blank'
-                                    rel='noreferrer'
-                                    className='text-primary underline break-all'
-                                  >
-                                    {p.imageUrl}
-                                  </a>
-                                ) : (
-                                  '—'
-                                )}
-                              </div>
-                              <div className='text-xs text-[#8a845f] break-all'>
-                                Instagram:{' '}
-                                {p.instagramUrl ? (
-                                  <a
-                                    href={p.instagramUrl}
-                                    target='_blank'
-                                    rel='noreferrer'
-                                    className='text-primary underline break-all'
-                                  >
-                                    {p.instagramUrl}
-                                  </a>
-                                ) : (
-                                  '—'
-                                )}
-                              </div>
-                              <div className='text-sm text-[#d0c6a5] whitespace-pre-wrap'>
-                                {p.biography || '—'}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null
-                )}
-              </div>
-            </section>
-          ) : null}
+          <section className='rounded-xl border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50'>
+            <div className='p-8'>
+              <CrewEditor
+                submissionId={String(id)}
+                initialCrew={proposedCrew}
+                onSaved={setProposedCrew}
+                heading='Crew'
+              />
+            </div>
+          </section>
 
           <section className='rounded-xl border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50'>
             <div className='px-8 py-6 border-b border-border flex justify-between items-center bg-surface-dark'>

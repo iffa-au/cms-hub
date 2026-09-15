@@ -52,16 +52,18 @@ export default function Navbar() {
   if (user?.role === "admin" || user?.role === "staff") {
     commonLinks.splice(2, 0, { href: "/nomination", label: "Nominations" });
   }
-  // Admins can manage crew
+  // Crew is deliberately absent. /admin/crew manages the normalised
+  // CrewMember/CrewAssignment directory, which only covers 2022-2025 films and
+  // is unrelated to the crew a submission actually carries — opening it against
+  // a recent film shows an empty page. Crew is now edited per-submission, from
+  // the edit screen and the review queue. The route still works if linked
+  // directly, because ~29 older films depend on that data.
   if (user?.role === "admin") {
-    commonLinks.splice(3, 0, { href: "/admin/crew", label: "Crew" });
-    // Admins can manage metadata
-    const insertAfterCrew = 4;
-    commonLinks.splice(insertAfterCrew, 0, { href: "/admin/metadata", label: "Metadata" });
-    commonLinks.splice(insertAfterCrew + 1, 0, { href: "/admin/film-enquiry", label: "Film Enquiry" });
+    commonLinks.splice(3, 0, { href: "/admin/metadata", label: "Metadata" });
+    commonLinks.splice(4, 0, { href: "/admin/film-enquiry", label: "Film Enquiry" });
   }
   // Winners sits immediately beside Nominations. Anchored to the Nominations
-  // link's actual position so the admin crew/metadata splices above can't wedge
+  // link's actual position so the admin metadata splices above can't wedge
   // other items between the two.
   if (user?.role === "admin" || user?.role === "staff") {
     const nomIndex = commonLinks.findIndex(
