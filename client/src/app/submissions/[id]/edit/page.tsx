@@ -468,7 +468,10 @@ export default function EditSubmissionPage() {
             </div>
           </section>
 
-          <section className='rounded-xl border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50'>
+          <section
+            id='crew'
+            className='scroll-mt-24 rounded-xl border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50'
+          >
             <div className='p-8'>
               <CrewEditor
                 submissionId={String(id)}

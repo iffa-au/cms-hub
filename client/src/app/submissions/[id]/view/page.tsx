@@ -340,8 +340,12 @@ export default function ViewSubmissionPage() {
             )}
             {from === 'submissions' && (
               <>
+                {/* Goes to the crew editor on the edit page, not the legacy
+                    /crew assignment screen — that one manages the separate
+                    CrewMember directory, which holds nothing for any film
+                    submitted from 2026 onward. */}
                 <button
-                  onClick={() => router.push(`/submissions/${id}/crew`)}
+                  onClick={() => router.push(`/submissions/${id}/edit#crew`)}
                   className='rounded-lg border border-border text-foreground px-4 py-2 text-xs font-bold tracking-widest hover:border-primary transition-colors'
                 >
                   MANAGE CREW
