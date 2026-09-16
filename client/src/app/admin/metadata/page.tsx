@@ -63,11 +63,18 @@ export default function AdminMetadataPage() {
   // Credited roles offered by the crew editor's Other Crew group. Distinct
   // from /crew-roles, which serves the legacy CrewAssignment system — see
   // backend/models/creditRole.model.ts.
+  // Swallows its own failure, unlike the loaders above: this route 404s until
+  // the backend that serves it has deployed, and letting that reject the
+  // Promise.all below would take the other five panels' error handling with it.
   const loadCreditRoles = useCallback(async () => {
-    const res = await getData<{ success: boolean; data: Item[] }>(
-      "/credit-roles"
-    );
-    if (res?.success) setCreditRoles(res.data || []);
+    try {
+      const res = await getData<{ success: boolean; data: Item[] }>(
+        "/credit-roles"
+      );
+      if (res?.success) setCreditRoles(res.data || []);
+    } catch {
+      setCreditRoles([]);
+    }
   }, []);
 
   useEffect(() => {
