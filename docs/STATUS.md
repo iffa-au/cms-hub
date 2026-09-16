@@ -30,8 +30,9 @@ the Director/Producer/Actor credits the fixed dropdowns already cover.
 `scripts/seed-credit-roles.ts` inserts 25 names taken verbatim from those 90
 (the ones that are real roles, correctly spelled, not duplicates, and not a
 director/producer/actor credit). Read-only without `--confirm`; idempotent and
-case-insensitive, so a re-run is safe. **Not yet run** — the collection is
-empty. Dry run verified 2026-09-16.
+case-insensitive, so a re-run is safe. **Run 2026-09-16** — 25 inserted,
+verified through the API (25 returned, correctly collated); a re-run reports
+nothing to do. The legacy `crewroles` collection is untouched at 90.
 
 On the client side #31 drops the `CREW` action from the review queue (the
 modal it opened loaded crew from the *public* `GET /submissions/:id`, whose
