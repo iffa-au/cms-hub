@@ -9,6 +9,7 @@ import genreRoutes from "./genre.js";
 import awardCategoryRoutes from "./awardCategory.js";
 import crewMemberRoutes from "./crewMember.js";
 import crewRoleRoutes from "./crewRole.js";
+import creditRoleRoutes from "./creditRole.js";
 import submissionRoutes from "./submission.js";
 import nominationRoutes from "./nomination.js";
 import winnerRoutes from "./winner.js";
@@ -33,6 +34,9 @@ router.use("/genres", genreRoutes);
 router.use("/award-categories", awardCategoryRoutes);
 router.use("/crew-members", crewMemberRoutes);
 router.use("/crew-roles", crewRoleRoutes);
+// Distinct from /crew-roles above, which serves the legacy CrewAssignment
+// system. See models/creditRole.model.ts for why they are not merged.
+router.use("/credit-roles", creditRoleRoutes);
 router.use("/submissions", submissionRoutes);
 router.use("/nominations", nominationRoutes);
 router.use("/winners", winnerRoutes);

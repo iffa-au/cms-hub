@@ -14,6 +14,27 @@ caught up, and writes silently no-op.
 
 ## Committed, not deployed
 
+**Credit roles — the "Other Crew" vocabulary.** New `CreditRole` model and
+`/credit-roles` CRUD (public GET, admin writes). Backend half of the review
+queue / crew work; the client half is a separate PR and must merge *after*
+this deploys.
+
+```
+curl <app-runner>/api/v1/credit-roles   # 404 now, want 200 + [] after deploy
+```
+
+Deliberately NOT the legacy `crewroles` collection — that one belongs to the
+2022-2025 CrewAssignment system, nothing in the current crew editor reads it,
+and its 90 entries carry typos, four spellings of Director of Photography, and
+the Director/Producer/Actor credits the fixed dropdowns already cover.
+
+`scripts/seed-credit-roles.ts` inserts 25 names taken verbatim from those 90
+(the ones that are real roles, correctly spelled, not duplicates, and not a
+director/producer/actor credit). Read-only without `--confirm`; idempotent and
+case-insensitive, so a re-run is safe. **Not yet run** — the collection is
+empty. Dry run verified 2026-09-16.
+
+
 **Crew editing from the CMS.** Two stacked PRs: #22 (backend) and #23 (UI,
 based on #22 so it cannot reach production first). Confirmed still pending:
 
