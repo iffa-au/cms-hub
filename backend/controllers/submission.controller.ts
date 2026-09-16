@@ -54,6 +54,13 @@ function normalizeCrewGroup(value: unknown) {
       biography: String(x?.biography || "").trim(),
       instagramUrl: String(x?.instagramUrl || "").trim(),
       email: String(x?.email || "").trim().toLowerCase(),
+      // Optional on the public form. Not normalised beyond a trim: a phone
+      // number has no single correct shape once submissions are
+      // international, and reformatting one is how a reachable number stops
+      // being reachable. Both are staff-only — see the crew projection in
+      // getSubmission.
+      contactPhone: String(x?.contactPhone || "").trim(),
+      notes: String(x?.notes || "").trim(),
     }))
     .filter((x) => x.fullName);
 }
@@ -66,6 +73,40 @@ function normalizeCrewGroup(value: unknown) {
  * written as a whole object, so a partial payload would otherwise silently
  * keep stale members in the missing groups.
  */
+/**
+ * The crew shape the public site is allowed to see.
+ *
+ * An allow-list, deliberately, where the rest of `getSubmission` denies by
+ * name. That endpoint returns the whole document, so a crew field is public
+ * the moment it is added to the model unless someone remembers to exclude it —
+ * which is how `email` came to be served to anyone holding a film's id, and
+ * what `contactPhone` and `notes` would have done next. Adding a crew field
+ * should not be a privacy decision; here it is private until listed.
+ *
+ * These three are what `mapCrewGroup` in ../iffa-2026's synopsis page actually
+ * reads. Anything it starts needing gets added here on purpose.
+ */
+const PUBLIC_CREW_FIELDS = ["fullName", "role", "imageUrl"] as const;
+
+const publicCrewGroup = (value: unknown) =>
+  Array.isArray(value)
+    ? value.map((member: any) =>
+        Object.fromEntries(
+          PUBLIC_CREW_FIELDS.map((key) => [key, member?.[key] ?? ""]),
+        ),
+      )
+    : [];
+
+export function publicCrew(crew: unknown) {
+  const source = crew && typeof crew === "object" ? (crew as any) : {};
+  return {
+    actors: publicCrewGroup(source.actors),
+    directors: publicCrewGroup(source.directors),
+    producers: publicCrewGroup(source.producers),
+    other: publicCrewGroup(source.other),
+  };
+}
+
 export function normalizeCrewPayload(crew: unknown) {
   const source = crew && typeof crew === "object" ? (crew as any) : {};
   return {
@@ -949,7 +990,7 @@ export const getSubmission = async (req: Request, res: Response) => {
         .json({ success: false, message: "Submission not found" });
     }
     // Return the object directly for the Synopsis component
-    res.status(200).json(item);
+    res.status(200).json({ ...item.toObject(), crew: publicCrew(item.crew) });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: "Internal server error" });

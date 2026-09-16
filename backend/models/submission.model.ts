@@ -41,6 +41,8 @@ export interface ISubmission {
       biography?: string;
       instagramUrl?: string;
       email?: string;
+      contactPhone?: string;
+      notes?: string;
       order?: number;
     }>;
     directors: Array<{
@@ -50,6 +52,8 @@ export interface ISubmission {
       instagramUrl?: string;
       biography?: string;
       email?: string;
+      contactPhone?: string;
+      notes?: string;
     }>;
     producers: Array<{
       fullName: string;
@@ -58,6 +62,8 @@ export interface ISubmission {
       instagramUrl?: string;
       biography?: string;
       email?: string;
+      contactPhone?: string;
+      notes?: string;
     }>;
     other: Array<{
       fullName: string;
@@ -66,6 +72,8 @@ export interface ISubmission {
       instagramUrl?: string;
       biography?: string;
       email?: string;
+      contactPhone?: string;
+      notes?: string;
     }>;
   };
 }
@@ -227,6 +235,8 @@ const submissionSchema = new Schema<ISubmission>(
             },
             instagramUrl: { type: String, default: "", trim: true },
             email: { type: String, default: "", trim: true },
+            contactPhone: { type: String, default: "", trim: true },
+            notes: { type: String, default: "", trim: true, maxLength: 1000 },
           },
         ],
         default: [],
@@ -249,6 +259,8 @@ const submissionSchema = new Schema<ISubmission>(
               trim: true,
             },
             email: { type: String, default: "", trim: true },
+            contactPhone: { type: String, default: "", trim: true },
+            notes: { type: String, default: "", trim: true, maxLength: 1000 },
           },
         ],
         default: [],
@@ -271,6 +283,8 @@ const submissionSchema = new Schema<ISubmission>(
               trim: true,
             },
             email: { type: String, default: "", trim: true },
+            contactPhone: { type: String, default: "", trim: true },
+            notes: { type: String, default: "", trim: true, maxLength: 1000 },
           },
         ],
         default: [],
@@ -293,6 +307,8 @@ const submissionSchema = new Schema<ISubmission>(
               trim: true,
             },
             email: { type: String, default: "", trim: true },
+            contactPhone: { type: String, default: "", trim: true },
+            notes: { type: String, default: "", trim: true, maxLength: 1000 },
           },
         ],
         default: [],
