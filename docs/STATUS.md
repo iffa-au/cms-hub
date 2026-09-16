@@ -1,6 +1,6 @@
 # Status
 
-Updated: 2026-09-15
+Updated: 2026-09-16
 
 Short by design — delete finished items rather than accumulating a changelog.
 The public site's status lives in `../iffa-2026/docs/STATUS.md`; the AWS
@@ -13,6 +13,27 @@ backend merged first — otherwise the UI can land against an API that has not
 caught up, and writes silently no-op.
 
 ## Committed, not deployed
+
+**Crew contact phone and notes.** Two stacked PRs, backend first, matching the
+pattern below. The public submission form in `../iffa-2026` collects an
+optional `contactPhone` and `notes` per crew member; storing them needed three
+changes, because `normalizeCrewGroup` is a whitelist that rebuilds each member
+from named fields *and* a field declared only in `ISubmission` is dropped at
+cast time. The public frontend PR is iffa-au/iffa-2026#68 and can merge in any
+order — until the backend deploys, both fields are accepted and discarded.
+
+The same work closes a leak. `getSubmission` is public, returns the whole
+document and denies staff-only fields **by name**, so every crew field became
+public the moment it was added to the model — crew `email` has been readable by
+anyone holding a film's id. Crew now goes through `publicCrew`, an allow-list of
+`fullName`, `role`, `imageUrl`, which is all `mapCrewGroup` on the synopsis page
+ever read. Worth knowing the exposure was live for as long as crew has been
+stored; whether that needs disclosing is not a call made here.
+
+Verified by casting a crew member through the model rather than by reading the
+schema — both fields survive, and the public projection strips them. **No real
+submission has gone through the new path**: that needs a production write, so
+do one test submission after deploying and confirm both fields land.
 
 **Crew editing from the CMS.** Two stacked PRs: #22 (backend) and #23 (UI,
 based on #22 so it cannot reach production first). Confirmed still pending:
