@@ -33,6 +33,7 @@ export default function AdminMetadataPage() {
   const [languages, setLanguages] = useState<Item[]>([]);
   const [countries, setCountries] = useState<Item[]>([]);
   const [awardCategories, setAwardCategories] = useState<Item[]>([]);
+  const [creditRoles, setCreditRoles] = useState<Item[]>([]);
 
   const loadContentTypes = useCallback(async () => {
     const res = await getData<{ success: boolean; data: Item[] }>(
@@ -59,6 +60,16 @@ export default function AdminMetadataPage() {
     if (res?.success) setAwardCategories(res.data || []);
   }, []);
 
+  // Credited roles offered by the crew editor's Other Crew group. Distinct
+  // from /crew-roles, which serves the legacy CrewAssignment system — see
+  // backend/models/creditRole.model.ts.
+  const loadCreditRoles = useCallback(async () => {
+    const res = await getData<{ success: boolean; data: Item[] }>(
+      "/credit-roles"
+    );
+    if (res?.success) setCreditRoles(res.data || []);
+  }, []);
+
   useEffect(() => {
     void (async () => {
       await Promise.all([
@@ -67,6 +78,7 @@ export default function AdminMetadataPage() {
         loadLanguages(),
         loadCountries(),
         loadAwardCategories(),
+        loadCreditRoles(),
       ]);
     })();
   }, [
@@ -75,6 +87,7 @@ export default function AdminMetadataPage() {
     loadLanguages,
     loadCountries,
     loadAwardCategories,
+    loadCreditRoles,
   ]);
 
   // Content Types
@@ -211,6 +224,50 @@ export default function AdminMetadataPage() {
     },
     [loadAwardCategories]
   );
+  // Crew Roles
+  const [crName, setCrName] = useState("");
+  const [crDesc, setCrDesc] = useState("");
+  const [crBusy, setCrBusy] = useState(false);
+  // Unlike the panels above, this one reports failures. A duplicate name is a
+  // 409 and a likely thing to hit, and silently doing nothing reads as a
+  // broken button.
+  const [crError, setCrError] = useState<string | null>(null);
+  const handleAddCreditRole = useCallback(async () => {
+    if (!crName.trim()) return;
+    setCrBusy(true);
+    setCrError(null);
+    try {
+      await postData("/credit-roles", {
+        name: crName.trim(),
+        description: crDesc.trim(),
+      });
+      setCrName("");
+      setCrDesc("");
+      await loadCreditRoles();
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message ||
+        (err as { message?: string })?.message ||
+        "Could not add that role";
+      setCrError(message);
+    } finally {
+      setCrBusy(false);
+    }
+  }, [crName, crDesc, loadCreditRoles]);
+  const handleDeleteCreditRole = useCallback(
+    async (id: string) => {
+      setCrError(null);
+      try {
+        await deleteData(`/credit-roles/${id}`);
+        await loadCreditRoles();
+      } catch {
+        setCrError("Could not delete that role");
+      }
+    },
+    [loadCreditRoles]
+  );
+
   return (
     <main className="flex-1 py-10 px-4 sm:px-6 lg:px-8 max-w-8xl mx-auto w-full">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-6">
@@ -408,7 +465,8 @@ export default function AdminMetadataPage() {
           </div>
         </div>
       </div>
-      <div className={`${PANEL} h-[450px] mb-12`}>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-12">
+      <div className={`${PANEL} h-[450px]`}>
         <div className={PANEL_HEADER}>
           <h2 className={TITLE}>Award Categories</h2>
           <div className={GRID}>
@@ -452,6 +510,66 @@ export default function AdminMetadataPage() {
             ))}
           </ul>
         </div>
+      </div>
+
+      {/* Credited roles offered in the crew editor's Other Crew group.
+          Directors, producers and cast have fixed option sets in the client
+          and are deliberately not managed here. */}
+      <div className={`${PANEL} h-[450px]`}>
+        <div className={PANEL_HEADER}>
+          <h2 className={TITLE}>Crew Roles</h2>
+          <div className={GRID}>
+            <input
+              className={`sm:col-span-4 ${INPUT_BASE}`}
+              placeholder="Name"
+              type="text"
+              value={crName}
+              onChange={(e) => setCrName(e.target.value)}
+            />
+            <input
+              className={`sm:col-span-6 ${INPUT_BASE}`}
+              placeholder="Description"
+              type="text"
+              value={crDesc}
+              onChange={(e) => setCrDesc(e.target.value)}
+            />
+            <button
+              type="button"
+              onClick={handleAddCreditRole}
+              disabled={crBusy}
+              className={`sm:col-span-2 ${ADD_BTN}`}
+            >
+              Add
+            </button>
+          </div>
+          <p className="text-xs text-[#8a845f] -mt-1">
+            Used by Other Crew only — director, producer and cast credits are fixed.
+          </p>
+          {crError && <p className="text-xs text-red-400 -mt-1">{crError}</p>}
+        </div>
+        <div className={LIST_SCROLL}>
+          {creditRoles.length === 0 ? (
+            <p className="p-3 text-sm text-[#8a845f] italic">
+              No crew roles yet. Add the ones your submissions actually credit.
+            </p>
+          ) : (
+            <ul className={LIST}>
+              {creditRoles.map((item) => (
+                <li className={LIST_ITEM} key={item._id}>
+                  <span className={TEXT_MUTED}>{item.name}</span>
+                  <button
+                    className={DEL_BTN}
+                    onClick={() => handleDeleteCreditRole(item._id)}
+                    aria-label={`Delete ${item.name}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
       </div>
     </main>
   );

@@ -9,6 +9,7 @@ import {
   type CrewEntry,
   type SubmissionOverview,
 } from '@/lib/submission-pdf';
+import CrewThumb from '@/components/crew/crew-thumb';
 
 type OverviewResponse = {
   success: boolean;
@@ -471,10 +472,10 @@ export default function ViewSubmissionPage() {
               </div>
             </section>
 
-            {/* Proposed Crew */}
+            {/* Crew */}
             {hasCrew && (
               <section className={CARD}>
-                <h2 className={SECTION_TITLE}>Proposed Crew</h2>
+                <h2 className={SECTION_TITLE}>Crew</h2>
                 <div className='mt-6 space-y-8'>
                   {crewGroups.map(([group, list]) =>
                     list.length > 0 ? (
@@ -486,11 +487,21 @@ export default function ViewSubmissionPage() {
                               key={`${group}-${idx}-${member.fullName}`}
                               className='rounded-lg border border-border p-4 text-sm'
                             >
-                              <div className='flex items-baseline justify-between gap-3'>
-                                <p className='text-white font-medium'>{valueOrDash(member.fullName)}</p>
-                                <p className='text-xs uppercase tracking-widest text-accent-foreground shrink-0'>
-                                  {valueOrDash(member.role)}
-                                </p>
+                              {/* Thumb, then name over role — the same shape as a
+                                  row in the crew editor. Deliberately not
+                                  justify-between, which pinned the role to the
+                                  far edge and left a gap across the middle of
+                                  every card. */}
+                              <div className='flex items-center gap-3'>
+                                <CrewThumb url={member.imageUrl ?? ''} />
+                                <div className='min-w-0'>
+                                  <p className='text-white font-medium truncate'>
+                                    {valueOrDash(member.fullName)}
+                                  </p>
+                                  <p className='text-xs uppercase tracking-widest text-accent-foreground truncate'>
+                                    {valueOrDash(member.role)}
+                                  </p>
+                                </div>
                               </div>
                               {member.biography ? (
                                 <p className='text-muted-foreground mt-2 whitespace-pre-wrap'>{member.biography}</p>
