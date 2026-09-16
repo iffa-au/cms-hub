@@ -8,6 +8,13 @@ export type CrewEntry = {
   instagramUrl?: string;
   imageUrl?: string;
   email?: string;
+  /**
+   * Optional on the public submission form. Staff-only, both of them: the
+   * public API strips them in `publicCrew`, so they reach the CMS and nowhere
+   * else. Not currently rendered in the crew PDF table — see the note there.
+   */
+  contactPhone?: string;
+  notes?: string;
 };
 
 export type SubmissionOverview = {

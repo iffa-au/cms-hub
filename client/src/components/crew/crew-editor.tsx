@@ -191,7 +191,19 @@ export default function CrewEditor({
   const addPerson = (group: CrewGroupKey) => {
     setCrew((prev) => ({
       ...prev,
-      [group]: [...prev[group], { fullName: '', role: '', imageUrl: '', biography: '', instagramUrl: '', email: '' }],
+      [group]: [
+        ...prev[group],
+        {
+          fullName: '',
+          role: '',
+          imageUrl: '',
+          biography: '',
+          instagramUrl: '',
+          email: '',
+          contactPhone: '',
+          notes: '',
+        },
+      ],
     }));
     setCollapsed((prev) => ({ ...prev, [`${group}-${crew[group].length}`]: false }));
   };
@@ -380,6 +392,15 @@ export default function CrewEditor({
                               placeholder='name@example.com'
                             />
                           </div>
+                          <div>
+                            <label className={LABEL}>Contact Phone</label>
+                            <input
+                              className={`${INPUT} mt-1.5`}
+                              value={person.contactPhone ?? ''}
+                              onChange={(e) => mutate(key, index, { contactPhone: e.target.value })}
+                              placeholder='+61 400 000 000'
+                            />
+                          </div>
                         </div>
 
                         <div>
@@ -388,6 +409,18 @@ export default function CrewEditor({
                             className={`${INPUT} mt-1.5 min-h-[80px] resize-y`}
                             value={person.biography ?? ''}
                             onChange={(e) => mutate(key, index, { biography: e.target.value })}
+                          />
+                        </div>
+
+                        {/* Staff-only, like Contact Phone above: `publicCrew`
+                            strips both from the public API, so whatever the
+                            filmmaker wrote here is only ever read in the CMS. */}
+                        <div>
+                          <label className={LABEL}>Notes</label>
+                          <textarea
+                            className={`${INPUT} mt-1.5 min-h-[60px] resize-y`}
+                            value={person.notes ?? ''}
+                            onChange={(e) => mutate(key, index, { notes: e.target.value })}
                           />
                         </div>
 
