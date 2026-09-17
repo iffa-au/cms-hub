@@ -23,12 +23,16 @@ import {
 } from "@/components/ui/popover";
 import { ChevronDownIcon } from "lucide-react";
 import { Label } from "@radix-ui/react-dropdown-menu";
+import PageShell from "@/components/page-shell";
+import {
+  FormSection,
+  inputClass,
+  labelClass,
+  textareaClass,
+} from "@/components/form-section";
 
-const INPUT =
-  "w-full bg-[#0a0a0a] border border-[#393528] rounded px-4 py-3 text-white placeholder-[#544e3b] focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all mt-2";
-
-const LABEL =
-  "text-accent-foreground text-xs font-bold uppercase tracking-widest";
+const INPUT = inputClass;
+const LABEL = labelClass;
 
 // Keeps duration inputs digit-only and within range as the user types,
 // rather than relying on <input type="number"> alone (which still lets
@@ -154,28 +158,15 @@ export default function NewSubmissionPage() {
   };
 
   return (
-    <main className="flex-1 w-full overflow-y-auto px-6 py-10 lg:px-10 scroll-smooth">
-      <div className="max-w-6xl mx-auto pb-24">
-        <h2 className="text-white text-3xl lg:text-4xl font-serif font-bold leading-tight tracking-wide mb-4">
-          Submit New Film Entry
-        </h2>
-        <p className="text-[#bab29c] text-lg font-light max-w-2xl mb-4">
-          Enter details for the new film submission. Ensure all media links are
-          high-resolution.
-        </p>
+    <PageShell
+      width="medium"
+      title="Submit a film"
+      description="Enter the film's details. Media links should point at high-resolution files."
+    >
         {/* Information Form */}
         <form className="flex flex-col gap-10" onSubmit={handleSubmit}>
           {/* Basic Information */}
-          <section className="rounded-xl border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50">
-            <div className="px-8 py-6 border-b border-border flex justify-between items-center bg-surface-dark">
-              <div className="flex items-center gap-4">
-                <h3 className="text-white text-lg font-bold tracking-widest uppercase font-serif">
-                  Basic Information
-                </h3>
-              </div>
-            </div>
-
-            <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+          <FormSection title="Basic information">
               {/* film title */}
               <div className="md:col-span-2 space-y-2">
                 <label htmlFor="filmTitle" className={LABEL}>
@@ -195,7 +186,7 @@ export default function NewSubmissionPage() {
                   Synopsis<span className="text-primary">*</span>
                 </label>
                 <textarea
-                  className="w-full bg-[#0a0a0a] border border-[#393528] rounded px-4 py-3 text-white placeholder-[#544e3b] focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all resize-none mt-2"
+                  className={textareaClass}
                   placeholder="Provide a brief synopsis of the film"
                   rows={4}
                   id="synopsis"
@@ -218,7 +209,8 @@ export default function NewSubmissionPage() {
                     <button
                       type="button"
                       className={cn(
-                        "w-full flex items-center justify-between bg-[#0a0a0a] border border-[#393528] rounded px-4 py-3 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all mt-2",
+                        inputClass,
+                        "flex items-center justify-between text-left",
                         !releaseDate && "text-muted-foreground"
                       )}
                       onClick={() => setOpen(true)}
@@ -367,19 +359,10 @@ export default function NewSubmissionPage() {
                 </select>
                 <p className="text-xs text-[#8a845f]">Hold Cmd/Ctrl to select multiple.</p>
               </div>
-            </div>
-          </section>
+          </FormSection>
 
           {/* Media & Links */}
-          <section className="rounded-xl border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50">
-            <div className="px-8 py-6 border-b border-border flex justify-between items-center bg-surface-dark">
-              <div className="flex items-center gap-4">
-                <h3 className="text-white text-lg font-bold tracking-widest uppercase font-serif">
-                  Media & Links
-                </h3>
-              </div>
-            </div>
-            <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+          <FormSection title="Media and links">
               {/* Potrait Image URL*/}
               <div className="space-y-2">
                 <label htmlFor="potraitImageUrl" className={LABEL}>
@@ -440,19 +423,10 @@ export default function NewSubmissionPage() {
                   onChange={(e) => setTrailerUrl(e.target.value)}
                 />
               </div>
-            </div>
-          </section>
+          </FormSection>
 
           {/* Classification */}
-          <section className="rounded-xl border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50">
-            <div className="px-8 py-6 border-b border-border flex justify-between items-center bg-surface-dark">
-              <div className="flex items-center gap-4">
-                <h3 className="text-white text-lg font-bold tracking-widest uppercase font-serif">
-                  Classification
-                </h3>
-              </div>
-            </div>
-            <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+          <FormSection title="Classification">
               {/* Duration */}
               <div className="space-y-2">
                 <label htmlFor="durationHours" className={LABEL}>
@@ -508,22 +482,23 @@ export default function NewSubmissionPage() {
                   Controls which event year this film appears under on the public site.
                 </p>
               </div>
-            </div>
-          </section>
+          </FormSection>
           {/* Footer (inside the form so submit works) */}
-          {error ? <p className="text-red-500 mt-4">{error}</p> : null}
-          <div className="flex gap-4 w-full sm:w-auto justify-end mt-10">
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="flex-1 sm:flex-none px-8 py-3 rounded bg-primary text-black hover:bg-[#d9a50b] font-bold shadow-[0_0_20px_rgba(242,185,13,0.1)] hover:shadow-[0_0_30px_rgba(242,185,13,0.3)] transition-all duration-300 uppercase tracking-widest text-xs flex justify-center items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+          {error ? (
+            <p
+              role="alert"
+              className="rounded-lg border border-status-rejected/35 bg-status-rejected/10 px-4 py-3 text-sm text-status-rejected"
             >
-              {isSubmitting ? "Submitting..." : "Submit Film"}
-            </button>
+              {error}
+            </p>
+          ) : null}
+          <div className="flex justify-end">
+            <Button type="submit" size="lg" disabled={isSubmitting} className="w-full sm:w-auto">
+              {isSubmitting ? "Submitting\u2026" : "Submit film"}
+            </Button>
           </div>
         </form>
-      </div>
-    </main>
+    </PageShell>
   );
 }
 

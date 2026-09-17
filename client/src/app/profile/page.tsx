@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useAuth } from '@/providers/auth-context';
 import { getData, updateData } from '@/lib/fetch-util';
 import { useEffect } from 'react';
+import { Button } from '@/components/ui/button';
 
 const INPUT =
   'w-full bg-[#0a0a0a] border border-[#393528] rounded px-4 py-3 text-white placeholder-[#544e3b] focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all mt-2';
@@ -114,13 +115,14 @@ export default function ProfilePage() {
           {error ? <p className='text-red-500 text-sm md:col-span-2'>{error}</p> : null}
           {success ? <p className='text-green-500 text-sm md:col-span-2'>{success}</p> : null}
           <div className='md:col-span-2 flex justify-end'>
-            <button
+            <Button
               onClick={() => void onSave()}
               disabled={saving}
-              className='px-8 py-3 rounded bg-primary text-black hover:bg-[#d9a50b] font-bold shadow-[0_0_20px_rgba(242,185,13,0.1)] hover:shadow-[0_0_30px_rgba(242,185,13,0.3)] transition-all duration-300 uppercase tracking-widest text-xs disabled:opacity-60 disabled:cursor-not-allowed'
+              size='lg'
+              className='w-full sm:w-auto'
             >
-              {saving ? 'Saving...' : 'Save Changes'}
-            </button>
+              {saving ? 'Saving\u2026' : 'Save changes'}
+            </Button>
           </div>
         </div>
       </section>

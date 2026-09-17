@@ -236,7 +236,7 @@ export default function SignupPage() {
               />
               <Button
                 type="submit"
-                className="w-full bg-primary text-black hover:bg-[#d9a50b] font-bold shadow-[0_0_20px_rgba(242,185,13,0.1)] hover:shadow-[0_0_30px_rgba(242,185,13,0.3)] transition-all duration-300 uppercase tracking-widest text-xs"
+                className="w-full"
                 disabled={isPending}
               >
                 {isPending ? (
