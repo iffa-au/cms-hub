@@ -14,25 +14,29 @@ caught up, and writes silently no-op.
 
 ## Committed, not deployed
 
-**Credit roles — the "Other Crew" vocabulary.** New `CreditRole` model and
-`/credit-roles` CRUD (public GET, admin writes). Backend half of the review
-queue / crew work; the client half is a separate PR and must merge *after*
-this deploys.
+**Credit roles — the "Other Crew" vocabulary, client half.** The backend (#30)
+is live and seeded; the client is not. Its original PR (#31) was merged into
+`feat/credit-roles` rather than `main` — a branch already merged and no longer
+built from — so the UI work never reached anyone. Re-applied onto current
+`main` on top of the responsive refactor (#32), which had rewritten every file
+involved.
 
-```
-curl <app-runner>/api/v1/credit-roles   # 404 now, want 200 + [] after deploy
-```
+Drops the `CREW` action from the review queue. That modal loaded crew from the
+*public* `GET /submissions/:id`, whose projection strips biography, instagram,
+email, phone and notes — and the editor saves all four groups wholesale, so
+any edit there overwrote those five fields with empty strings. The edit page's
+error fallback read the same route and now refuses to edit rather than loading
+a reduced copy.
 
-Deliberately NOT the legacy `crewroles` collection — that one belongs to the
-2022-2025 CrewAssignment system, nothing in the current crew editor reads it,
-and its 90 entries carry typos, four spellings of Director of Photography, and
-the Director/Producer/Actor credits the fixed dropdowns already cover.
+Credited role is a dropdown: fixed sets for directors, producers and cast;
+`/credit-roles` for Other Crew. A stored role no list contains stays selected
+and is labelled "as submitted" — most existing crew was typed freehand on the
+public form, so `Director/Writer` and `DOP` are common and must survive a save
+untouched.
 
-`scripts/seed-credit-roles.ts` inserts 25 names taken verbatim from those 90
-(the ones that are real roles, correctly spelled, not duplicates, and not a
-director/producer/actor credit). Read-only without `--confirm`; idempotent and
-case-insensitive, so a re-run is safe. **Not yet run** — the collection is
-empty. Dry run verified 2026-09-16.
+**Not opened in a browser.** Needs an authenticated CMS session. Worth
+confirming the crew thumbnails on `/submissions/[id]/view`, the four dropdowns,
+and Metadata → Crew Roles.
 
 
 **Crew editing from the CMS.** Two stacked PRs: #22 (backend) and #23 (UI,

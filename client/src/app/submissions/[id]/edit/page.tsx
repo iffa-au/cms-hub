@@ -114,6 +114,12 @@ export default function EditSubmissionPage() {
   const [releaseCountries, setReleaseCountries] = useState<MetaItem[]>([]);
   const [submittedAt, setSubmittedAt] = useState<string>('');
   const [proposedCrew, setProposedCrew] = useState<CrewGroups>({ ...EMPTY_CREW });
+  // False when crew could only be read from the public GET /submissions/:id,
+  // which projects crew down to fullName/role/imageUrl. The editor saves all
+  // four groups wholesale, so editing that reduced copy would write back empty
+  // biography, instagram, email, phone and notes for everyone on the film.
+  // Better to refuse than to quietly destroy the fields.
+  const [crewEditable, setCrewEditable] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -200,7 +206,9 @@ export default function EditSubmissionPage() {
             setProductionHouse(d2.productionHouse || '');
             setDistributor(d2.distributor || '');
             setGenreIds(d2.genreIds && d2.genreIds.length > 0 ? (d2.genreIds as any[]).map((g: any) => typeof g === "string" ? g : g?._id).filter(Boolean) : []);
-            setProposedCrew(toCrewGroups(d2.crew));
+            // Crew is deliberately NOT loaded here. This fallback reads the
+            // public route, whose crew projection drops every staff-only field.
+            setCrewEditable(false);
           }
         }
       } catch (e: any) {
@@ -478,6 +486,15 @@ export default function EditSubmissionPage() {
                   start typing into a film whose real crew has not loaded yet. */}
               {loading ? (
                 <SkeletonRows rows={3} label='Loading crew' />
+              ) : !crewEditable ? (
+                <div className='space-y-1'>
+                  <h3 className='text-sm font-semibold'>Crew</h3>
+                  <p className='text-sm text-muted-foreground'>
+                    Crew could not be loaded for this submission, so it can’t be edited here without
+                    risking the credits already stored. Reload the page, and if it keeps happening the
+                    submission overview endpoint is failing.
+                  </p>
+                </div>
               ) : (
                 <CrewEditor
                   submissionId={String(id)}
