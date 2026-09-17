@@ -1,14 +1,14 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronRight, ExternalLink, ImageUp, Plus, Trash2, UserRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { postData, updateData } from '@/lib/fetch-util';
 import type { CrewEntry } from '@/lib/submission-pdf';
 
 const INPUT =
-  'w-full bg-[#0a0a0a] border border-[#393528] rounded px-3 py-2 text-white placeholder-[#544e3b] focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all';
-const LABEL = 'text-accent-foreground text-[10px] font-bold uppercase tracking-widest';
+  'w-full bg-background border border-border rounded px-3 py-2 text-white placeholder:text-[var(--placeholder)] focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all';
+const LABEL = 'text-accent-foreground text-xs font-bold uppercase tracking-widest';
 
 /** Matches the backend's STAFF_CREW_CONTENT_TYPES. */
 const ACCEPTED_TYPES = ['image/webp', 'image/png', 'image/jpeg'];
@@ -143,6 +143,8 @@ type CrewEditorProps = {
   initialCrew: CrewGroups;
   /** Called after a successful save with the crew that was persisted. */
   onSaved?: (crew: CrewGroups) => void;
+  /** Lets a caller warn before navigating away from unsaved crew. */
+  onDirtyChange?: (dirty: boolean) => void;
   /** Rendered above the groups — lets the review queue title its modal. */
   heading?: string;
 };
@@ -151,6 +153,7 @@ export default function CrewEditor({
   submissionId,
   initialCrew,
   onSaved,
+  onDirtyChange,
   heading = 'Crew',
 }: CrewEditorProps) {
   const [crew, setCrew] = useState<CrewGroups>(() => toCrewGroups(initialCrew));
@@ -178,6 +181,10 @@ export default function CrewEditor({
     () => JSON.stringify(crew) !== JSON.stringify(saved),
     [crew, saved],
   );
+
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
 
   const total = GROUPS.reduce((n, g) => n + crew[g.key].length, 0);
 
@@ -270,8 +277,8 @@ export default function CrewEditor({
           <span className='inline-flex items-center justify-center w-7 h-7 rounded bg-[#2a261b]'>
             <UserRound className='h-4 w-4 text-primary' />
           </span>
-          <h3 className='text-white text-lg font-bold tracking-widest uppercase font-serif'>{heading}</h3>
-          <span className='text-xs uppercase tracking-widest text-[#bab29c]'>
+          <h3 className='text-sm font-semibold'>{heading}</h3>
+          <span className='text-xs font-medium text-label'>
             {total} {total === 1 ? 'person' : 'people'}
           </span>
         </div>
@@ -279,7 +286,7 @@ export default function CrewEditor({
           type='button'
           onClick={save}
           disabled={saving || !dirty}
-          className='px-5 py-2.5 rounded bg-primary text-black hover:bg-[#d9a50b] font-bold uppercase tracking-widest text-xs disabled:opacity-40 disabled:cursor-not-allowed'
+          className='inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40'
         >
           {saving ? 'Saving…' : dirty ? 'Save crew' : 'Saved'}
         </button>
@@ -288,33 +295,33 @@ export default function CrewEditor({
       {GROUPS.map(({ key, label }) => (
         <section key={key} className='space-y-3'>
           <div className='flex items-center justify-between'>
-            <h4 className='text-white font-semibold tracking-widest uppercase text-sm'>
+            <h4 className='text-sm font-semibold'>
               {label}{' '}
-              <span className='text-[#8a845f] font-normal'>({crew[key].length})</span>
+              <span className='text-muted-foreground font-normal'>({crew[key].length})</span>
             </h4>
             <button
               type='button'
               onClick={() => addPerson(key)}
-              className='inline-flex items-center gap-1.5 text-xs uppercase tracking-widest text-primary hover:text-[#d9a50b]'
+              className='inline-flex items-center gap-1.5 text-sm text-primary hover:text-primary/80'
             >
               <Plus className='h-3.5 w-3.5' /> Add
             </button>
           </div>
 
           {crew[key].length === 0 ? (
-            <p className='text-sm text-[#8a845f] italic'>None listed.</p>
+            <p className='text-sm text-muted-foreground italic'>None listed.</p>
           ) : (
             <div className='space-y-3'>
               {crew[key].map((person, index) => {
                 const slot = `${key}-${index}`;
                 const isCollapsed = collapsed[slot] ?? true;
                 return (
-                  <div key={slot} className='rounded border border-[#393528] bg-[#0b0b0b]'>
+                  <div key={slot} className='rounded border border-border bg-background'>
                     <div className='flex items-center gap-3 px-4 py-3'>
                       <button
                         type='button'
                         onClick={() => setCollapsed((p) => ({ ...p, [slot]: !isCollapsed }))}
-                        className='text-[#bab29c] hover:text-primary shrink-0'
+                        className='text-label hover:text-primary shrink-0'
                         aria-label={isCollapsed ? 'Expand' : 'Collapse'}
                       >
                         {isCollapsed ? <ChevronRight className='h-4 w-4' /> : <ChevronDown className='h-4 w-4' />}
@@ -324,9 +331,9 @@ export default function CrewEditor({
 
                       <div className='min-w-0 flex-1'>
                         <div className='text-white font-medium truncate'>
-                          {person.fullName || <span className='text-[#8a845f] italic'>Unnamed</span>}
+                          {person.fullName || <span className='text-muted-foreground italic'>Unnamed</span>}
                         </div>
-                        <div className='text-xs uppercase tracking-widest text-[#bab29c] truncate'>
+                        <div className='text-xs font-medium text-label truncate'>
                           {person.role || '—'}
                         </div>
                       </div>
@@ -342,7 +349,7 @@ export default function CrewEditor({
                     </div>
 
                     {!isCollapsed && (
-                      <div className='border-t border-[#393528] p-4 space-y-4'>
+                      <div className='border-t border-border p-4 space-y-4'>
                         <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                           <div>
                             <label className={LABEL}>Full name</label>
@@ -416,14 +423,14 @@ function CrewThumb({ url }: { url: string }) {
       <img
         src={url}
         alt=''
-        className='h-10 w-10 rounded object-cover border border-[#393528] shrink-0'
+        className='h-10 w-10 rounded object-cover border border-border shrink-0'
         loading='lazy'
       />
     );
   }
   return (
-    <span className='h-10 w-10 rounded border border-[#393528] bg-[#141414] grid place-items-center shrink-0'>
-      <UserRound className='h-4 w-4 text-[#544e3b]' />
+    <span className='h-10 w-10 rounded border border-border bg-surface-dark grid place-items-center shrink-0'>
+      <UserRound className='h-4 w-4 text-[var(--placeholder)]' />
     </span>
   );
 }
@@ -447,7 +454,7 @@ function CrewPhotoField({
       <label className={LABEL}>Photo</label>
       <div className='mt-1.5 flex flex-wrap items-center gap-3'>
         {displayable ? (
-          <img src={url} alt='' className='h-16 w-16 rounded object-cover border border-[#393528]' />
+          <img src={url} alt='' className='h-16 w-16 rounded object-cover border border-border' />
         ) : url ? (
           <a
             href={url}
@@ -460,7 +467,7 @@ function CrewPhotoField({
             {hostOf(url)}
           </a>
         ) : (
-          <span className='text-xs text-[#8a845f] italic'>No photo</span>
+          <span className='text-xs text-muted-foreground italic'>No photo</span>
         )}
 
         <input
@@ -479,7 +486,7 @@ function CrewPhotoField({
           type='button'
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
-          className='inline-flex items-center gap-1.5 px-3 py-2 rounded border border-[#393528] text-xs uppercase tracking-widest text-white hover:border-primary disabled:opacity-50'
+          className='inline-flex h-9 items-center gap-1.5 rounded-md border border-border px-3 text-sm font-medium text-foreground hover:border-primary disabled:opacity-50'
         >
           <ImageUp className='h-3.5 w-3.5' />
           {uploading ? 'Uploading…' : url ? 'Replace' : 'Upload'}
@@ -488,14 +495,14 @@ function CrewPhotoField({
           <button
             type='button'
             onClick={onClear}
-            className='text-xs uppercase tracking-widest text-[#8a845f] hover:text-red-400'
+            className='text-xs font-medium text-muted-foreground hover:text-status-rejected'
           >
             Clear
           </button>
         )}
       </div>
       {url && !displayable && (
-        <p className='mt-2 text-xs text-[#8a845f]'>
+        <p className='mt-2 text-xs text-muted-foreground'>
           This is an external link, not an uploaded image, so it can’t be previewed here. Replacing it uploads a real
           file to the media bucket.
         </p>

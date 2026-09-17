@@ -125,13 +125,13 @@ export default function PartnerLogoUpload({
             <p className="truncate text-xs text-muted-foreground">
               {pendingFile ? pendingFile.name : existingUrl}
             </p>
-            <p className="mt-0.5 text-[10px] uppercase tracking-wide text-muted-foreground/70">
+            <p className="mt-0.5 text-xs uppercase tracking-wide text-muted-foreground/70">
               {pendingFile ? "Uploads when you save" : "Current logo"}
             </p>
             <button
               type="button"
               onClick={() => inputRef.current?.click()}
-              className="mt-1 text-[10px] font-bold uppercase tracking-widest text-primary hover:underline"
+              className="mt-1 text-xs font-bold uppercase tracking-widest text-primary hover:underline"
             >
               Replace
             </button>

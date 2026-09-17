@@ -86,7 +86,7 @@ export default function WinnersListPage() {
   const total = pageMeta?.total ?? items.length;
 
   return (
-    <main className='flex-1 py-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full'>
+    <main className='mx-auto w-full flex-1 px-4 py-8 sm:px-6 sm:py-10 lg:px-8 max-w-7xl'>
       <div className='flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4'>
         <div>
           <h1 className='font-serif text-3xl md:text-4xl text-white mb-2'>Winners</h1>
@@ -97,9 +97,9 @@ export default function WinnersListPage() {
       {/* Filters */}
       <div className='rounded border border-border bg-surface-dark p-4 mb-6 grid grid-cols-1 md:grid-cols-4 gap-4'>
         <div>
-          <label className='text-accent-foreground text-xs font-bold uppercase tracking-widest'>Content Type</label>
+          <label className='block text-xs font-medium text-label'>Content Type</label>
           <select
-            className='w-full bg-[#0a0a0a] border border-[#393528] rounded px-4 py-3 text-white mt-2'
+            className='w-full bg-background border border-border rounded px-4 py-3 text-white mt-2'
             value={contentTypeId}
             onChange={(e) => setContentTypeId(e.target.value)}
           >
@@ -112,9 +112,9 @@ export default function WinnersListPage() {
           </select>
         </div>
         <div>
-          <label className='text-accent-foreground text-xs font-bold uppercase tracking-widest'>Edition Year</label>
+          <label className='block text-xs font-medium text-label'>Edition Year</label>
           <input
-            className='w-full bg-[#0a0a0a] border border-[#393528] rounded px-4 py-3 text-white mt-2'
+            className='w-full bg-background border border-border rounded px-4 py-3 text-white mt-2'
             placeholder='e.g. 2026'
             inputMode='numeric'
             value={year}
@@ -134,7 +134,7 @@ export default function WinnersListPage() {
               setYear('');
               void load();
             }}
-            className='px-6 py-2.5 rounded bg-[#222] text-white hover:bg-[#333] border border-border text-xs font-bold tracking-widest'
+            className='px-6 py-2.5 rounded bg-secondary text-white hover:bg-secondary/80 border border-border text-xs font-bold tracking-widest'
           >
             RESET
           </button>
@@ -144,7 +144,7 @@ export default function WinnersListPage() {
       <div className='overflow-x-auto'>
         <table className='w-full text-left border-separate border-spacing-y-2'>
           <thead>
-            <tr className='text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-bold'>
+            <tr className='text-xs font-semibold text-muted-foreground'>
               <th className='px-4 py-3'>Title</th>
               <th className='px-4 py-3'>Award Category</th>
               <th className='px-4 py-3'>Edition Year</th>
@@ -190,7 +190,7 @@ export default function WinnersListPage() {
                     <div className='flex items-center justify-end'>
                       <button
                         onClick={() => router.push(`/winners/${w._id}`)}
-                        className='text-primary hover:text-foreground transition-colors text-[10px] font-bold tracking-widest'
+                        className='text-primary hover:text-foreground transition-colors text-xs font-bold tracking-widest'
                       >
                         MANAGE
                       </button>

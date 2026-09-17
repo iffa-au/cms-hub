@@ -4,14 +4,14 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getData, postData, updateData } from '@/lib/fetch-util';
 import { toast } from 'sonner';
+import PageShell from "@/components/page-shell";
+import { Button } from "@/components/ui/button";
+import { inputClass, labelClass } from "@/components/form-section";
 
-const CARD =
-  "rounded-xl border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50";
-const SECTION_HEADER =
-  "px-8 py-6 border-b border-border flex justify-between items-center bg-surface-dark";
-const LABEL = "text-accent-foreground text-xs font-bold uppercase tracking-widest";
-const INPUT =
-  "w-full bg-[#0a0a0a] border border-[#393528] rounded px-4 py-3 text-white placeholder-[#544e3b] focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all mt-2";
+const CARD = "overflow-hidden rounded-xl border border-border bg-surface-dark";
+const SECTION_HEADER = "flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-4 sm:px-6";
+const LABEL = labelClass;
+const INPUT = inputClass;
 
 export default function CreateCrewMemberPage() {
   const router = useRouter();
@@ -107,37 +107,28 @@ export default function CreateCrewMemberPage() {
   };
 
   return (
-    <main className="flex-1 w-full overflow-y-auto px-6 py-10 lg:px-10 scroll-smooth">
-      <div className="max-w-5xl mx-auto pb-24">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-white text-3xl lg:text-4xl font-serif font-bold leading-tight tracking-wide">
-            {editId ? "Edit Crew Member" : "Add New Crew Member"}
-          </h2>
-          <div className="flex gap-3">
-            <button
-              className="px-6 py-3 rounded bg-[#222] text-white hover:bg-[#333] border border-border font-bold uppercase tracking-widest text-xs"
-              onClick={onCancel}
-              disabled={saving}
-            >
-              Cancel
-            </button>
-            <button
-              className="px-6 py-3 rounded bg-primary text-black hover:bg-[#d9a50b] font-bold uppercase tracking-widest text-xs disabled:opacity-60 disabled:cursor-not-allowed"
-              onClick={onSave}
-              disabled={saving}
-            >
-              {saving ? "Saving..." : editId ? "Update Member" : "Save Member"}
-            </button>
-          </div>
-        </div>
+    <PageShell
+      width="medium"
+      title={editId ? "Edit crew member" : "Add a crew member"}
+      actions={
+        <>
+          <Button variant="outline" onClick={onCancel} disabled={saving}>
+            Cancel
+          </Button>
+          <Button onClick={onSave} disabled={saving}>
+            {saving ? "Saving\u2026" : editId ? "Update member" : "Save member"}
+          </Button>
+        </>
+      }
+    >
 
         <section className={CARD}>
           <div className={SECTION_HEADER}>
-            <h3 className="text-white text-lg font-bold tracking-widest uppercase font-serif">
+            <h3 className="text-sm font-semibold">
               Profile Details
             </h3>
           </div>
-          <div className="p-8 grid grid-cols-1 gap-8">
+          <div className="grid grid-cols-1 gap-5 p-4 sm:gap-6 sm:p-6">
             <div className="space-y-2">
               <label className={LABEL}>Full Name</label>
               <input
@@ -185,7 +176,7 @@ export default function CreateCrewMemberPage() {
             <div className="space-y-2">
               <label className={LABEL}>Biography</label>
               <textarea
-                className="w-full bg-[#0a0a0a] border border-[#393528] rounded px-4 py-3 text-white placeholder-[#544e3b] focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all resize-none mt-2"
+                className="w-full bg-background border border-border rounded px-4 py-3 text-white placeholder:text-[var(--placeholder)] focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all resize-none mt-2"
                 placeholder="Write a brief biography about the crew member..."
                 rows={6}
                 value={biography}
@@ -195,8 +186,6 @@ export default function CreateCrewMemberPage() {
             {error ? <p className="text-red-500">{error}</p> : null}
           </div>
         </section>
-      </div>
-    </main>
+    </PageShell>
   );
 }
-

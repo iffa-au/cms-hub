@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useAuth } from "@/providers/auth-context";
 import { getData, postData, updateData, deleteData } from "@/lib/fetch-util";
 import { Pencil, Trash2, Settings2, Eye, EyeOff, Plus } from "lucide-react";
+import ConfirmDialog from "@/components/confirm-dialog";
 
 /**
  * The festival calendar.
@@ -180,16 +181,9 @@ export default function FestivalsAdminPage() {
     }
   };
 
-  const handleDelete = async (festival: Festival) => {
-    // Spelled out because the S3 half is not recoverable from the CMS.
-    const confirmed = window.confirm(
-      `Delete "${festival.name}"?\n\n` +
-        `This removes the festival, its ${festival.screenings.length} screening(s), ` +
-        `${countFilms(festival.screenings)} film(s), and every image uploaded for it ` +
-        `from storage. This cannot be undone.`,
-    );
-    if (!confirmed) return;
+  const [pendingDelete, setPendingDelete] = useState<Festival | null>(null);
 
+  const handleDelete = async (festival: Festival) => {
     try {
       setError(null);
       await deleteData(`/festivals/${festival._id}`);
@@ -204,10 +198,10 @@ export default function FestivalsAdminPage() {
   if (isAuthenticated && user?.role !== "admin" && user?.role !== "staff") return null;
 
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6 lg:px-8">
+    <main className="mx-auto w-full flex-1 px-4 py-8 sm:px-6 sm:py-10 lg:px-8 max-w-6xl">
       <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="mb-2 font-serif text-3xl text-white md:text-4xl">Festival</h1>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Festival</h1>
           <p className="max-w-2xl text-sm text-accent-foreground">
             IFFA runs one festival a year, so this is a calendar rather than a
             list. The published festival for the current or next year is the one
@@ -257,7 +251,7 @@ export default function FestivalsAdminPage() {
                     <p className="truncate text-sm font-semibold text-white">
                       {festival.name}
                       {!festival.isPublished && (
-                        <span className="ml-2 rounded border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                        <span className="ml-2 rounded border border-border px-1.5 py-0.5 text-xs text-muted-foreground">
                           Draft
                         </span>
                       )}
@@ -296,7 +290,7 @@ export default function FestivalsAdminPage() {
                       <Pencil size={13} /> EDIT
                     </Link>
                     <button
-                      onClick={() => void handleDelete(festival)}
+                      onClick={() => setPendingDelete(festival)}
                       className="p-1.5 text-muted-foreground hover:text-red-400"
                       aria-label={`Delete ${festival.name}`}
                     >
@@ -323,6 +317,31 @@ export default function FestivalsAdminPage() {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        tone="danger"
+        title={`Delete ${pendingDelete?.name ?? "this festival"}?`}
+        description={
+          pendingDelete ? (
+            <>
+              This also removes {pendingDelete.screenings.length} screening
+              {pendingDelete.screenings.length === 1 ? "" : "s"} and{" "}
+              {countFilms(pendingDelete.screenings)} film
+              {countFilms(pendingDelete.screenings) === 1 ? "" : "s"}, and deletes
+              every image uploaded for it from storage. The images can&apos;t be
+              recovered from the CMS.
+            </>
+          ) : null
+        }
+        confirmLabel="Delete festival"
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => {
+          const festival = pendingDelete;
+          setPendingDelete(null);
+          if (festival) void handleDelete(festival);
+        }}
+      />
     </main>
   );
 }

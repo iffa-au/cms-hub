@@ -3,11 +3,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { getData, postData, updateData } from '@/lib/fetch-util';
+import PageShell from '@/components/page-shell';
+import { inputClass, labelClass, textareaClass } from '@/components/form-section';
+import { Button } from '@/components/ui/button';
 import CrewEditor, { EMPTY_CREW, toCrewGroups, type CrewGroups } from '@/components/crew/crew-editor';
+import { SkeletonRows } from '@/components/skeleton';
 
-const INPUT =
-  'w-full bg-[#0a0a0a] border border-[#393528] rounded px-4 py-3 text-white placeholder-[#544e3b] focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all mt-2';
-const LABEL = 'text-accent-foreground text-xs font-bold uppercase tracking-widest';
+const INPUT = inputClass;
+const LABEL = labelClass;
 
 // Keeps duration inputs digit-only and within range as the user types,
 // rather than relying on <input type="number"> alone (which still lets
@@ -259,17 +262,14 @@ export default function EditSubmissionPage() {
   };
 
   return (
-    <main className='flex-1 w-full overflow-y-auto px-6 py-10 lg:px-10 scroll-smooth'>
-      <div className='max-w-6xl mx-auto pb-24'>
-        <h2 className='text-white text-3xl lg:text-4xl font-serif font-bold leading-tight tracking-wide mb-4'>
-          Edit Film Entry
-        </h2>
-        <p className='text-[#bab29c] text-lg font-light max-w-2xl mb-4'>
-          Update details for the film submission.
-        </p>
+    <PageShell
+      width="medium"
+      title="Edit film entry"
+      description="Update the details for this submission."
+    >
 
         {(submittedAt || releaseCountries.length > 0 || watchFormats.length > 0 || notes) && (
-          <section className='rounded-xl border border-border bg-surface-dark/80 p-6 mb-8 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm'>
+          <section className='mb-8 grid grid-cols-1 gap-4 rounded-xl border border-border bg-surface-dark/80 p-4 text-sm sm:p-6 md:grid-cols-2'>
             <div>
               <p className={LABEL}>Submitted</p>
               <p className='text-white mt-1'>{formatSubmittedAt(submittedAt)}</p>
@@ -297,12 +297,12 @@ export default function EditSubmissionPage() {
 
         <form className='flex flex-col gap-10' onSubmit={handleSubmit}>
           <section className='rounded-xl border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50'>
-            <div className='px-8 py-6 border-b border-border flex justify-between items-center bg-surface-dark'>
+            <div className='flex flex-wrap items-center justify-between gap-3 border-b border-border bg-surface-dark px-4 py-4 sm:px-6'>
               <div className='flex items-center gap-4'>
-                <h3 className='text-white text-lg font-bold tracking-widest uppercase font-serif'>Basic Information</h3>
+                <h3 className='text-sm font-semibold'>Basic Information</h3>
               </div>
             </div>
-            <div className='p-8 grid grid-cols-1 md:grid-cols-2 gap-8'>
+            <div className='grid grid-cols-1 gap-5 p-4 sm:gap-6 sm:p-6 md:grid-cols-2'>
               <div className='md:col-span-2 space-y-2'>
                 <label htmlFor='filmTitle' className={LABEL}>
                   Film Title<span className='text-primary'>*</span>
@@ -323,7 +323,7 @@ export default function EditSubmissionPage() {
                 </label>
                 <textarea
                   id='synopsis'
-                  className='w-full bg-[#0a0a0a] border border-[#393528] rounded px-4 py-3 text-white placeholder-[#544e3b] focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all resize-none mt-2'
+                  className={textareaClass}
                   placeholder='Provide a brief synopsis of the film'
                   rows={4}
                   value={synopsis}
@@ -463,7 +463,7 @@ export default function EditSubmissionPage() {
                     </option>
                   ))}
                 </select>
-                <p className='text-xs text-[#8a845f]'>Hold Cmd/Ctrl to select multiple.</p>
+                <p className='text-xs text-muted-foreground'>Hold Cmd/Ctrl to select multiple.</p>
               </div>
             </div>
           </section>
@@ -472,12 +472,12 @@ export default function EditSubmissionPage() {
             id='crew'
             className='scroll-mt-24 rounded-xl border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50'
           >
-            <div className='p-8'>
+            <div className='p-4 sm:p-6'>
               {/* Held back until the fetch resolves. The editor tolerates crew
                   arriving late, but rendering it empty first invites someone to
                   start typing into a film whose real crew has not loaded yet. */}
               {loading ? (
-                <p className='text-sm text-muted-foreground'>Loading crew…</p>
+                <SkeletonRows rows={3} label='Loading crew' />
               ) : (
                 <CrewEditor
                   submissionId={String(id)}
@@ -490,12 +490,12 @@ export default function EditSubmissionPage() {
           </section>
 
           <section className='rounded-xl border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50'>
-            <div className='px-8 py-6 border-b border-border flex justify-between items-center bg-surface-dark'>
+            <div className='flex flex-wrap items-center justify-between gap-3 border-b border-border bg-surface-dark px-4 py-4 sm:px-6'>
               <div className='flex items-center gap-4'>
-                <h3 className='text-white text-lg font-bold tracking-widest uppercase font-serif'>Media & Links</h3>
+                <h3 className='text-sm font-semibold'>Media & Links</h3>
               </div>
             </div>
-            <div className='p-8 grid grid-cols-1 md:grid-cols-2 gap-8'>
+            <div className='grid grid-cols-1 gap-5 p-4 sm:gap-6 sm:p-6 md:grid-cols-2'>
               <div className='space-y-2'>
                 <label htmlFor='potraitImageUrl' className={LABEL}>
                   Potrait Image URL
@@ -565,12 +565,12 @@ export default function EditSubmissionPage() {
           </section>
 
           <section className='rounded-xl border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50'>
-            <div className='px-8 py-6 border-b border-border flex justify-between items-center bg-surface-dark'>
+            <div className='flex flex-wrap items-center justify-between gap-3 border-b border-border bg-surface-dark px-4 py-4 sm:px-6'>
               <div className='flex items-center gap-4'>
-                <h3 className='text-white text-lg font-bold tracking-widest uppercase font-serif'>Classification</h3>
+                <h3 className='text-sm font-semibold'>Classification</h3>
               </div>
             </div>
-            <div className='p-8 grid grid-cols-1 md:grid-cols-2 gap-8'>
+            <div className='grid grid-cols-1 gap-5 p-4 sm:gap-6 sm:p-6 md:grid-cols-2'>
               <div className='space-y-2'>
                 <label htmlFor='durationHours' className={LABEL}>
                   Duration
@@ -588,7 +588,7 @@ export default function EditSubmissionPage() {
                       value={durationHours}
                       onChange={(e) => sanitizeDigitInput(e.target.value, 10, setDurationHours)}
                     />
-                    <span className='text-xs text-[#8a845f]'>hr</span>
+                    <span className='text-xs text-muted-foreground'>hr</span>
                   </div>
                   <div className='flex items-center gap-2'>
                     <input
@@ -602,7 +602,7 @@ export default function EditSubmissionPage() {
                       value={durationMinutes}
                       onChange={(e) => sanitizeDigitInput(e.target.value, 59, setDurationMinutes)}
                     />
-                    <span className='text-xs text-[#8a845f]'>min</span>
+                    <span className='text-xs text-muted-foreground'>min</span>
                   </div>
                 </div>
               </div>
@@ -618,7 +618,7 @@ export default function EditSubmissionPage() {
                   value={submissionYear}
                   onChange={(e) => setSubmissionYear(e.target.value)}
                 />
-                <p className='text-xs text-[#8a845f]'>
+                <p className='text-xs text-muted-foreground'>
                   Controls which event year this film appears under on the public site (e.g. /events/2026/submissions). Leave blank only if intentionally hidden from every year.
                 </p>
               </div>
@@ -626,18 +626,17 @@ export default function EditSubmissionPage() {
           </section>
 
           {error ? <p className='text-red-500 mt-4'>{error}</p> : null}
-          <div className='flex gap-4 w-full sm:w-auto justify-end mt-10'>
-            <button
+          <div className='flex justify-end'>
+            <Button
               type='submit'
               disabled={saving}
-              className='flex-1 sm:flex-none px-8 py-3 rounded bg-primary text-black hover:bg-[#d9a50b] font-bold shadow-[0_0_20px_rgba(242,185,13,0.1)] hover:shadow-[0_0_30px_rgba(242,185,13,0.3)] transition-all duration-300 uppercase tracking-widest text-xs flex justify-center items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed'
+              size='lg'
+              className='w-full sm:w-auto'
             >
-              {saving ? 'Saving...' : 'Save Changes'}
-            </button>
+              {saving ? 'Saving\u2026' : 'Save changes'}
+            </Button>
           </div>
         </form>
-      </div>
-    </main>
+    </PageShell>
   );
 }
-

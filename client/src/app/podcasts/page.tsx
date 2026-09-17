@@ -172,7 +172,7 @@ export default function PodcastsAdminPage() {
   if (isAuthenticated && user?.role !== "admin" && user?.role !== "staff") return null;
 
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6 lg:px-8">
+    <main className="mx-auto w-full flex-1 px-4 py-8 sm:px-6 sm:py-10 lg:px-8 max-w-6xl">
       <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="mb-2 font-serif text-3xl text-white md:text-4xl">Podcast</h1>
@@ -238,13 +238,13 @@ export default function PodcastsAdminPage() {
                   ) : null}
                   {podcast.title}
                   {!podcast.isPublished && (
-                    <span className="shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                    <span className="shrink-0 rounded border border-border px-1.5 py-0.5 text-xs text-muted-foreground">
                       Draft
                     </span>
                   )}
                   {podcast._id === heroId && (
                     <span
-                      className="inline-flex shrink-0 items-center gap-1 rounded border border-primary/40 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-primary"
+                      className="inline-flex shrink-0 items-center gap-1 rounded border border-primary/40 px-1.5 py-0.5 text-xs text-primary"
                       title={
                         heroIsFallback
                           ? "No episode is starred, so the newest published one leads the page"

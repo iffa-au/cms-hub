@@ -3,11 +3,76 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/**
+ * CMS Hub is dark-only. `:root` *is* the dark theme.
+ *
+ * It used to be a dark background with the shadcn light-mode ramp left
+ * underneath it, so `--popover` was pure white, and `--muted` / `--secondary` /
+ * `--accent` were all near-white. Anything reaching for `bg-muted` or a Radix
+ * popover rendered a white block on black. The `.dark` block at the bottom is
+ * kept only so a stray `dark:` variant can't resolve to something different.
+ */
+
+/**
+ * Type scale, nudged up one notch from Tailwind's defaults.
+ *
+ * This is an admin tool people read all day, and 380 of the 437 size classes
+ * in it are `text-xs` or `text-sm` — so the app was effectively a 12/14px
+ * interface. Rather than edit those call sites, the scale itself moves: every
+ * `text-*` utility inherits the new value.
+ *
+ * Line heights grow with the sizes rather than staying put, because the dense
+ * screens here (tables, field stacks) get harder to read, not easier, when
+ * larger type keeps its old leading.
+ */
+@theme {
+  --text-xs: 0.8125rem;        /* 13px */
+  --text-xs--line-height: 1.125rem;
+  --text-sm: 0.9375rem;        /* 15px */
+  --text-sm--line-height: 1.375rem;
+  --text-base: 1.0625rem;      /* 17px */
+  --text-base--line-height: 1.625rem;
+  --text-lg: 1.1875rem;        /* 19px */
+  --text-lg--line-height: 1.75rem;
+  --text-xl: 1.3125rem;        /* 21px */
+  --text-xl--line-height: 1.875rem;
+  --text-2xl: 1.5625rem;       /* 25px */
+  --text-2xl--line-height: 2rem;
+  --text-3xl: 1.9375rem;       /* 31px */
+  --text-3xl--line-height: 2.375rem;
+}
+
 @theme inline {
+  /* Surfaces.
+     `--surface-dark` is the raised panel used by table headers and auth cards;
+     `--surface-overlay` sits above it for popovers, dropdowns and dialogs. */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-surface-dark: var(--surface-dark);
+  --color-surface-overlay: var(--surface-overlay);
+
+  /* Status channel.
+     The one piece of colour in this app that carries meaning rather than
+     decoration: every record's left edge is its state. Gold is deliberately
+     *only* `nominated` — see the note on --primary below. */
+  --color-status-submitted: var(--status-submitted);
+  --color-status-approved: var(--status-approved);
+  --color-status-rejected: var(--status-rejected);
+  --color-status-nominated: var(--status-nominated);
+
+  /* Type.
+     `inline` is load-bearing here: next/font declares these variables on
+     <body>, not on :root, so a non-inline @theme would substitute them at
+     :root where they don't exist and silently drop the whole declaration. */
+  --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-newsreader), Georgia, "Times New Roman", serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --color-label: var(--label-color);
+  --color-text-muted: var(--muted-foreground);
+  --color-border-strong: var(--border-strong);
+  --color-border-focus: var(--border-focus);
+
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -48,75 +113,72 @@
 
 :root {
   --radius: 0.625rem;
+
+  /* Height of the fixed navbar, overwritten at runtime by navbar.tsx so the
+     page offset can never drift from the real header the way `pt-20` did. */
+  --header-h: 80px;
+
+  /* The greys are warmed slightly toward the gold's hue rather than being
+     neutral, so the app reads as one lit room instead of black plus yellow. */
   --background: #0f0f0f;
-  --label-color: #bab19c;
-  --placeholder: #544e3b
-  --surface-dark: #1a1a1a;
-  --foreground: #ffffff;
+  --surface-dark: #171614;
+  --surface-overlay: #1f1d19;
+  --foreground: #f5f3ee;
+
   --card: #1a1a1a;
-  --card-foreground: oklch(0.129 0.042 264.695);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695);
+  --card-foreground: #f5f3ee;
+  --popover: #1f1d19;
+  --popover-foreground: #f5f3ee;
+
+  /* Gold is the action colour: primary buttons, focus, and the `nominated`
+     status. It is deliberately not used for body text or headings. */
   --primary: #f2b90d;
-  --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
-  --accent: oklch(0.968 0.007 247.896);
-  --accent-foreground: #bab29c;
-  --destructive: oklch(0.577 0.245 27.325);
+  --primary-foreground: #0f0f0f;
+
+  --secondary: #26241f;
+  --secondary-foreground: #e8e4da;
+  --muted: #26241f;
+  --muted-foreground: #a09a8c;
+  --accent: #26241f;
+  --accent-foreground: #f5f3ee;
+  --destructive: #c2564c;
+
+  --label-color: #bab19c;
+  --placeholder: #544e3b;
+
+  /* Light enough to double as text on --background (all >6.8:1) so one token
+     serves both the row edge and the chip label. */
+  --status-submitted: #8fb3d9;
+  --status-approved: #6fc795;
+  --status-rejected: #e8837a;
+  --status-nominated: #f2b90d;
+
   --border: #393528;
-  --border-focus: #e6ba35c5;
-  --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.984 0.003 247.858);
-  --sidebar-foreground: oklch(0.129 0.042 264.695);
-  --sidebar-primary: oklch(0.208 0.042 265.755);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.968 0.007 247.896);
-  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
-  --sidebar-border: oklch(0.929 0.013 255.508);
-  --sidebar-ring: oklch(0.704 0.04 256.788);
+  --border-strong: #4d4735;
+  --border-focus: #e6ba35;
+  --input: #393528;
+  --ring: #f2b90d;
+
+  --chart-1: #f2b90d;
+  --chart-2: #5b7fa6;
+  --chart-3: #4a9e6f;
+  --chart-4: #c2564c;
+  --chart-5: #a09a8c;
+
+  --sidebar: #171614;
+  --sidebar-foreground: #f5f3ee;
+  --sidebar-primary: #f2b90d;
+  --sidebar-primary-foreground: #0f0f0f;
+  --sidebar-accent: #26241f;
+  --sidebar-accent-foreground: #f5f3ee;
+  --sidebar-border: #393528;
+  --sidebar-ring: #f2b90d;
 }
 
+/* Dark-only app: `.dark` mirrors `:root` so a `dark:` variant is a no-op
+   rather than a second, diverging palette. */
 .dark {
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.208 0.042 265.755);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.208 0.042 265.755);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.929 0.013 255.508);
-  --primary-foreground: oklch(0.208 0.042 265.755);
-  --secondary: oklch(0.279 0.041 260.031);
-  --secondary-foreground: oklch(0.984 0.003 247.858);
-  --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.551 0.027 264.364);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.208 0.042 265.755);
-  --sidebar-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.279 0.041 260.031);
-  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.551 0.027 264.364);
+  color-scheme: dark;
 }
 
 @layer base {
@@ -125,5 +187,47 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+  ::placeholder {
+    color: var(--placeholder);
+  }
+  /* Native selects and date inputs render their popups with the OS palette;
+     without this they come up white-on-white in a dark app. */
+  select,
+  input[type="date"] {
+    color-scheme: dark;
+  }
+
+  /*
+   * A visible keyboard ring on everything focusable.
+   *
+   * Ten pages set `outline-none` on their inputs for looks, which removed the
+   * only affordance a keyboard user had for knowing where they were. These
+   * selectors are (0,1,1) and beat the `.outline-none` utility at (0,1,0), so
+   * they win wherever it's applied without needing those pages edited.
+   *
+   * Pointer users never see this: :focus-visible only matches keyboard focus.
+   */
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  summary:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

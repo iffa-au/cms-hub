@@ -206,7 +206,7 @@ export default function PodcastEditorPage() {
 
   if (loading) {
     return (
-      <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10 sm:px-6 lg:px-8">
+      <main className="mx-auto w-full flex-1 px-4 py-8 sm:px-6 sm:py-10 lg:px-8 max-w-4xl">
         <div className="h-8 w-48 animate-pulse rounded bg-card/60" />
         <div className="mt-6 h-64 animate-pulse rounded bg-card/60" />
       </main>
@@ -214,7 +214,7 @@ export default function PodcastEditorPage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10 sm:px-6 lg:px-8">
+    <main className="mx-auto w-full flex-1 px-4 py-8 sm:px-6 sm:py-10 lg:px-8 max-w-4xl">
       <Link
         href="/podcasts"
         className="mb-6 inline-flex items-center gap-2 text-xs font-bold tracking-widest text-muted-foreground transition-colors hover:text-primary"
@@ -282,7 +282,7 @@ export default function PodcastEditorPage() {
       <div className="space-y-8">
         {/* -------------------------------- video ------------------------------- */}
         <section className="rounded border border-border bg-card/40 p-5">
-          <h2 className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
+          <h2 className="mb-4 text-sm font-semibold text-foreground">
             The video
           </h2>
 
@@ -307,7 +307,7 @@ export default function PodcastEditorPage() {
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <div className="flex h-full items-center justify-center px-2 text-center text-[10px] text-muted-foreground">
+                <div className="flex h-full items-center justify-center px-2 text-center text-xs text-muted-foreground">
                   No video
                 </div>
               )}
@@ -346,7 +346,7 @@ export default function PodcastEditorPage() {
 
         {/* -------------------------------- copy -------------------------------- */}
         <section className="rounded border border-border bg-card/40 p-5">
-          <h2 className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
+          <h2 className="mb-4 text-sm font-semibold text-foreground">
             Episode
           </h2>
 
@@ -373,7 +373,7 @@ export default function PodcastEditorPage() {
                 value={slug}
                 onChange={(e) => setSlug(e.target.value)}
               />
-              <p className="mt-1 text-[10px] text-muted-foreground/70">
+              <p className="mt-1 text-xs text-muted-foreground/70">
                 /podcast/{slug || "…"} — changing this breaks existing links.
               </p>
             </div>
@@ -389,7 +389,7 @@ export default function PodcastEditorPage() {
                 value={publishedAt}
                 onChange={(e) => setPublishedAt(e.target.value)}
               />
-              <p className="mt-1 text-[10px] text-muted-foreground/70">
+              <p className="mt-1 text-xs text-muted-foreground/70">
                 Decides the order on the site. The newest published episode is the hero.
               </p>
             </div>
@@ -422,7 +422,7 @@ export default function PodcastEditorPage() {
                   "The episode write-up, shown under the video on its own page.\n\nLeave a blank line between paragraphs — the site renders each one separately."
                 }
               />
-              <p className="mt-1 text-[10px] text-muted-foreground/70">
+              <p className="mt-1 text-xs text-muted-foreground/70">
                 Plain text. Blank lines become paragraphs.
               </p>
             </div>
@@ -431,10 +431,10 @@ export default function PodcastEditorPage() {
 
         {/* ------------------------------ metadata ------------------------------ */}
         <section className="rounded border border-border bg-card/40 p-5">
-          <h2 className="mb-1 text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
+          <h2 className="mb-1 text-xs font-medium text-muted-foreground">
             Details
           </h2>
-          <p className="mb-4 text-[11px] text-muted-foreground/70">
+          <p className="mb-4 text-xs text-muted-foreground/70">
             All optional. Anything left blank is left off the page rather than shown
             empty.
           </p>
@@ -530,7 +530,7 @@ export default function PodcastEditorPage() {
                 onChange={(e) => setThumbnailUrl(e.target.value)}
                 placeholder="Leave blank to use the YouTube thumbnail"
               />
-              <p className="mt-1 text-[10px] text-muted-foreground/70">
+              <p className="mt-1 text-xs text-muted-foreground/70">
                 Only needed when the site should show different artwork from the one on
                 YouTube. Must be a full https:// link.
               </p>

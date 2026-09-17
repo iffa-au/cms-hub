@@ -80,14 +80,14 @@ function LoginPageInner() {
         </div> */}
         <Image src="/assets/IFFA_logo.png" alt="IFFA Logo" width={200} height={200} />
         <div className="h-px w-24 mx-auto my-3 bg-linear-to-r from-transparent via-primary to-transparent opacity-60" />
-        <p className="text-xs uppercase tracking-widest text-accent-foreground">
+        <p className="text-xs font-medium text-label">
           CMS Hub Sign In
         </p>
       </div>
 
       <Card className="relative max-w-md w-full shadow-xl border border-border bg-surface-dark">
         <CardHeader className="mb-2 text-center space-y-1">
-          <CardTitle className="text-xl font-serif font-bold tracking-widest text-white">
+          <CardTitle className="text-lg font-semibold">
             Welcome Back
           </CardTitle>
           <CardDescription className="text-xs text-accent-foreground tracking-wider">
@@ -122,6 +122,7 @@ function LoginPageInner() {
                         <Input
                           type="email"
                           placeholder="name@iffa.com"
+                          autoComplete="email"
                           className="pl-10"
                           {...field}
                         />
@@ -136,15 +137,7 @@ function LoginPageInner() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    {/* <div className="flex justify-between items-center">
-                      <FormLabel>Password</FormLabel>
-                      <Link
-                        href="/forgot-password"
-                        className="text-sm text-secondary hover:underline"
-                      >
-                        Forgot Password?
-                      </Link>
-                    </div> */}
+                    <FormLabel>Password</FormLabel>
                     <FormControl>
                       <div className="relative">
                         <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-muted-foreground">
@@ -161,6 +154,7 @@ function LoginPageInner() {
                         <Input
                           type="password"
                           placeholder="Enter your password"
+                          autoComplete="current-password"
                           className="pl-10"
                           {...field}
                         />
@@ -173,7 +167,7 @@ function LoginPageInner() {
 
               <Button
                 type="submit"
-                className="w-full bg-primary text-black hover:bg-[#d9a50b] font-bold shadow-[0_0_20px_rgba(242,185,13,0.1)] hover:shadow-[0_0_30px_rgba(242,185,13,0.3)] transition-all duration-300 uppercase tracking-widest text-xs"
+                className="w-full"
                 disabled={isPending}
               >
                 {isPending ? (

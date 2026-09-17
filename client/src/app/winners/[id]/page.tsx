@@ -7,8 +7,8 @@ import { useAuth } from '@/providers/auth-context';
 import { toast } from 'sonner';
 
 const INPUT =
-  'w-full bg-[#0a0a0a] border border-[#393528] rounded px-4 py-3 text-white placeholder-[#544e3b] focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all mt-2';
-const LABEL = 'text-accent-foreground text-xs font-bold uppercase tracking-widest';
+  'w-full bg-background border border-border rounded px-4 py-3 text-white placeholder:text-[var(--placeholder)] focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all mt-2';
+const LABEL = 'block text-xs font-medium text-label';
 
 type Nomination = {
   _id: string;
@@ -155,11 +155,11 @@ export default function WinnerDetailPage() {
   };
 
   return (
-    <main className='flex-1 py-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full'>
+    <main className='mx-auto w-full flex-1 px-4 py-8 sm:px-6 sm:py-10 lg:px-8 max-w-7xl'>
       <div className='mb-6'>
         <button
           onClick={() => router.push('/winners')}
-          className='text-accent-foreground hover:text-white transition-colors text-xs font-bold uppercase tracking-widest'
+          className='text-sm text-muted-foreground transition-colors hover:text-foreground'
         >
           ← Back to Winners
         </button>
@@ -188,10 +188,10 @@ export default function WinnerDetailPage() {
             ) : null}
             <div className='flex-1'>
               <div className='flex items-center gap-3 mb-2'>
-                <span className='inline-block bg-primary text-black text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded'>
+                <span className='inline-block rounded bg-primary px-2 py-1 text-xs font-medium text-primary-foreground'>
                   Winner
                 </span>
-                <span className='text-accent-foreground text-xs uppercase tracking-widest'>
+                <span className='block text-xs font-medium text-label'>
                   {film?.contentType?.name ?? '—'}
                 </span>
               </div>
@@ -223,7 +223,7 @@ export default function WinnerDetailPage() {
           {/* Edit the win */}
           <section className='rounded border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50 mb-8'>
             <div className='px-6 py-4 border-b border-border'>
-              <h3 className='text-white text-sm font-bold tracking-widest uppercase font-serif'>Edit Win Details</h3>
+              <h3 className='text-sm font-semibold'>Edit Win Details</h3>
             </div>
             <div className='p-6 grid grid-cols-1 md:grid-cols-2 gap-6'>
               <div>
@@ -275,13 +275,13 @@ export default function WinnerDetailPage() {
           {/* Nomination / win history for this film */}
           <section className='rounded border border-border bg-surface-dark mb-8'>
             <div className='px-6 py-4 border-b border-border'>
-              <h3 className='text-white text-sm font-bold tracking-widest uppercase font-serif'>Submission History</h3>
+              <h3 className='text-sm font-semibold'>Submission History</h3>
               <p className='text-accent-foreground text-xs mt-1'>Every edition this film was nominated in, and what it won.</p>
             </div>
             <div className='overflow-x-auto'>
               <table className='w-full text-left border-separate border-spacing-y-2'>
                 <thead>
-                  <tr className='text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-bold'>
+                  <tr className='text-xs font-semibold text-muted-foreground'>
                     <th className='px-4 py-3'>Edition Year</th>
                     <th className='px-4 py-3'>Award Category</th>
                     <th className='px-4 py-3'>Awarded To</th>
@@ -319,7 +319,7 @@ export default function WinnerDetailPage() {
           {/* Undo winner */}
           <section className='rounded border border-red-900/50 bg-surface-dark overflow-hidden'>
             <div className='px-6 py-4 border-b border-red-900/50'>
-              <h3 className='text-white text-sm font-bold tracking-widest uppercase font-serif'>Undo Winner</h3>
+              <h3 className='text-sm font-semibold'>Undo Winner</h3>
             </div>
             <div className='p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4'>
               <p className='text-accent-foreground text-sm max-w-2xl'>
@@ -347,14 +347,14 @@ export default function WinnerDetailPage() {
                   <button
                     onClick={() => setConfirmingUndo(false)}
                     disabled={undoing}
-                    className='px-6 py-2.5 rounded bg-[#222] text-white hover:bg-[#333] border border-border font-bold uppercase tracking-widest text-xs disabled:opacity-60'
+                    className='inline-flex h-9 items-center justify-center rounded-md border border-border bg-secondary px-4 text-sm font-medium text-secondary-foreground transition-colors hover:bg-secondary/80 disabled:opacity-60'
                   >
                     Cancel
                   </button>
                   <button
                     onClick={() => void onUndo()}
                     disabled={undoing}
-                    className='px-6 py-2.5 rounded bg-red-600 hover:bg-red-500 text-white font-bold uppercase tracking-widest text-xs disabled:opacity-60 disabled:cursor-not-allowed'
+                    className='inline-flex h-9 items-center justify-center rounded-md bg-destructive px-4 text-sm font-medium text-white transition-colors hover:bg-destructive/90 disabled:cursor-not-allowed disabled:opacity-60'
                   >
                     {undoing ? 'Undoing...' : 'Yes, undo'}
                   </button>

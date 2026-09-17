@@ -66,7 +66,7 @@ export default function CrewModal({ submissionId, title, onClose }: CrewModalPro
       >
         <div className='flex items-start justify-between gap-4 mb-6'>
           <div className='min-w-0'>
-            <p className='text-[10px] font-bold tracking-[0.2em] uppercase text-muted-foreground'>
+            <p className='text-xs font-semibold text-muted-foreground'>
               Editing crew for
             </p>
             <h2 className='text-white text-xl font-serif font-bold truncate'>{title}</h2>

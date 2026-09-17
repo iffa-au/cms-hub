@@ -8,6 +8,7 @@ import PartnerLogoUpload, {
   uploadPartnerLogo,
 } from "@/components/partners/partner-logo-upload";
 import { Pencil, Trash2, Plus, X } from "lucide-react";
+import ConfirmDialog from "@/components/confirm-dialog";
 
 const TIERS = [
   { value: "PRESENTING", label: "Presenting Partner" },
@@ -185,8 +186,9 @@ export default function PartnersAdminPage() {
     }
   };
 
+  const [pendingDelete, setPendingDelete] = useState<Partner | null>(null);
+
   const handleDelete = async (partner: Partner) => {
-    if (!window.confirm(`Remove "${partner.name}" from the partners page?`)) return;
     try {
       setError(null);
       await deleteData(`/partners/${partner._id}`);
@@ -201,10 +203,10 @@ export default function PartnersAdminPage() {
   if (isAuthenticated && user?.role !== "admin" && user?.role !== "staff") return null;
 
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6 lg:px-8">
+    <main className="mx-auto w-full flex-1 px-4 py-8 sm:px-6 sm:py-10 lg:px-8 max-w-6xl">
       <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="mb-2 font-serif text-3xl text-white md:text-4xl">Partners</h1>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Partners</h1>
           <p className="text-sm text-accent-foreground">
             Manage the logos shown on the public Partner With Us page. Partners appear
             grouped by tier, ordered by the position set below.
@@ -235,7 +237,7 @@ export default function PartnersAdminPage() {
           className="mb-10 space-y-4 rounded-lg border border-border bg-card/60 p-6"
         >
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-muted-foreground">
+            <h2 className="text-sm font-semibold text-foreground">
               {editingId ? "Edit partner" : "New partner"}
             </h2>
             <button
@@ -332,14 +334,14 @@ export default function PartnersAdminPage() {
             <button
               type="submit"
               disabled={saving}
-              className="rounded bg-foreground px-6 py-2.5 text-xs font-bold tracking-widest text-background transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
             >
               {saving ? "SAVING..." : editingId ? "SAVE CHANGES" : "ADD PARTNER"}
             </button>
             <button
               type="button"
               onClick={resetForm}
-              className="rounded border border-border px-6 py-2.5 text-xs font-bold tracking-widest text-muted-foreground hover:border-primary hover:text-primary"
+              className="inline-flex h-9 items-center justify-center rounded-md border border-border px-4 text-sm font-medium text-foreground transition-colors hover:border-primary hover:text-primary"
             >
               CANCEL
             </button>
@@ -360,7 +362,7 @@ export default function PartnersAdminPage() {
         <div className="space-y-10">
           {grouped.map((group) => (
             <section key={group.value}>
-              <h2 className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
+              <h2 className="mb-3 text-sm font-semibold text-foreground">
                 {group.label} ({group.items.length})
               </h2>
               {group.items.length === 0 ? (
@@ -384,7 +386,7 @@ export default function PartnersAdminPage() {
                         <p className="truncate text-sm font-semibold text-white">
                           {partner.name}
                           {partner.isActive === false && (
-                            <span className="ml-2 rounded border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                            <span className="ml-2 rounded border border-border px-1.5 py-0.5 text-xs text-muted-foreground">
                               Hidden
                             </span>
                           )}
@@ -402,7 +404,7 @@ export default function PartnersAdminPage() {
                           <Pencil size={15} />
                         </button>
                         <button
-                          onClick={() => void handleDelete(partner)}
+                          onClick={() => setPendingDelete(partner)}
                           className="p-1.5 text-muted-foreground hover:text-red-400"
                           aria-label={`Delete ${partner.name}`}
                         >
@@ -417,6 +419,25 @@ export default function PartnersAdminPage() {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        tone="danger"
+        title="Remove this partner?"
+        description={
+          <>
+            <span className="text-foreground">{pendingDelete?.name}</span> will no
+            longer appear on the public partners page.
+          </>
+        }
+        confirmLabel="Remove partner"
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => {
+          const partner = pendingDelete;
+          setPendingDelete(null);
+          if (partner) void handleDelete(partner);
+        }}
+      />
     </main>
   );
 }

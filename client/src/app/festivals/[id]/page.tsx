@@ -476,15 +476,15 @@ export default function FestivalEditorPage() {
   if (isAuthenticated && user?.role !== "admin" && user?.role !== "staff") return null;
 
   return (
-    <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10 sm:px-6 lg:px-8">
+    <main className="mx-auto w-full flex-1 px-4 py-8 sm:px-6 sm:py-10 lg:px-8 max-w-5xl">
       <Link
         href="/festivals"
-        className="mb-6 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-primary"
+        className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary"
       >
         <ArrowLeft size={14} /> All festivals
       </Link>
 
-      <h1 className="mb-2 font-serif text-3xl text-white md:text-4xl">
+      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
         {name || "Untitled festival"}
       </h1>
       <p className="mb-8 text-sm text-accent-foreground">
@@ -513,7 +513,7 @@ export default function FestivalEditorPage() {
       ) : (
         <>
           <section className="mb-8 space-y-4 rounded-lg border border-border bg-card/60 p-6">
-            <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-muted-foreground">
+            <h2 className="text-sm font-semibold text-foreground">
               Festival
             </h2>
 
@@ -584,7 +584,7 @@ export default function FestivalEditorPage() {
 
           <section className="mb-8">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-muted-foreground">
+              <h2 className="text-sm font-semibold text-foreground">
                 Screenings ({screenings.length})
               </h2>
               <button
@@ -738,7 +738,7 @@ export default function FestivalEditorPage() {
 
                           <div className="mt-6 rounded border border-border/70 bg-background/40 p-3">
                             <div className="mb-3 flex items-center justify-between">
-                              <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                              <h3 className="text-sm font-semibold text-foreground">
                                 Films in this screening ({row.films.length})
                               </h3>
                               <button
@@ -942,13 +942,13 @@ export default function FestivalEditorPage() {
               type="button"
               onClick={() => void handleSave()}
               disabled={saving}
-              className="rounded bg-foreground px-6 py-2.5 text-xs font-bold tracking-widest text-background transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
             >
               {saving ? "SAVING..." : "SAVE FESTIVAL"}
             </button>
             <Link
               href="/festivals"
-              className="rounded border border-border px-6 py-2.5 text-xs font-bold tracking-widest text-muted-foreground hover:border-primary hover:text-primary"
+              className="inline-flex h-9 items-center justify-center rounded-md border border-border px-4 text-sm font-medium text-foreground transition-colors hover:border-primary hover:text-primary"
             >
               DONE
             </Link>

@@ -4,6 +4,10 @@ import { useEffect, useState } from 'react';
 import { getData } from '@/lib/fetch-util';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/providers/auth-context';
+import PageShell from '@/components/page-shell';
+import RecordList, { type Column } from '@/components/record-list';
+import { Button } from '@/components/ui/button';
+import { StatusChip } from '@/components/status';
 
 type ContentType = { _id: string; name: string };
 type Nomination = {
@@ -81,25 +85,61 @@ export default function NominationListPage() {
   const showingEnd = items.length;
   const total = pageMeta?.total ?? items.length;
 
-  return (
-    <main className='flex-1 py-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full'>
-      <div className='flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4'>
-        <div>
-          <h1 className='font-serif text-3xl md:text-4xl text-white mb-2'>Award Nominations</h1>
-          <p className='text-accent-foreground text-sm'>Overview of all nominations and wins across years.</p>
+  const columns: Column<Nomination>[] = [
+    {
+      key: 'title',
+      header: 'Film',
+      role: 'title',
+      cell: (n) => (
+        <div className="min-w-0">
+          <h3 className="truncate font-serif text-lg text-foreground">
+            {n.submissionTitle || '\u2014'}
+          </h3>
+          <p className="line-clamp-1 max-w-xl text-xs text-muted-foreground">
+            {n.submissionSynopsis || '\u2014'}
+          </p>
         </div>
-      </div>
+      ),
+    },
+    {
+      key: 'year',
+      header: 'Edition',
+      align: 'center',
+      cell: (n) => <span className="font-mono text-xs text-muted-foreground">{n.year}</span>,
+    },
+    {
+      key: 'crew',
+      header: 'Nominee',
+      cell: (n) => (
+        <span className="text-foreground/80">{n.crewMemberName || 'Whole production'}</span>
+      ),
+    },
+    {
+      key: 'outcome',
+      header: 'Outcome',
+      role: 'cardHidden',
+      cell: (n) => <StatusChip status={n.isWinner ? 'WINNER' : 'NOMINATED'} />,
+    },
+  ];
 
+  return (
+    <PageShell
+      title="Award nominations"
+      description="Every nomination and win across all festival editions."
+    >
       {/* Filters */}
-      <div className='rounded border border-border bg-surface-dark p-4 mb-6 grid grid-cols-1 md:grid-cols-4 gap-4'>
-        <div>
-          <label className='text-accent-foreground text-xs font-bold uppercase tracking-widest'>Content Type</label>
+      <div className="mb-6 grid grid-cols-1 gap-4 rounded-lg border border-border bg-surface-dark p-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="nom-type" className="text-xs text-muted-foreground">
+            Content type
+          </label>
           <select
-            className='w-full bg-[#0a0a0a] border border-[#393528] rounded px-4 py-3 text-white mt-2'
+            id="nom-type"
+            className="rounded border border-border bg-background px-3 py-2.5 text-sm text-foreground"
             value={contentTypeId}
             onChange={(e) => setContentTypeId(e.target.value)}
           >
-            <option value=''>All</option>
+            <option value="">All</option>
             {contentTypes.map((ct) => (
               <option key={ct._id} value={ct._id}>
                 {ct.name}
@@ -107,112 +147,71 @@ export default function NominationListPage() {
             ))}
           </select>
         </div>
-        <div>
-          <label className='text-accent-foreground text-xs font-bold uppercase tracking-widest'>Edition Year</label>
+
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="nom-year" className="text-xs text-muted-foreground">
+            Edition year
+          </label>
           <input
-            className='w-full bg-[#0a0a0a] border border-[#393528] rounded px-4 py-3 text-white mt-2'
-            placeholder='e.g. 2026'
-            inputMode='numeric'
+            id="nom-year"
+            className="rounded border border-border bg-background px-3 py-2.5 text-sm text-foreground"
+            placeholder="e.g. 2026"
+            inputMode="numeric"
             value={year}
             onChange={(e) => setYear(e.target.value)}
           />
         </div>
-        <div className='flex items-end'>
-          <label className='flex items-center gap-2'>
-            <input type='checkbox' checked={winnerOnly} onChange={(e) => setWinnerOnly(e.target.checked)} />
-            <span className='text-accent-foreground text-sm'>Winner only</span>
+
+        <div className="flex items-end">
+          <label className="flex items-center gap-2 py-2.5 text-sm">
+            <input
+              type="checkbox"
+              className="size-4 accent-primary"
+              checked={winnerOnly}
+              onChange={(e) => setWinnerOnly(e.target.checked)}
+            />
+            Winners only
           </label>
         </div>
-        <div className='flex items-end justify-end gap-2'>
-          <button
-            onClick={() => void load()}
-            className='bg-foreground text-background px-6 py-2.5 rounded text-xs font-bold tracking-widest hover:opacity-90 transition-opacity'
-          >
-            APPLY
-          </button>
-          <button
+
+        <div className="flex items-end gap-2">
+          <Button onClick={() => void load()}>Apply</Button>
+          <Button
+            variant="outline"
             onClick={() => {
               setContentTypeId('');
               setYear('');
               setWinnerOnly(false);
               void load();
             }}
-            className='px-6 py-2.5 rounded bg-[#222] text-white hover:bg-[#333] border border-border text-xs font-bold tracking-widest'
           >
-            RESET
-          </button>
+            Reset
+          </Button>
         </div>
       </div>
 
-      <div className='overflow-x-auto'>
-        <table className='w-full text-left border-separate border-spacing-y-2'>
-          <thead>
-            <tr className='text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-bold'>
-              <th className='px-4 py-3'>Title</th>
-              <th className='px-4 py-3'>Edition Year</th>
-              <th className='px-4 py-3'>Crew Member</th>
-              <th className='px-4 py-3'>Status</th>
-              <th className='px-4 py-3 text-right'>Actions</th>
-            </tr>
-          </thead>
-          <tbody className='text-sm'>
-            {loading && (
-              <tr className='bg-card/60'>
-                <td className='px-4 py-6' colSpan={5}>
-                  <div className='animate-pulse h-4 w-1/3 bg-border rounded mb-3' />
-                  <div className='animate-pulse h-3 w-2/3 bg-border rounded' />
-                </td>
-              </tr>
-            )}
-            {!loading && error && (
-              <tr className='bg-card/60'>
-                <td className='px-4 py-6' colSpan={5}>
-                  <span className='text-red-400 text-sm'>{error}</span>
-                </td>
-              </tr>
-            )}
-            {!loading && !error && items.length === 0 && (
-              <tr className='bg-card/60'>
-                <td className='px-4 py-6' colSpan={5}>
-                  <span className='text-muted-foreground text-sm'>No nominations found.</span>
-                </td>
-              </tr>
-            )}
-            {!loading &&
-              !error &&
-              items.map((n) => (
-                <tr key={n._id} className='bg-card/60'>
-                  <td className='px-4 py-6 border-l-2 border-primary'>
-                    <div className='text-white font-serif font-bold'>{n.submissionTitle || '—'}</div>
-                    <div className='text-xs text-muted-foreground line-clamp-1 max-w-xl'>
-                      {n.submissionSynopsis || '—'}
-                    </div>
-                  </td>
-                  <td className='px-4 py-6'>{n.year}</td>
-                  <td className='px-4 py-6'>{n.crewMemberName || 'Whole Production'}</td>
-                  <td className='px-4 py-6'>{n.isWinner ? 'Winner' : '—'}</td>
-                  <td className='px-4 py-6 text-right'>
-                    <div className='flex items-center justify-end'>
-                      <button
-                        onClick={() => router.push(`/submissions/${n.submissionId}/nomination`)}
-                        className='text-primary hover:text-foreground transition-colors text-[10px] font-bold tracking-widest'
-                      >
-                        MANAGE
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
-      </div>
+      <RecordList
+        items={items}
+        columns={columns}
+        getKey={(n) => n._id}
+        getStatus={(n) => (n.isWinner ? 'WINNER' : 'NOMINATED')}
+        loading={loading}
+        error={error}
+        empty="No nominations match these filters."
+        actions={(n) => (
+          <Button
+            variant="rowAction"
+            size="inline"
+            onClick={() => router.push(`/submissions/${n.submissionId}/nomination`)}
+          >
+            Manage
+          </Button>
+        )}
+      />
 
-      <div className='mt-8 flex items-center justify-between border-t border-border pt-6'>
-        <span className='text-xs text-muted-foreground tracking-wider'>
-          {`SHOWING ${showingStart}-${showingEnd} OF ${total} NOMINATIONS`}
-        </span>
-      </div>
-    </main>
+      <p className="mt-8 border-t border-border pt-6 text-xs text-muted-foreground">
+        {`Showing ${showingStart}\u2013${showingEnd} of ${total} nominations`}
+      </p>
+    </PageShell>
   );
 }
-

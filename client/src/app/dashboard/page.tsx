@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getData } from "@/lib/fetch-util";
 import { Button } from "@/components/ui/button";
+import PageShell from "@/components/page-shell";
+import RecordList, { type Column } from "@/components/record-list";
+import { StatusChip, type RecordStatus } from "@/components/status";
 
 type SubmissionStatus = "SUBMITTED" | "APPROVED" | "REJECTED";
 
@@ -15,28 +18,14 @@ type SubmissionItem = {
   releaseDate?: string;
 };
 
-function StatusBadge({ status }: { status: SubmissionStatus }) {
-  const styleMap: Record<SubmissionStatus, string> = {
-    SUBMITTED:
-      "bg-amber-600/15 text-amber-700 dark:text-amber-300 border border-amber-600/30",
-    APPROVED:
-      "bg-emerald-600/15 text-emerald-700 dark:text-emerald-300 border border-emerald-600/30",
-    REJECTED:
-      "bg-rose-600/15 text-rose-700 dark:text-rose-300 border border-rose-600/30",
-  };
-  const labelMap: Record<SubmissionStatus, string> = {
-    SUBMITTED: "Submitted",
-    APPROVED: "Approved",
-    REJECTED: "Rejected",
-  };
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${styleMap[status]}`}
-    >
-      {labelMap[status]}
-    </span>
-  );
-}
+const shortDate = (value?: string) =>
+  value
+    ? new Date(value).toLocaleDateString("en-AU", {
+        year: "numeric",
+        month: "short",
+        day: "2-digit",
+      })
+    : "—";
 
 export default function Dashboard() {
   const [items, setItems] = useState<SubmissionItem[]>([]);
@@ -69,93 +58,75 @@ export default function Dashboard() {
     };
   }, []);
 
-  return (
-    <main className="mx-auto max-w-6xl px-4 py-8 space-y-8">
-      <div className="flex items-center justify-between">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-white text-3xl md:text-4xl font-black leading-tight tracking-tight">
-            Your Submissions
-          </h1>
-          <p className="text-text-muted text-base md:text-lg font-normal leading-normal">
-            Manage and track your film entries.
-          </p>
-        </div>
-        <Link
-          href="/submissions/new"
-          className="px-8 py-3 rounded bg-primary text-black hover:bg-[#d9a50b] font-bold shadow-[0_0_20px_rgba(242,185,13,0.1)] hover:shadow-[0_0_30px_rgba(242,185,13,0.3)] transition-all duration-300 uppercase tracking-widest text-xs flex justify-center items-center gap-2"
-        >
-          New Submission
-        </Link>
-      </div>
+  const columns: Column<SubmissionItem>[] = [
+    {
+      key: "title",
+      header: "Film",
+      role: "title",
+      cell: (s) =>
+        // Editing closes once a film has been reviewed, so the title is only a
+        // link while that's still possible.
+        s.status === "SUBMITTED" ? (
+          <Link
+            href={`/submissions/${s._id}/edit`}
+            className="font-serif text-lg text-foreground underline-offset-4 hover:text-primary hover:underline"
+          >
+            {s.title}
+          </Link>
+        ) : (
+          <span className="font-serif text-lg text-foreground/80">{s.title}</span>
+        ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      role: "cardHidden", // the card already shows a chip in its header
+      cell: (s) => <StatusChip status={s.status as RecordStatus} />,
+    },
+    {
+      key: "release",
+      header: "Release date",
+      cell: (s) => (
+        <span className="text-muted-foreground">{shortDate(s.releaseDate)}</span>
+      ),
+    },
+    {
+      key: "submitted",
+      header: "Submitted",
+      align: "right",
+      cell: (s) => (
+        <span className="text-muted-foreground">{shortDate(s.createdAt)}</span>
+      ),
+    },
+  ];
 
-      {loading ? (
-        <p className="text-sm text-muted-foreground">Loading...</p>
-      ) : error ? (
-        <p className="text-sm text-red-500">{error}</p>
-      ) : items.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border p-8 text-center">
-          <p className="text-muted-foreground">
-            You haven&apos;t submitted any films yet.
-          </p>
-          <div className="mt-4">
-            <Link
-              href="/submissions/new"
-              className="inline-flex px-8 py-3 rounded bg-primary text-black hover:bg-[#d9a50b] font-bold shadow-[0_0_20px_rgba(242,185,13,0.1)] hover:shadow-[0_0_30px_rgba(242,185,13,0.3)] transition-all duration-300 uppercase tracking-widest text-xs justify-center items-center gap-2"
-            >
-              Create your first submission
-            </Link>
+  return (
+    <PageShell
+      width="medium"
+      title="Your submissions"
+      description="Track your film entries and edit them while they're still awaiting review."
+      actions={
+        <Button asChild>
+          <Link href="/submissions/new">New submission</Link>
+        </Button>
+      }
+    >
+      <RecordList
+        items={items}
+        columns={columns}
+        getKey={(s) => s._id}
+        getStatus={(s) => s.status as RecordStatus}
+        loading={loading}
+        error={error}
+        empty={
+          <div className="space-y-4">
+            <p>You haven&apos;t entered a film yet.</p>
+            <Button asChild>
+              <Link href="/submissions/new">Create your first submission</Link>
+            </Button>
           </div>
-        </div>
-      ) : (
-        <div className="divide-y divide-border rounded-lg border border-border overflow-hidden">
-          <div className="grid grid-cols-12 px-6 py-3 text-[#bab29c] text-xs uppercase tracking-widest bg-surface-dark">
-            <div className="col-span-5">Title</div>
-            <div className="col-span-2">Status</div>
-            <div className="col-span-2">Release Date</div>
-            <div className="col-span-3 text-right">Submission Date</div>
-          </div>
-          {items.map((s) => (
-            <div
-              key={s._id}
-              className="grid grid-cols-12 px-6 py-4 items-center"
-            >
-              <div className="col-span-5 min-w-0">
-                {s.status === 'SUBMITTED' ? (
-                  <Link
-                    href={`/submissions/${s._id}/edit`}
-                    className="text-white hover:underline font-medium truncate"
-                    title="Click to edit while submission is pending review"
-                  >
-                    {s.title}
-                  </Link>
-                ) : (
-                  <span
-                    className="text-white/80 font-medium truncate "
-                    title="Editing disabled after review"
-                  >
-                    {s.title}
-                  </span>
-                )}
-              </div>
-              <div className="col-span-2">
-                <StatusBadge status={s.status} />
-              </div>
-              <div className="col-span-2 text-sm text-muted-foreground">
-                {s.releaseDate
-                  ? new Date(s.releaseDate).toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "short",
-                    day: "2-digit",
-                  })
-                  : "—"}
-              </div>
-              <div className="col-span-3 text-right text-sm text-muted-foreground">
-                {new Date(s.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </main>
+        }
+      />
+    </PageShell>
   );
 }

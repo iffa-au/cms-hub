@@ -3,14 +3,6 @@
 import { useEffect, useState } from "react";
 import { getData, postData } from "@/lib/fetch-util";
 import { useRouter } from "next/navigation";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
 import { format } from "date-fns";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -21,14 +13,20 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { ChevronDownIcon } from "lucide-react";
-import { Label } from "@radix-ui/react-dropdown-menu";
+import Link from "next/link";
+import { toast } from "sonner";
+import PageShell from "@/components/page-shell";
+import CrewEditor, { EMPTY_CREW } from "@/components/crew/crew-editor";
+import ConfirmDialog from "@/components/confirm-dialog";
+import {
+  FormSection,
+  inputClass,
+  labelClass,
+  textareaClass,
+} from "@/components/form-section";
 
-const INPUT =
-  "w-full bg-[#0a0a0a] border border-[#393528] rounded px-4 py-3 text-white placeholder-[#544e3b] focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all mt-2";
-
-const LABEL =
-  "text-accent-foreground text-xs font-bold uppercase tracking-widest";
+const INPUT = inputClass;
+const LABEL = labelClass;
 
 // Keeps duration inputs digit-only and within range as the user types,
 // rather than relying on <input type="number"> alone (which still lets
@@ -60,6 +58,14 @@ export default function NewSubmissionPage() {
   const [languages, setLanguages] = useState<MetaItem[]>([]);
   const [contentTypes, setContentTypes] = useState<MetaItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Crew can only be attached once the film exists: CrewEditor saves through
+  // PATCH /submissions/:id and uploads photos under the submission's own S3
+  // prefix, and the create endpoint doesn't accept crew at all. So adding a
+  // film is two steps, and the second one happens here rather than sending
+  // people off to the edit screen to finish.
+  const [created, setCreated] = useState<{ id: string; title: string } | null>(null);
+  const [crewDirty, setCrewDirty] = useState(false);
+  const [confirmingLeave, setConfirmingLeave] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [potraitImageUrl, setPotraitImageUrl] = useState<string | undefined>(
     undefined
@@ -141,10 +147,12 @@ export default function NewSubmissionPage() {
         data?: { _id: string };
         message?: string;
       }>("/submissions", payload);
-      if (res && (res as any).success && (res as any).data?._id) {
-        router.push("/dashboard");
+      const newId = res?.data?._id;
+      if (res?.success && newId) {
+        toast.success("Film saved. Add its crew below.");
+        setCreated({ id: newId, title: payload.title });
       } else {
-        setError((res as any)?.message || "Failed to create submission");
+        setError(res?.message || "Failed to create submission");
       }
     } catch (err: any) {
       setError(err?.response?.data?.message || "Failed to create submission");
@@ -154,28 +162,61 @@ export default function NewSubmissionPage() {
   };
 
   return (
-    <main className="flex-1 w-full overflow-y-auto px-6 py-10 lg:px-10 scroll-smooth">
-      <div className="max-w-6xl mx-auto pb-24">
-        <h2 className="text-white text-3xl lg:text-4xl font-serif font-bold leading-tight tracking-wide mb-4">
-          Submit New Film Entry
-        </h2>
-        <p className="text-[#bab29c] text-lg font-light max-w-2xl mb-4">
-          Enter details for the new film submission. Ensure all media links are
-          high-resolution.
-        </p>
-        {/* Information Form */}
+    <PageShell
+      width="medium"
+      title={created ? "Add the crew" : "Submit a film"}
+      description={
+        created
+          ? "The film is saved. Add its cast and crew now, or finish and come back to it later."
+          : "Enter the film's details. You'll add cast and crew on the next step."
+      }
+    >
+      {created ? (
+        <div className="flex flex-col gap-6">
+          <p className="rounded-lg border border-status-approved/35 bg-status-approved/10 px-4 py-3 text-sm text-status-approved">
+            <span className="font-medium">{created.title}</span> was saved.
+          </p>
+
+          <section className="overflow-hidden rounded-xl border border-border bg-surface-dark">
+            <div className="p-4 sm:p-6">
+              <CrewEditor
+                submissionId={created.id}
+                initialCrew={EMPTY_CREW}
+                heading="Crew"
+                onDirtyChange={setCrewDirty}
+              />
+            </div>
+          </section>
+
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button variant="outline" size="lg" asChild>
+              <Link href={`/submissions/${created.id}/edit`}>Edit film details</Link>
+            </Button>
+            <Button
+              size="lg"
+              onClick={() =>
+                crewDirty ? setConfirmingLeave(true) : router.push("/dashboard")
+              }
+            >
+              Done
+            </Button>
+          </div>
+
+          <ConfirmDialog
+            open={confirmingLeave}
+            title="Leave without saving the crew?"
+            description="The crew you've entered hasn't been saved yet. Save it first, or leave and add it later from the film's edit screen."
+            confirmLabel="Leave anyway"
+            cancelLabel="Stay"
+            onCancel={() => setConfirmingLeave(false)}
+            onConfirm={() => router.push("/dashboard")}
+          />
+        </div>
+      ) : (
+        /* Information Form */
         <form className="flex flex-col gap-10" onSubmit={handleSubmit}>
           {/* Basic Information */}
-          <section className="rounded-xl border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50">
-            <div className="px-8 py-6 border-b border-border flex justify-between items-center bg-surface-dark">
-              <div className="flex items-center gap-4">
-                <h3 className="text-white text-lg font-bold tracking-widest uppercase font-serif">
-                  Basic Information
-                </h3>
-              </div>
-            </div>
-
-            <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+          <FormSection title="Basic information">
               {/* film title */}
               <div className="md:col-span-2 space-y-2">
                 <label htmlFor="filmTitle" className={LABEL}>
@@ -195,7 +236,7 @@ export default function NewSubmissionPage() {
                   Synopsis<span className="text-primary">*</span>
                 </label>
                 <textarea
-                  className="w-full bg-[#0a0a0a] border border-[#393528] rounded px-4 py-3 text-white placeholder-[#544e3b] focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all resize-none mt-2"
+                  className={textareaClass}
                   placeholder="Provide a brief synopsis of the film"
                   rows={4}
                   id="synopsis"
@@ -218,7 +259,8 @@ export default function NewSubmissionPage() {
                     <button
                       type="button"
                       className={cn(
-                        "w-full flex items-center justify-between bg-[#0a0a0a] border border-[#393528] rounded px-4 py-3 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all mt-2",
+                        inputClass,
+                        "flex items-center justify-between text-left",
                         !releaseDate && "text-muted-foreground"
                       )}
                       onClick={() => setOpen(true)}
@@ -365,21 +407,12 @@ export default function NewSubmissionPage() {
                     </option>
                   ))}
                 </select>
-                <p className="text-xs text-[#8a845f]">Hold Cmd/Ctrl to select multiple.</p>
+                <p className="text-xs text-muted-foreground">Hold Cmd/Ctrl to select multiple.</p>
               </div>
-            </div>
-          </section>
+          </FormSection>
 
           {/* Media & Links */}
-          <section className="rounded-xl border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50">
-            <div className="px-8 py-6 border-b border-border flex justify-between items-center bg-surface-dark">
-              <div className="flex items-center gap-4">
-                <h3 className="text-white text-lg font-bold tracking-widest uppercase font-serif">
-                  Media & Links
-                </h3>
-              </div>
-            </div>
-            <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+          <FormSection title="Media and links">
               {/* Potrait Image URL*/}
               <div className="space-y-2">
                 <label htmlFor="potraitImageUrl" className={LABEL}>
@@ -440,19 +473,10 @@ export default function NewSubmissionPage() {
                   onChange={(e) => setTrailerUrl(e.target.value)}
                 />
               </div>
-            </div>
-          </section>
+          </FormSection>
 
           {/* Classification */}
-          <section className="rounded-xl border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50">
-            <div className="px-8 py-6 border-b border-border flex justify-between items-center bg-surface-dark">
-              <div className="flex items-center gap-4">
-                <h3 className="text-white text-lg font-bold tracking-widest uppercase font-serif">
-                  Classification
-                </h3>
-              </div>
-            </div>
-            <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+          <FormSection title="Classification">
               {/* Duration */}
               <div className="space-y-2">
                 <label htmlFor="durationHours" className={LABEL}>
@@ -471,7 +495,7 @@ export default function NewSubmissionPage() {
                       value={durationHours}
                       onChange={(e) => sanitizeDigitInput(e.target.value, 10, setDurationHours)}
                     />
-                    <span className="text-xs text-[#8a845f]">hr</span>
+                    <span className="text-xs text-muted-foreground">hr</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <input
@@ -485,7 +509,7 @@ export default function NewSubmissionPage() {
                       value={durationMinutes}
                       onChange={(e) => sanitizeDigitInput(e.target.value, 59, setDurationMinutes)}
                     />
-                    <span className="text-xs text-[#8a845f]">min</span>
+                    <span className="text-xs text-muted-foreground">min</span>
                   </div>
                 </div>
               </div>
@@ -504,26 +528,28 @@ export default function NewSubmissionPage() {
                   onChange={(e) => setSubmissionYear(e.target.value)}
                   required
                 />
-                <p className="text-xs text-[#8a845f]">
+                <p className="text-xs text-muted-foreground">
                   Controls which event year this film appears under on the public site.
                 </p>
               </div>
-            </div>
-          </section>
+          </FormSection>
           {/* Footer (inside the form so submit works) */}
-          {error ? <p className="text-red-500 mt-4">{error}</p> : null}
-          <div className="flex gap-4 w-full sm:w-auto justify-end mt-10">
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="flex-1 sm:flex-none px-8 py-3 rounded bg-primary text-black hover:bg-[#d9a50b] font-bold shadow-[0_0_20px_rgba(242,185,13,0.1)] hover:shadow-[0_0_30px_rgba(242,185,13,0.3)] transition-all duration-300 uppercase tracking-widest text-xs flex justify-center items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+          {error ? (
+            <p
+              role="alert"
+              className="rounded-lg border border-status-rejected/35 bg-status-rejected/10 px-4 py-3 text-sm text-status-rejected"
             >
-              {isSubmitting ? "Submitting..." : "Submit Film"}
-            </button>
+              {error}
+            </p>
+          ) : null}
+          <div className="flex justify-end">
+            <Button type="submit" size="lg" disabled={isSubmitting} className="w-full sm:w-auto">
+              {isSubmitting ? "Submitting\u2026" : "Submit film"}
+            </Button>
           </div>
         </form>
-      </div>
-    </main>
+      )}
+    </PageShell>
   );
 }
 

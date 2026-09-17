@@ -4,6 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 import { getData, deleteData } from "@/lib/fetch-util";
 import { useAuth } from "@/providers/auth-context";
 import { useRouter } from "next/navigation";
+import PageShell from "@/components/page-shell";
+import RecordList, { type Column } from "@/components/record-list";
+import ConfirmDialog from "@/components/confirm-dialog";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 type PopulatedRef = { _id: string; name: string };
 type FilmEnquiryItem = {
@@ -30,6 +35,7 @@ export default function AdminFilmEnquiryPage() {
   const [list, setList] = useState<FilmEnquiryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<FilmEnquiryItem | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -59,13 +65,13 @@ export default function AdminFilmEnquiryPage() {
   }, []);
 
   const handleDelete = useCallback(
-    async (id: string, title: string) => {
-      if (!window.confirm(`Delete enquiry "${title}"? This cannot be undone.`)) return;
+    async (id: string) => {
       try {
         await deleteData(`/film-enquiries/${id}`);
+        toast.success("Enquiry deleted");
         await load();
       } catch (e: any) {
-        setError(e?.message || "Failed to delete enquiry");
+        toast.error(e?.message || "Failed to delete enquiry");
       }
     },
     [load]
@@ -93,152 +99,135 @@ export default function AdminFilmEnquiryPage() {
     }
   };
 
-  return (
-    <main className="flex-1 py-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
-      <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
-        <div>
-          <h1 className="font-serif text-3xl md:text-4xl text-white mb-2">
-            Film Enquiry
-          </h1>
-          <p className="text-accent-foreground text-sm">
-            All film enquiries submitted by the public. Review and send them the submission link when approved.
+  const columns: Column<FilmEnquiryItem>[] = [
+    {
+      key: "film",
+      header: "Film",
+      role: "title",
+      cell: (item) => (
+        <div className="min-w-0">
+          <h3 className="truncate font-serif text-lg text-foreground">{item.title}</h3>
+          <p className="truncate text-xs text-muted-foreground">
+            {item.name}{" "}
+            <a
+              href={`mailto:${item.email}`}
+              className="text-primary underline-offset-4 hover:underline"
+            >
+              {item.email}
+            </a>
+          </p>
+          <p className="line-clamp-1 max-w-md text-xs text-muted-foreground">
+            {item.synopsis || "\u2014"}
           </p>
         </div>
-      </div>
+      ),
+    },
+    {
+      key: "contentType",
+      header: "Type",
+      cell: (item) => (
+        <span className="text-foreground/80">{item.contentType?.name ?? "\u2014"}</span>
+      ),
+    },
+    {
+      key: "release",
+      header: "Release",
+      align: "center",
+      cell: (item) => (
+        <span className="font-mono text-xs text-muted-foreground">
+          {item.releaseDate ? formatDate(item.releaseDate) : "\u2014"}
+        </span>
+      ),
+    },
+    {
+      key: "genres",
+      header: "Genres",
+      showFrom: "xl",
+      cell: (item) => {
+        const genres = Array.isArray(item.genreIds) ? item.genreIds : [];
+        if (!genres.length)
+          return <span className="text-muted-foreground">\u2014</span>;
+        return (
+          <div className="flex flex-wrap gap-1.5">
+            {genres.map((g, i) => (
+              <span
+                key={typeof g === "object" && g && "_id" in g ? (g as any)._id : i}
+                className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground"
+              >
+                {typeof g === "object" && g && "name" in g ? (g as any).name : "\u2014"}
+              </span>
+            ))}
+          </div>
+        );
+      },
+    },
+    {
+      key: "submitted",
+      header: "Received",
+      cell: (item) => (
+        <span className="whitespace-nowrap font-mono text-xs text-muted-foreground">
+          {item.createdAt ? formatDate(item.createdAt) : "\u2014"}
+        </span>
+      ),
+    },
+  ];
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-separate border-spacing-y-2">
-          <thead>
-            <tr className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-bold">
-              <th className="px-4 py-3">Film Details</th>
-              <th className="px-4 py-3">Content Type</th>
-              <th className="px-4 py-3 text-center">Release</th>
-              <th className="px-4 py-3">Genres</th>
-              <th className="px-4 py-3">Submitted</th>
-              <th className="px-4 py-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="text-sm">
-            {loading && (
-              <tr className="bg-card/60">
-                <td className="px-4 py-6" colSpan={6}>
-                  <div className="animate-pulse h-4 w-1/3 bg-border rounded mb-3" />
-                  <div className="animate-pulse h-3 w-2/3 bg-border rounded" />
-                </td>
-              </tr>
-            )}
-            {!loading && error && (
-              <tr className="bg-card/60">
-                <td className="px-4 py-6" colSpan={6}>
-                  <span className="text-red-400 text-sm">{error}</span>
-                </td>
-              </tr>
-            )}
-            {!loading && !error && list.length === 0 && (
-              <tr className="bg-card/60">
-                <td className="px-4 py-6" colSpan={6}>
-                  <span className="text-muted-foreground text-sm">
-                    No enquiries yet.
-                  </span>
-                </td>
-              </tr>
-            )}
-            {!loading &&
-              !error &&
-              list.map((item) => {
-                const release = item.releaseDate
-                  ? formatDate(item.releaseDate)
-                  : "—";
-                const submitted = item.createdAt
-                  ? formatDate(item.createdAt)
-                  : "—";
-                return (
-                  <tr key={item._id} className="bg-card/60">
-                    <td className="px-4 py-6 border-l-2 border-primary">
-                      <h3 className="font-serif text-primary font-bold text-lg mb-1">
-                        {item.title}
-                      </h3>
-                      <p className="text-muted-foreground text-xs mb-0.5">
-                        {item.name} ·{" "}
-                        <a
-                          href={`mailto:${item.email}`}
-                          className="text-primary hover:underline"
-                        >
-                          {item.email}
-                        </a>
-                      </p>
-                      {item.synopsis ? (
-                        <p className="text-muted-foreground text-xs line-clamp-1 max-w-md">
-                          {item.synopsis}
-                        </p>
-                      ) : (
-                        <p className="text-muted-foreground text-xs line-clamp-1 max-w-md">
-                          —
-                        </p>
-                      )}
-                    </td>
-                    <td className="px-4 py-6">
-                      <span className="text-foreground/80 font-medium">
-                        {item.contentType?.name ?? "—"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-6 text-center">
-                      <span className="text-muted-foreground">{release}</span>
-                    </td>
-                    <td className="px-4 py-6 min-w-[120px]">
-                      <div className="flex flex-wrap gap-2">
-                        {(() => {
-                          const raw = item.genreIds;
-                          const genres = Array.isArray(raw) ? raw : [];
-                          if (!genres.length) return <span className="text-muted-foreground">—</span>;
-                          return genres.map((g, i) => (
-                            <span
-                              key={typeof g === "object" && g && "_id" in g ? (g as any)._id : i}
-                              className="px-2 py-0.5 border border-border rounded-full text-[10px] text-primary uppercase font-semibold"
-                            >
-                              {typeof g === "object" && g && "name" in g ? (g as any).name : "—"}
-                            </span>
-                          ));
-                        })()}
-                      </div>
-                    </td>
-                    <td className="px-4 py-6">
-                      <span className="text-muted-foreground text-xs">
-                        {submitted}
-                      </span>
-                    </td>
-                    <td className="px-4 py-6 text-right">
-                      <div className="flex items-center justify-end gap-3">
-                        <button
-                          onClick={() =>
-                            router.push(`/admin/film-enquiry/${item._id}`)
-                          }
-                          className="text-primary hover:text-foreground transition-colors text-[10px] font-bold tracking-widest"
-                        >
-                          DETAIL
-                        </button>
-                        <button
-                          onClick={() => handleDelete(item._id, item.title)}
-                          className="text-red-500 hover:text-red-400 transition-colors text-[10px] font-bold tracking-widest"
-                        >
-                          DELETE
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-          </tbody>
-        </table>
-      </div>
+  return (
+    <PageShell
+      title="Film enquiries"
+      description="Enquiries submitted from the public site. Send the submission link once an enquiry is approved."
+    >
+      <RecordList
+        items={list}
+        columns={columns}
+        getKey={(item) => item._id}
+        loading={loading}
+        error={error}
+        empty="No enquiries have come in yet."
+        actions={(item) => (
+          <>
+            <Button
+              variant="rowAction"
+              size="inline"
+              onClick={() => router.push(`/admin/film-enquiry/${item._id}`)}
+            >
+              Open
+            </Button>
+            <Button
+              variant="rowDanger"
+              size="inline"
+              onClick={() => setPendingDelete(item)}
+            >
+              Delete
+            </Button>
+          </>
+        )}
+      />
 
       {!loading && !error && list.length > 0 && (
-        <div className="mt-8 flex items-center justify-between border-t border-border pt-6">
-          <span className="text-xs text-muted-foreground tracking-wider">
-            {`SHOWING ${list.length} ENQUIRY${list.length === 1 ? "" : "IES"}`}
-          </span>
-        </div>
+        <p className="mt-8 border-t border-border pt-6 text-xs text-muted-foreground">
+          {`Showing ${list.length} ${list.length === 1 ? "enquiry" : "enquiries"}`}
+        </p>
       )}
-    </main>
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        tone="danger"
+        title="Delete this enquiry?"
+        description={
+          <>
+            <span className="text-foreground">{pendingDelete?.title}</span> from{" "}
+            {pendingDelete?.name} will be removed. This can&apos;t be undone.
+          </>
+        }
+        confirmLabel="Delete enquiry"
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => {
+          const id = pendingDelete?._id;
+          setPendingDelete(null);
+          if (id) void handleDelete(id);
+        }}
+      />
+    </PageShell>
   );
 }

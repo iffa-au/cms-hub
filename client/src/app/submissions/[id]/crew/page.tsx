@@ -6,17 +6,17 @@ import { useParams, useRouter } from "next/navigation";
 import { deleteData, getData, postData } from "@/lib/fetch-util";
 import { toast } from "sonner";
 import { Search, X, Lock, Users, Trash2 } from "lucide-react";
+import { SkeletonRows } from "@/components/skeleton";
+import { inputClass, labelClass } from "@/components/form-section";
 
 type CrewMember = { _id: string; name: string };
 type CrewRole = { _id: string; name: string };
 type Assignment = { _id: string; submissionId: string; crewMemberId: string; crewRoleId: string };
 
-const CARD = "rounded-xl border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50";
-const SECTION_HEADER =
-  "px-8 py-6 border-b border-border flex justify-between items-center bg-surface-dark";
-const LABEL = "text-accent-foreground text-xs font-bold uppercase tracking-widest";
-const INPUT =
-  "w-full bg-[#0a0a0a] border border-[#393528] rounded px-4 py-3 text-white placeholder-[#544e3b] focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all mt-2";
+const CARD = "overflow-hidden rounded-xl border border-border bg-surface-dark";
+const SECTION_HEADER = "flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-4 sm:px-6";
+const LABEL = labelClass;
+const INPUT = inputClass;
 
 export default function AssignCrewPage() {
   const { id } = useParams<{ id: string }>();
@@ -136,12 +136,12 @@ export default function AssignCrewPage() {
   const nextCreate = `/submissions/${id}/crew`;
 
   return (
-    <main className="flex-1 w-full overflow-y-auto px-6 py-10 lg:px-10 scroll-smooth">
+    <main className="mx-auto w-full flex-1 px-4 py-8 sm:px-6 sm:py-10 lg:px-8 max-w-5xl">
       <div className="max-w-6xl mx-auto pb-24">
         <h2 className="text-white text-3xl lg:text-4xl font-serif font-bold leading-tight tracking-wide mb-2">
           Crew & Roles
         </h2>
-        <p className="text-[#bab29c] text-lg font-light max-w-2xl mb-6">
+        <p className="text-label text-lg font-light max-w-2xl mb-6">
           Manage crew for this submission.
         </p>
 
@@ -152,11 +152,11 @@ export default function AssignCrewPage() {
               <div className="inline-flex items-center justify-center w-7 h-7 rounded bg-[#2a261b]">
                 <Lock className="h-4 w-4 text-primary" />
               </div>
-              <h3 className="text-white text-lg font-bold tracking-widest uppercase font-serif">
+              <h3 className="text-sm font-semibold">
                 Current Assignment
               </h3>
             </div>
-            <div className="text-xs uppercase tracking-widest text-[#bab29c]">
+            <div className="text-xs font-medium text-label">
               Total Count:{" "}
               <span className="ml-2 inline-flex items-center px-3 py-1 rounded bg-[#2a261b] text-[#e2c35a]">
                 {assignments.length} Members
@@ -164,13 +164,13 @@ export default function AssignCrewPage() {
             </div>
           </div>
           <div className="divide-y divide-border">
-            <div className="grid grid-cols-12 px-6 py-3 text-[#bab29c] text-xs uppercase tracking-widest">
+            <div className="grid grid-cols-12 px-6 py-3 text-xs font-medium text-label">
               <div className="col-span-6">Name</div>
               <div className="col-span-4">Role</div>
               <div className="col-span-2 text-right">Actions</div>
             </div>
             {loading ? (
-              <div className="px-6 py-4 text-sm text-muted-foreground">Loading...</div>
+              <SkeletonRows rows={3} className="px-6 py-4" label="Loading crew" />
             ) : assignments.length === 0 ? (
               <div className="px-6 py-6 text-sm text-muted-foreground">
                 No crew assigned yet.
@@ -214,7 +214,7 @@ export default function AssignCrewPage() {
               <div className="inline-flex items-center justify-center w-7 h-7 rounded bg-[#2a261b]">
                 <Users className="h-4 w-4 text-primary" />
               </div>
-              <h3 className="text-white text-lg font-bold tracking-widest uppercase font-serif">
+              <h3 className="text-sm font-semibold">
                 Add Crew Member
               </h3>
             </div>
@@ -225,7 +225,7 @@ export default function AssignCrewPage() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input
-                  className="w-full bg-[#0a0a0a] border border-[#393528] rounded px-9 py-3 text-white placeholder-[#544e3b] focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all mt-2"
+                  className="w-full bg-background border border-border rounded px-9 py-3 text-white placeholder:text-[var(--placeholder)] focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all mt-2"
                   placeholder="Search by name..."
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}
@@ -281,7 +281,7 @@ export default function AssignCrewPage() {
                 <button
                   onClick={addAssignment}
                   disabled={working}
-                  className="px-6 py-3 rounded bg-primary text-black hover:bg-[#d9a50b] font-bold uppercase tracking-widest text-xs disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {working ? "Adding..." : "Add"}
                 </button>

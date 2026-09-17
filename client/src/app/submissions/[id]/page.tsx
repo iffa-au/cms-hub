@@ -4,11 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { getData, updateData } from "@/lib/fetch-util";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
+import { SkeletonRows } from "@/components/skeleton";
+import PageShell from "@/components/page-shell";
+import { inputClass, labelClass, textareaClass } from "@/components/form-section";
+import { Button } from "@/components/ui/button";
 
-const INPUT =
-  "w-full bg-[#0a0a0a] border border-[#393528] rounded px-4 py-3 text-white placeholder-[#544e3b] focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all mt-2 disabled:opacity-70";
-const LABEL =
-  "text-accent-foreground text-xs font-bold uppercase tracking-widest";
+const INPUT = inputClass;
+const LABEL = labelClass;
 
 type MetaItem = { _id: string; name: string; description?: string };
 
@@ -254,19 +256,18 @@ export default function SubmissionDetailPage() {
   };
 
   return (
-    <main className="flex-1 w-full overflow-y-auto px-6 py-10 lg:px-10 scroll-smooth">
-      <div className="max-w-6xl mx-auto pb-24">
-        <h2 className="text-white text-3xl lg:text-4xl font-serif font-bold leading-tight tracking-wide mb-4">
-          {heading}
-        </h2>
-        <p className="text-[#bab29c] text-lg font-light max-w-2xl mb-4">
-          {isEditing
-            ? "Update any details, then save your changes."
-            : "View submission details. Click Edit to make changes."}
-        </p>
+    <PageShell
+      width="medium"
+      title={heading}
+      description={
+        isEditing
+          ? "Update any details, then save your changes."
+          : "Select Edit to change any of these details."
+      }
+    >
 
         {isLoading ? (
-          <p className="text-sm text-muted-foreground">Loading...</p>
+          <SkeletonRows rows={6} label="Loading submission" />
         ) : (
           <form
             className="flex flex-col gap-10"
@@ -274,19 +275,19 @@ export default function SubmissionDetailPage() {
           >
             {/* Basic Information */}
             <section className="rounded-xl border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50">
-              <div className="px-8 py-6 border-b border-border flex justify-between items-center bg-surface-dark">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-surface-dark px-4 py-4 sm:px-6">
                 <div className="flex items-center gap-4">
-                  <h3 className="text-white text-lg font-bold tracking-widest uppercase font-serif">
+                  <h3 className="text-sm font-semibold">
                     Basic Information
                   </h3>
                 </div>
-                <div className="text-xs uppercase tracking-widest text-[#bab29c]">
+                <div className="text-xs font-medium text-label">
                   Status:{" "}
                   <span className="font-semibold text-white">{status}</span>
                 </div>
               </div>
 
-              <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 gap-5 p-4 sm:gap-6 sm:p-6 md:grid-cols-2">
                 {/* film title */}
                 <div className="md:col-span-2 space-y-2">
                   <label htmlFor="filmTitle" className={LABEL}>
@@ -309,7 +310,7 @@ export default function SubmissionDetailPage() {
                     Synopsis<span className="text-primary">*</span>
                   </label>
                   <textarea
-                    className="w-full bg-[#0a0a0a] border border-[#393528] rounded px-4 py-3 text-white placeholder-[#544e3b] focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all resize-none mt-2 disabled:opacity-70"
+                    className={textareaClass}
                     placeholder="Provide a brief synopsis of the film"
                     rows={4}
                     id="synopsis"
@@ -434,14 +435,14 @@ export default function SubmissionDetailPage() {
 
             {/* Media & Links */}
             <section className="rounded-xl border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50">
-              <div className="px-8 py-6 border-b border-border flex justify-between items-center bg-surface-dark">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-surface-dark px-4 py-4 sm:px-6">
                 <div className="flex items-center gap-4">
-                  <h3 className="text-white text-lg font-bold tracking-widest uppercase font-serif">
+                  <h3 className="text-sm font-semibold">
                     Media & Links
                   </h3>
                 </div>
               </div>
-              <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 gap-5 p-4 sm:gap-6 sm:p-6 md:grid-cols-2">
                 {/* Potrait Image URL*/}
                 <div className="space-y-2">
                   <label htmlFor="potraitImageUrl" className={LABEL}>
@@ -514,13 +515,13 @@ export default function SubmissionDetailPage() {
               proposedCrew.producers.length ||
               proposedCrew.other.length) ? (
               <section className="rounded-xl border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50">
-                <div className="px-8 py-6 border-b border-border flex justify-between items-center bg-surface-dark">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-surface-dark px-4 py-4 sm:px-6">
                   <div className="flex items-center gap-4">
-                    <h3 className="text-white text-lg font-bold tracking-widest uppercase font-serif">
+                    <h3 className="text-sm font-semibold">
                       Proposed Crew (Public Submission)
                     </h3>
                   </div>
-                  <div className="text-xs uppercase tracking-widest text-[#bab29c]">
+                  <div className="text-xs font-medium text-label">
                     Read-only
                   </div>
                 </div>
@@ -533,25 +534,25 @@ export default function SubmissionDetailPage() {
                   ] as const).map(([label, list]) =>
                     list.length ? (
                       <div key={label} className="space-y-4">
-                        <h4 className="text-white font-semibold tracking-widest uppercase text-sm">
+                        <h4 className="text-sm font-semibold">
                           {label}
                         </h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           {list.map((p, idx) => (
                             <div
                               key={`${label}-${idx}-${p.fullName}-${p.role}`}
-                              className="rounded border border-[#393528] p-4 bg-[#0b0b0b]"
+                              className="rounded border border-border p-4 bg-background"
                             >
                               <div className="flex flex-col gap-2">
                                 <div className="flex items-baseline justify-between">
                                   <div className="text-white font-medium">
                                     {p.fullName || "—"}
                                   </div>
-                                  <div className="text-xs uppercase tracking-widest text-[#bab29c]">
+                                  <div className="text-xs font-medium text-label">
                                     {p.role || "—"}
                                   </div>
                                 </div>
-                                <div className="text-xs text-[#8a845f] break-all">
+                                <div className="text-xs text-muted-foreground break-all">
                                   Image URL: {p.imageUrl ? (
                                     <a
                                       href={p.imageUrl}
@@ -581,40 +582,42 @@ export default function SubmissionDetailPage() {
 
             {/* Footer actions */}
             {error ? <p className="text-red-500 mt-2">{error}</p> : null}
-            <div className="flex gap-4 w-full sm:w-auto justify-end mt-4">
+            <div className="flex flex-wrap justify-end gap-3">
               {!isEditing ? (
-                <button
+                <Button
                   type="button"
-                  className="flex-1 sm:flex-none px-8 py-3 rounded bg-primary text-black hover:bg-[#d9a50b] font-bold shadow-[0_0_20px_rgba(242,185,13,0.1)] hover:shadow-[0_0_30px_rgba(242,185,13,0.3)] transition-all duration-300 uppercase tracking-widest text-xs"
+                  size="lg"
+                  className="w-full sm:w-auto"
                   onClick={onEditToggle}
                 >
                   Edit
-                </button>
+                </Button>
               ) : (
                 <>
-                  <button
+                  <Button
                     type="button"
-                    className="flex-1 sm:flex-none px-8 py-3 rounded bg-[#222] text-white hover:bg-[#333] border border-border font-bold transition-all duration-300 uppercase tracking-widest text-xs"
+                    variant="outline"
+                    size="lg"
+                    className="flex-1 sm:flex-none"
                     onClick={onCancel}
                     disabled={isSaving}
                   >
                     Cancel
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
+                    size="lg"
                     disabled={isSaving}
                     onClick={onSave}
-                    className="flex-1 sm:flex-none px-8 py-3 rounded bg-primary text-black hover:bg-[#d9a50b] font-bold shadow-[0_0_20px_rgba(242,185,13,0.1)] hover:shadow-[0_0_30px_rgba(242,185,13,0.3)] transition-all duration-300 uppercase tracking-widest text-xs disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="flex-1 sm:flex-none"
                   >
-                    {isSaving ? "Saving..." : "Save Edit"}
-                  </button>
+                    {isSaving ? "Saving\u2026" : "Save changes"}
+                  </Button>
                 </>
               )}
             </div>
           </form>
         )}
-      </div>
-    </main>
+    </PageShell>
   );
 }
-
