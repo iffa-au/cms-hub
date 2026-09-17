@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronRight, ExternalLink, ImageUp, Plus, Trash2, UserRound } from 'lucide-react';
 import { toast } from 'sonner';
-import { postData, updateData } from '@/lib/fetch-util';
+import { getData, postData, updateData } from '@/lib/fetch-util';
 import type { CrewEntry } from '@/lib/submission-pdf';
+import CrewThumb, { isDisplayableImage } from './crew-thumb';
+import { FIXED_ROLE_OPTIONS, withStoredRole, type CrewGroupKey } from '@/lib/crew-roles';
 
 const INPUT =
   'w-full bg-background border border-border rounded px-3 py-2 text-white placeholder:text-[var(--placeholder)] focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all';
@@ -16,7 +18,7 @@ const ACCEPTED_TYPES = ['image/webp', 'image/png', 'image/jpeg'];
 const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_MB = Math.round(MAX_BYTES / (1024 * 1024));
 
-export type CrewGroupKey = 'directors' | 'producers' | 'actors' | 'other';
+export type { CrewGroupKey };
 
 export type CrewGroups = Record<CrewGroupKey, CrewEntry[]>;
 
@@ -50,20 +52,52 @@ export function toCrewGroups(value: unknown): CrewGroups {
 }
 
 /**
- * Photos uploaded through the form live in the media bucket and can be shown
- * inline. Roughly two thirds of existing entries are Google Drive share links
- * pasted into the public form instead — those are not direct image URLs, so
- * rendering them in an <img> produces a broken thumbnail. They get a link
- * chip until someone replaces them.
+ * Credited role picker.
+ *
+ * A stored role that no list contains stays selectable and selected — most
+ * existing crew was typed freehand into the public submit-film form, so
+ * "Director/Writer" and "DOP" are common. A plain <select> would show no match
+ * for those and the next save would write back whatever the browser settled
+ * on, rewriting a credit nobody touched.
  */
-function isDisplayableImage(url: string): boolean {
-  if (!url) return false;
-  try {
-    const { hostname } = new URL(url);
-    return hostname.endsWith('cloudfront.net') || hostname.includes('s3.');
-  } catch {
-    return false;
-  }
+function RoleSelect({
+  value,
+  options,
+  onChange,
+}: {
+  value: string;
+  options: readonly string[];
+  onChange: (value: string) => void;
+}) {
+  const { options: merged, isOffList } = withStoredRole(options, value);
+
+  return (
+    <>
+      <select
+        className={`${INPUT} mt-1.5`}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        <option value=''>— Not credited —</option>
+        {merged.map((option) => (
+          <option key={option} value={option}>
+            {option}
+            {isOffList && option === value ? ' (as submitted)' : ''}
+          </option>
+        ))}
+      </select>
+      {isOffList && (
+        <p className='mt-1.5 text-xs text-accent-foreground'>
+          Not on the list — kept exactly as submitted. Choosing another option replaces it.
+        </p>
+      )}
+      {!isOffList && options.length === 0 && (
+        <p className='mt-1.5 text-xs text-accent-foreground'>
+          No roles configured yet. An admin can add them under Metadata → Crew Roles.
+        </p>
+      )}
+    </>
+  );
 }
 
 function hostOf(url: string): string {
@@ -176,6 +210,33 @@ export default function CrewEditor({
   }
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+
+  // Only Other Crew needs a fetched list; the other three groups are fixed
+  // festival credit categories. A failure here is deliberately not surfaced:
+  // withStoredRole still keeps whatever each person is already credited with,
+  // so an unreachable list degrades to "can't pick a new role" rather than
+  // blanking the roles already stored.
+  const [otherRoles, setOtherRoles] = useState<string[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await getData<{ data: Array<{ name?: string }> }>('/credit-roles');
+        if (cancelled) return;
+        setOtherRoles(
+          (res?.data ?? []).map((role) => String(role?.name ?? '').trim()).filter(Boolean),
+        );
+      } catch {
+        // Left empty on purpose — see above.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const optionsFor = (group: CrewGroupKey): readonly string[] =>
+    group === 'other' ? otherRoles : FIXED_ROLE_OPTIONS[group];
 
   const dirty = useMemo(
     () => JSON.stringify(crew) !== JSON.stringify(saved),
@@ -362,11 +423,10 @@ export default function CrewEditor({
                           </div>
                           <div>
                             <label className={LABEL}>Credited role</label>
-                            <input
-                              className={`${INPUT} mt-1.5`}
+                            <RoleSelect
                               value={person.role ?? ''}
-                              onChange={(e) => mutate(key, index, { role: e.target.value })}
-                              placeholder='e.g. Director of Photography'
+                              options={optionsFor(key)}
+                              onChange={(role) => mutate(key, index, { role })}
                             />
                           </div>
                           <div>
@@ -414,24 +474,6 @@ export default function CrewEditor({
         </section>
       ))}
     </div>
-  );
-}
-
-function CrewThumb({ url }: { url: string }) {
-  if (isDisplayableImage(url)) {
-    return (
-      <img
-        src={url}
-        alt=''
-        className='h-10 w-10 rounded object-cover border border-border shrink-0'
-        loading='lazy'
-      />
-    );
-  }
-  return (
-    <span className='h-10 w-10 rounded border border-border bg-surface-dark grid place-items-center shrink-0'>
-      <UserRound className='h-4 w-4 text-[var(--placeholder)]' />
-    </span>
   );
 }
 
