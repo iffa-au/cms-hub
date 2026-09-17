@@ -101,6 +101,22 @@ happen. `scripts/backfill-festival-year.ts` is spent; it is read-only without
 
 `{ createdAt: -1, _id: -1 }` sort on the public submissions endpoint.
 
+## Crew email was public, and that has not been disclosed
+
+`getSubmission` is public, returns the whole submission document, and denies
+staff-only fields **by name** — so every crew field became public the moment it
+was added to the model. Crew `email` was therefore readable by anyone holding a
+film's id, for as long as crew has been stored.
+
+Closed in #28: crew now goes through `publicCrew`, an allow-list of `fullName`,
+`role` and `imageUrl` — all that `mapCrewGroup` on the synopsis page ever read.
+`contactPhone` and `notes` were added behind that allow-list, so they were never
+exposed.
+
+The fix is live. **Whether the past exposure needs disclosing is still an open
+decision** — recorded here because nobody has made it, not because it has been
+judged unnecessary.
+
 ## Know this before touching crew
 
 Of 855 crew entries carrying a photo:
