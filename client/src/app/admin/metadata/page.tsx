@@ -23,7 +23,7 @@ const LIST_BTN =
 const ICON = "material-icons text-lg block";
 const TEXT_MUTED = "font-medium text-gray-200";
 const DEL_BTN =
-  "text-red-400 hover:text-red-300 border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 rounded-md px-3 py-1.5 transition-all text-[10px] font-bold tracking-widest uppercase";
+  "text-red-400 hover:text-red-300 border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 rounded-md px-3 py-1.5 transition-all text-xs font-bold tracking-widest uppercase";
 
 export default function AdminMetadataPage() {
   type Item = { _id: string; name: string; description?: string };

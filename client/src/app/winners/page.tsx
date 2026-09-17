@@ -190,7 +190,7 @@ export default function WinnersListPage() {
                     <div className='flex items-center justify-end'>
                       <button
                         onClick={() => router.push(`/winners/${w._id}`)}
-                        className='text-primary hover:text-foreground transition-colors text-[10px] font-bold tracking-widest'
+                        className='text-primary hover:text-foreground transition-colors text-xs font-bold tracking-widest'
                       >
                         MANAGE
                       </button>

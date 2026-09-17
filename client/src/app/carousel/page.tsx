@@ -280,7 +280,7 @@ export default function CarouselManagementPage() {
                       className="shrink-0 p-1.5 rounded border border-border text-muted-foreground hover:text-primary hover:border-primary disabled:opacity-30 disabled:cursor-not-allowed"
                       aria-label="Add to carousel"
                     >
-                      {alreadySelected ? <span className="text-[10px] px-1">Added</span> : <Plus size={14} />}
+                      {alreadySelected ? <span className="text-xs px-1">Added</span> : <Plus size={14} />}
                     </button>
                   </div>
                 );

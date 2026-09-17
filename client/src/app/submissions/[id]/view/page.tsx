@@ -140,7 +140,7 @@ function TrailerField({ url, password }: { url?: string; password?: string }) {
           <button
             type='button'
             onClick={copy}
-            className='ml-auto rounded border border-border px-2 py-1 text-[10px] font-bold tracking-widest text-foreground hover:border-primary transition-colors'
+            className='ml-auto rounded border border-border px-2 py-1 text-xs font-bold tracking-widest text-foreground hover:border-primary transition-colors'
           >
             {copied ? 'COPIED' : 'COPY'}
           </button>

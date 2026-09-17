@@ -8,7 +8,7 @@ import type { CrewEntry } from '@/lib/submission-pdf';
 
 const INPUT =
   'w-full bg-background border border-border rounded px-3 py-2 text-white placeholder:text-[var(--placeholder)] focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all';
-const LABEL = 'text-accent-foreground text-[10px] font-bold uppercase tracking-widest';
+const LABEL = 'text-accent-foreground text-xs font-bold uppercase tracking-widest';
 
 /** Matches the backend's STAFF_CREW_CONTENT_TYPES. */
 const ACCEPTED_TYPES = ['image/webp', 'image/png', 'image/jpeg'];
