@@ -18,6 +18,7 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const groupRef = useRef<HTMLDivElement>(null);
+  const navRef = useRef<HTMLElement>(null);
   const router = useRouter();
 
   // Close an open dropdown when clicking anywhere outside the nav group.
@@ -38,6 +39,26 @@ export default function Navbar() {
       document.removeEventListener("keydown", handleKey);
     };
   }, [openGroup]);
+
+  // The page offset reads --header-h rather than a hardcoded padding, so the
+  // two can't drift. The open mobile menu is absolutely positioned and so is
+  // deliberately not measured — the page shouldn't lurch down when it opens.
+  // On the auth pages this nav renders null, so the offset collapses to 0.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (!isAuthenticated) {
+      root.style.setProperty("--header-h", "0px");
+      return;
+    }
+    const el = navRef.current;
+    if (!el) return;
+    const publish = () =>
+      root.style.setProperty("--header-h", `${el.offsetHeight}px`);
+    publish();
+    const observer = new ResizeObserver(publish);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isAuthenticated]);
 
   // Base links for all authenticated users
   const commonLinks: NavItem[] = [
@@ -93,7 +114,7 @@ export default function Navbar() {
     "whitespace-nowrap uppercase tracking-wider hover:text-primary transition-colors transition-transform duration-200 ease-out text-base hover:scale-105";
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
+    <nav ref={navRef} className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-20">
           <Link

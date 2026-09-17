@@ -212,7 +212,7 @@ export default function AdminMetadataPage() {
     [loadAwardCategories]
   );
   return (
-    <main className="flex-1 py-10 px-4 sm:px-6 lg:px-8 max-w-8xl mx-auto w-full">
+    <main className="flex-1 py-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-6">
         {/* Header */}
         <div className="flex-1">
