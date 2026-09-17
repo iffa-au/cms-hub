@@ -9,8 +9,10 @@ import genreRoutes from "./genre.js";
 import awardCategoryRoutes from "./awardCategory.js";
 import crewMemberRoutes from "./crewMember.js";
 import crewRoleRoutes from "./crewRole.js";
+import creditRoleRoutes from "./creditRole.js";
 import submissionRoutes from "./submission.js";
 import nominationRoutes from "./nomination.js";
+import winnerRoutes from "./winner.js";
 import crewAssignmentRoutes from "./crewAssignment.js";
 import userRoutes from "./user.js";
 import filmEnquiryRoutes from "./filmEnquiry.js";
@@ -18,6 +20,7 @@ import mediaAssetRoutes from "./mediaAsset.js";
 import uploadRoutes from "./upload.js";
 import partnerRoutes from "./partner.js";
 import festivalRoutes from "./festival.js";
+import podcastRoutes from "./podcast.js";
 
 const router = e.Router();
 
@@ -31,8 +34,12 @@ router.use("/genres", genreRoutes);
 router.use("/award-categories", awardCategoryRoutes);
 router.use("/crew-members", crewMemberRoutes);
 router.use("/crew-roles", crewRoleRoutes);
+// Distinct from /crew-roles above, which serves the legacy CrewAssignment
+// system. See models/creditRole.model.ts for why they are not merged.
+router.use("/credit-roles", creditRoleRoutes);
 router.use("/submissions", submissionRoutes);
 router.use("/nominations", nominationRoutes);
+router.use("/winners", winnerRoutes);
 router.use("/crew-assignments", crewAssignmentRoutes);
 router.use("/users", userRoutes);
 router.use("/film-enquiries", filmEnquiryRoutes);
@@ -40,5 +47,6 @@ router.use("/media-assets", mediaAssetRoutes);
 router.use("/uploads", uploadRoutes);
 router.use("/partners", partnerRoutes);
 router.use("/festivals", festivalRoutes);
+router.use("/podcasts", podcastRoutes);
 
 export default router;

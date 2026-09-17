@@ -2,6 +2,7 @@ import e from "express";
 import {
   requestUploadUrl,
   requestPartnerUploadUrl,
+  requestSubmissionCrewUploadUrl,
   requestFestivalUploadUrl,
   requestFestivalPageUploadUrl,
 } from "../controllers/upload.controller.js";
@@ -11,6 +12,15 @@ const router = e.Router();
 
 // Public — the film submission form is unauthenticated, same as POST /submissions.
 router.post("/presign", requestUploadUrl);
+
+// Staff-only — crew photos replaced from the CMS after submission. The public
+// form uses /presign above, which takes a browser-generated ref instead.
+router.post(
+  "/presign/submission-crew",
+  requireAuth,
+  requireRole("admin", "staff"),
+  requestSubmissionCrewUploadUrl,
+);
 
 // Staff-only — partner logos are managed from the CMS, never by the public.
 router.post(

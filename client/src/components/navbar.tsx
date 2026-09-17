@@ -40,7 +40,9 @@ export default function Navbar() {
       const films: NavLink[] = [];
       if (isAdmin) films.push({ href: "/submissions", label: "All submissions" });
       films.push({ href: "/review-queue", label: "Review queue" });
+      // Winners sits immediately beside Nominations.
       films.push({ href: "/nomination", label: "Nominations" });
+      films.push({ href: "/winners", label: "Winners" });
       items.push({ label: "Films", children: films });
 
       items.push({
@@ -50,15 +52,21 @@ export default function Navbar() {
           { href: "/partners", label: "Partners" },
           { href: "/festivals", label: "Festivals" },
           { href: "/festivals/settings", label: "Festivals page" },
+          { href: "/podcasts", label: "Podcasts" },
         ],
       });
     }
 
+    // Crew is deliberately absent. /admin/crew manages the normalised
+    // CrewMember/CrewAssignment directory, which only covers 2022-2025 films and
+    // is unrelated to the crew a submission actually carries — opening it against
+    // a recent film shows an empty page. Crew is now edited per-submission, from
+    // the edit screen and the review queue. The route still works if linked
+    // directly, because ~29 older films depend on that data.
     if (isAdmin) {
       items.push({
         label: "Manage",
         children: [
-          { href: "/admin/crew", label: "Crew" },
           { href: "/admin/metadata", label: "Metadata" },
           { href: "/admin/film-enquiry", label: "Film enquiries" },
         ],

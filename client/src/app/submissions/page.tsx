@@ -3,14 +3,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { getData, deleteData, patchData } from '@/lib/fetch-util';
+import { getData } from '@/lib/fetch-util';
 import PageShell from '@/components/page-shell';
-import ConfirmDialog from '@/components/confirm-dialog';
 import Pagination from '@/components/pagination';
 import RecordList, { type Column } from '@/components/record-list';
 import { StatusChip, type RecordStatus } from '@/components/status';
 import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
 
 type Submission = {
   _id: string;
@@ -76,7 +74,6 @@ export default function SubmissionsPage() {
   const [error, setError] = useState<string | null>(null);
   const [pageMeta, setPageMeta] = useState<{ page: number; limit: number; total: number } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pendingDelete, setPendingDelete] = useState<Submission | null>(null);
 
   const yearOptions = useMemo(() => {
     const currentYear = new Date().getFullYear();
@@ -180,27 +177,6 @@ export default function SubmissionsPage() {
   const showingEnd = items.length === 0 ? 0 : (currentPage - 1) * 20 + items.length;
   const total = pageMeta?.total ?? items.length;
   const totalPages = pageMeta ? Math.ceil(pageMeta.total / pageMeta.limit) : 1;
-
-  async function remove(id: string) {
-    if (!id) return;
-    try {
-      await deleteData(`/submissions/${id}`);
-      toast.success('Submission deleted');
-      await load({ page: currentPage });
-    } catch (e: any) {
-      toast.error(e?.message || 'Failed to delete submission');
-    }
-  }
-
-  async function approve(id: string) {
-    try {
-      await patchData(`/submissions/${id}/approve`, {});
-      toast.success('Submission approved');
-      await load({ page: currentPage });
-    } catch (e: any) {
-      toast.error(e?.message || 'Failed to approve submission');
-    }
-  }
 
   const columns: Column<Submission>[] = [
     {
@@ -531,65 +507,14 @@ export default function SubmissionsPage() {
         error={error}
         empty="No submissions match these filters."
         actions={(item) => (
-          <>
-            <Button
-              variant="rowAction"
-              size="inline"
-              onClick={() => router.push(`/submissions/${item._id}/edit`)}
-            >
-              Edit
-            </Button>
-            <Button
-              variant="rowAction"
-              size="inline"
-              onClick={() => router.push(`/submissions/${item._id}/crew`)}
-            >
-              Crew
-            </Button>
-            <Button
-              variant="rowAction"
-              size="inline"
-              onClick={() => router.push(`/submissions/${item._id}/nomination`)}
-            >
-              Nominate
-            </Button>
-            {item.status === 'REJECTED' ? (
-              <Button
-                variant="rowPositive"
-                size="inline"
-                onClick={() => void approve(item._id)}
-              >
-                Approve
-              </Button>
-            ) : null}
-            <Button
-              variant="rowDanger"
-              size="inline"
-              onClick={() => setPendingDelete(item)}
-            >
-              Delete
-            </Button>
-          </>
+          <Button
+            variant="rowAction"
+            size="inline"
+            onClick={() => router.push(`/submissions/${item._id}/view?from=submissions`)}
+          >
+            View
+          </Button>
         )}
-      />
-
-      <ConfirmDialog
-        open={pendingDelete !== null}
-        tone="danger"
-        title="Delete this submission?"
-        description={
-          <>
-            <span className="text-foreground">{pendingDelete?.title}</span> and its
-            uploaded assets will be removed. This can&apos;t be undone.
-          </>
-        }
-        confirmLabel="Delete submission"
-        onCancel={() => setPendingDelete(null)}
-        onConfirm={() => {
-          const id = pendingDelete?._id;
-          setPendingDelete(null);
-          if (id) void remove(id);
-        }}
       />
 
       <Pagination

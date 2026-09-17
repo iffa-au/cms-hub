@@ -1,21 +1,28 @@
 import { Request, Response } from "express";
+import { Types } from "mongoose";
 import {
   ALLOWED_UPLOAD_CONTENT_TYPE,
   allowedContentTypesFor,
   buildPublicUrl,
+  buildSubmissionAssetPrefix,
   createFestivalAssetUpload,
   createFestivalPageUpload,
   createPresignedUpload,
   createSubmissionAssetUpload,
+  createSubmissionAssetUploadAtPrefix,
   describeS3Failure,
+  generateSubmissionRef,
   isValidSubmissionRef,
+  MAX_UPLOAD_BYTES,
   S3ConfigError,
+  STAFF_CREW_CONTENT_TYPES,
   SUBMISSION_ASSET_GROUPS,
   FESTIVAL_ASSET_GROUPS,
   type SubmissionAssetGroup,
   type FestivalAssetGroup,
 } from "../libs/s3.js";
 import Festival from "../models/festival.model.js";
+import Submission from "../models/submission.model.js";
 
 const isAssetGroup = (value: unknown): value is SubmissionAssetGroup =>
   typeof value === "string" &&
@@ -25,11 +32,13 @@ const isFestivalAssetGroup = (value: unknown): value is FestivalAssetGroup =>
   typeof value === "string" &&
   (FESTIVAL_ASSET_GROUPS as readonly string[]).includes(value);
 
+const MAX_UPLOAD_MB = Math.round(MAX_UPLOAD_BYTES / (1024 * 1024));
+
 /**
- * Public API: Issues a presigned S3 upload URL for a single webp image.
- * The frontend PUTs the file directly to `uploadUrl` with a
- * `Content-Type: image/webp` header, then builds the public/CloudFront URL
- * from `key` once the upload succeeds.
+ * Public API: Issues a presigned S3 POST for a single webp image. The
+ * frontend posts `fields` plus the file as multipart/form-data to
+ * `uploadUrl`, then builds the public/CloudFront URL from `key` once the
+ * upload succeeds.
  *
  * `submissionRef` + `title` + `group` + `name` place the file inside that
  * submission's own folder. They're required together: a half-specified
@@ -39,17 +48,37 @@ const isFestivalAssetGroup = (value: unknown): value is FestivalAssetGroup =>
  */
 export const requestUploadUrl = async (req: Request, res: Response) => {
   try {
-    const { contentType, submissionRef, title, group, name } =
+    const { contentType, contentLength, submissionRef, title, group, name } =
       req.body as Record<string, unknown>;
 
     // Enforced server-side, not just via the <input accept> hint — the
-    // presigned PUT itself is also locked to this content type, so a
+    // presigned POST policy is also locked to this content type, so a
     // mismatched upload will be rejected by S3.
     if (contentType !== ALLOWED_UPLOAD_CONTENT_TYPE) {
       return res.status(400).json({
         success: false,
         message: `Only ${ALLOWED_UPLOAD_CONTENT_TYPE} uploads are allowed`,
       });
+    }
+
+    // Size is ultimately enforced by the content-length-range condition in
+    // the policy, which S3 applies to the real body whatever a client claims
+    // here. This check is the courteous half: when the client is honest we
+    // refuse before issuing a URL, so the browser gets a readable JSON error
+    // rather than an S3 EntityTooLarge XML document after a wasted upload.
+    if (contentLength !== undefined) {
+      const size = Number(contentLength);
+      if (!Number.isFinite(size) || size <= 0) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid file size" });
+      }
+      if (size > MAX_UPLOAD_BYTES) {
+        return res.status(413).json({
+          success: false,
+          message: `Image is too large. The limit is ${MAX_UPLOAD_MB}MB.`,
+        });
+      }
     }
 
     if (!isValidSubmissionRef(submissionRef)) {
@@ -72,13 +101,13 @@ export const requestUploadUrl = async (req: Request, res: Response) => {
         .json({ success: false, message: "An asset name is required" });
     }
 
-    const { uploadUrl, key } = await createSubmissionAssetUpload({
+    const { uploadUrl, fields, key } = await createSubmissionAssetUpload({
       ref: submissionRef,
       title: typeof title === "string" ? title : "",
       group,
       name,
     });
-    res.status(200).json({ success: true, uploadUrl, key });
+    res.status(200).json({ success: true, uploadUrl, fields, key });
   } catch (error) {
     console.error(error);
     if (error instanceof S3ConfigError) {
@@ -219,6 +248,110 @@ export const requestFestivalPageUploadUrl = async (req: Request, res: Response) 
  * to write into the partners folder, and so logos can allow PNG (for
  * transparency) without loosening what the public form accepts.
  */
+/**
+ * Staff-only: presigns one crew photo for an existing submission.
+ *
+ * Unlike the public presign, the caller sends a submission id rather than a
+ * ref and title. The folder is resolved server-side from the stored record —
+ * a client-supplied prefix is a path that asset cleanup would later delete by
+ * prefix, so it must never cross the wire.
+ *
+ * Submissions predating per-submission folders (and every bulk import) have no
+ * assetPrefix. Rather than backfilling all ~316 of them up front, one is minted
+ * here the first time staff actually upload for that record, and persisted so
+ * every later asset lands in the same folder.
+ */
+export const requestSubmissionCrewUploadUrl = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const { submissionId, name, contentType, contentLength } =
+      req.body as Record<string, unknown>;
+
+    if (typeof contentType !== "string" || !STAFF_CREW_CONTENT_TYPES.includes(contentType as any)) {
+      return res.status(400).json({
+        success: false,
+        message: `Photo must be one of: ${STAFF_CREW_CONTENT_TYPES.join(", ")}`,
+      });
+    }
+
+    if (contentLength !== undefined) {
+      const size = Number(contentLength);
+      if (!Number.isFinite(size) || size <= 0) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid file size" });
+      }
+      if (size > MAX_UPLOAD_BYTES) {
+        return res.status(413).json({
+          success: false,
+          message: `Image is too large. The limit is ${MAX_UPLOAD_MB}MB.`,
+        });
+      }
+    }
+
+    if (typeof name !== "string" || !name.trim()) {
+      return res
+        .status(400)
+        .json({ success: false, message: "A crew credit name is required" });
+    }
+
+    if (typeof submissionId !== "string" || !Types.ObjectId.isValid(submissionId)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "A valid submissionId is required" });
+    }
+
+    const submission = await Submission.findById(submissionId).select(
+      "title assetPrefix",
+    );
+    if (!submission) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Submission not found" });
+    }
+
+    let prefix = String(submission.assetPrefix || "").trim();
+    if (!prefix) {
+      prefix = buildSubmissionAssetPrefix(
+        generateSubmissionRef(),
+        String(submission.title || ""),
+      );
+      // Persisted before the file is uploaded, not after: a presign the client
+      // never uses is harmless, but a photo written to a folder no record
+      // points at is an orphan nothing can find again.
+      submission.assetPrefix = prefix;
+      await submission.save();
+    }
+
+    const { uploadUrl, fields, key } = await createSubmissionAssetUploadAtPrefix(
+      prefix,
+      "crews",
+      name,
+      contentType,
+    );
+
+    res.status(200).json({
+      success: true,
+      uploadUrl,
+      fields,
+      key,
+      publicUrl: buildPublicUrl(key),
+    });
+  } catch (error) {
+    console.error(error);
+    if (error instanceof S3ConfigError) {
+      return res.status(500).json({ success: false, message: error.message });
+    }
+    const explained = describeS3Failure(error);
+    if (explained) {
+      return res.status(500).json({ success: false, message: explained });
+    }
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
 export const requestPartnerUploadUrl = async (req: Request, res: Response) => {
   try {
     const { contentType, fileName } = req.body as Record<string, unknown>;

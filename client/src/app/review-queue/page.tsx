@@ -5,6 +5,7 @@ import { getData } from '@/lib/fetch-util';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import DownloadAllPdfButton from '@/components/review-queue/download-all-pdf-button';
+import CrewModal from '@/components/crew/crew-modal';
 import PageShell from '@/components/page-shell';
 import Pagination from '@/components/pagination';
 import RecordList, { type Column } from '@/components/record-list';
@@ -62,6 +63,7 @@ export default function ReviewQueuePage() {
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [pageMeta, setPageMeta] = useState<{ page: number; limit: number; total: number } | null>(null);
+  const [crewTarget, setCrewTarget] = useState<{ id: string; title: string } | null>(null);
 
   const getErrorMessage = (value: unknown, fallback: string) => {
     if (value instanceof Error && value.message) return value.message;
@@ -258,13 +260,22 @@ export default function ReviewQueuePage() {
         error={error}
         empty="Nothing is waiting for review."
         actions={(item) => (
-          <Button
-            variant="rowAction"
-            size="inline"
-            onClick={() => router.push(`/submissions/${item._id}/view?from=review-queue`)}
-          >
-            Review
-          </Button>
+          <>
+            <Button
+              variant="rowAction"
+              size="inline"
+              onClick={() => setCrewTarget({ id: item._id, title: item.title })}
+            >
+              Crew
+            </Button>
+            <Button
+              variant="rowAction"
+              size="inline"
+              onClick={() => router.push(`/submissions/${item._id}/view?from=review-queue`)}
+            >
+              Review
+            </Button>
+          </>
         )}
       />
 
@@ -275,6 +286,14 @@ export default function ReviewQueuePage() {
         disabled={loading}
         summary={`Showing ${showingStart}–${showingEnd} of ${total} submissions`}
       />
+
+      {crewTarget && (
+        <CrewModal
+          submissionId={crewTarget.id}
+          title={crewTarget.title}
+          onClose={() => setCrewTarget(null)}
+        />
+      )}
     </PageShell>
   );
 }

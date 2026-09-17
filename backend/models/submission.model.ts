@@ -23,6 +23,7 @@ export interface ISubmission {
   notes?: string;
   imdbUrl?: string;
   trailerUrl?: string;
+  trailerPassword?: string;
   releaseLinkUrl?: string;
   contactEmail?: string;
   genreIds: Types.ObjectId[];
@@ -40,6 +41,8 @@ export interface ISubmission {
       biography?: string;
       instagramUrl?: string;
       email?: string;
+      contactPhone?: string;
+      notes?: string;
       order?: number;
     }>;
     directors: Array<{
@@ -49,6 +52,8 @@ export interface ISubmission {
       instagramUrl?: string;
       biography?: string;
       email?: string;
+      contactPhone?: string;
+      notes?: string;
     }>;
     producers: Array<{
       fullName: string;
@@ -57,6 +62,8 @@ export interface ISubmission {
       instagramUrl?: string;
       biography?: string;
       email?: string;
+      contactPhone?: string;
+      notes?: string;
     }>;
     other: Array<{
       fullName: string;
@@ -65,6 +72,8 @@ export interface ISubmission {
       instagramUrl?: string;
       biography?: string;
       email?: string;
+      contactPhone?: string;
+      notes?: string;
     }>;
   };
 }
@@ -168,6 +177,14 @@ const submissionSchema = new Schema<ISubmission>(
       type: String,
       default: "",
     },
+    // Password for a protected trailer folder/file, as supplied by the
+    // submitter. Staff-only, like contactEmail: it must stay out of every
+    // public projection — see the explicit exclusion in getSubmission.
+    trailerPassword: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     releaseLinkUrl: {
       type: String,
       default: "",
@@ -218,6 +235,8 @@ const submissionSchema = new Schema<ISubmission>(
             },
             instagramUrl: { type: String, default: "", trim: true },
             email: { type: String, default: "", trim: true },
+            contactPhone: { type: String, default: "", trim: true },
+            notes: { type: String, default: "", trim: true, maxLength: 1000 },
           },
         ],
         default: [],
@@ -240,6 +259,8 @@ const submissionSchema = new Schema<ISubmission>(
               trim: true,
             },
             email: { type: String, default: "", trim: true },
+            contactPhone: { type: String, default: "", trim: true },
+            notes: { type: String, default: "", trim: true, maxLength: 1000 },
           },
         ],
         default: [],
@@ -262,6 +283,8 @@ const submissionSchema = new Schema<ISubmission>(
               trim: true,
             },
             email: { type: String, default: "", trim: true },
+            contactPhone: { type: String, default: "", trim: true },
+            notes: { type: String, default: "", trim: true, maxLength: 1000 },
           },
         ],
         default: [],
@@ -284,6 +307,8 @@ const submissionSchema = new Schema<ISubmission>(
               trim: true,
             },
             email: { type: String, default: "", trim: true },
+            contactPhone: { type: String, default: "", trim: true },
+            notes: { type: String, default: "", trim: true, maxLength: 1000 },
           },
         ],
         default: [],

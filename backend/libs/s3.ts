@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { randomBytes, randomUUID } from "crypto";
 import {
   S3Client,
   PutObjectCommand,
@@ -7,6 +7,7 @@ import {
   ListObjectsV2Command,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
 
 const PRESIGN_EXPIRY_SECONDS = 300; // 5 minutes — plenty for a browser to start the PUT
 
@@ -132,7 +133,20 @@ function getClient(): S3Client {
 }
 
 export const ALLOWED_UPLOAD_CONTENT_TYPE = "image/webp";
-export const MAX_UPLOAD_BYTES = 15 * 1024 * 1024; // 15MB
+
+/**
+ * 5MB — mirrors MAX_UPLOAD_MB in the public site's WebpImageUpload.
+ *
+ * Enforced by S3 itself via the content-length-range condition in the
+ * presigned POST policy issued by createSubmissionAssetUpload, so an
+ * oversized upload is rejected at the edge with EntityTooLarge and never
+ * reaches the bucket. The browser-side check in WebpImageUpload is only there
+ * to give a friendly message first.
+ */
+export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+
+/** Rejects a zero-byte upload as well as an oversized one. */
+const MIN_UPLOAD_BYTES = 1;
 
 export type UploadFolder = "submissions" | "partners" | "festivals";
 
@@ -193,6 +207,15 @@ function slugifyFileName(name: string): string {
 
 export type PresignedUpload = {
   uploadUrl: string;
+  /**
+   * Policy fields that must be sent as form fields *before* the file.
+   *
+   * Only set by the presigned-POST helpers — currently just the public
+   * submission upload, which needs a policy to carry its size limit. The
+   * staff-only helpers (partner logos, festival artwork) issue presigned PUTs
+   * and leave this undefined; their callers upload the bare file body.
+   */
+  fields?: Record<string, string>;
   key: string;
 };
 
@@ -243,6 +266,11 @@ export function buildPublicUrl(key: string): string {
  * from client-supplied input (filename, etc.) to avoid path traversal or
  * collisions — only the extension varies, and only across a fixed map of
  * content types the caller's folder allows.
+ *
+ * Staff-only paths (partner logos) reach S3 through here. The public
+ * submission path deliberately does not: it needs a size limit S3 itself
+ * enforces, which a presigned PUT cannot express — see
+ * createSubmissionAssetUpload.
  */
 export async function createPresignedUpload(
   folder: UploadFolder = "submissions",
@@ -323,6 +351,58 @@ export function buildSubmissionAssetPrefix(ref: string, title: string): string {
   return `${loadConfig().uploadPrefix}/${slugify(title, "untitled")}-${ref}`;
 }
 
+/**
+ * Mints the folder token for a submission that has none.
+ *
+ * The public form generates this in the browser at form-open time. Records
+ * created before per-submission folders — and every bulk import — have no ref
+ * at all, so the CMS mints one the first time staff upload an asset for them.
+ */
+export function generateSubmissionRef(): string {
+  return randomBytes(4).toString("hex");
+}
+
+/**
+ * Wider than the public form's webp-only rule: staff replacing a crew photo
+ * work from whatever a distributor supplied and have no in-browser converter.
+ * Deliberately not folded into ALLOWED_CONTENT_TYPES.submissions, which must
+ * stay webp-only — that entry governs the anonymous public upload path.
+ */
+export const STAFF_CREW_CONTENT_TYPES = [
+  "image/webp",
+  "image/png",
+  "image/jpeg",
+] as const;
+
+/**
+ * Same contract as assertDeletableFestivalPrefix, for submissions.
+ *
+ * Applied to a prefix read back from the database rather than one supplied by
+ * a caller: a stored value can still be empty, truncated, or left over from an
+ * older layout, and every one of those would put a write in the wrong place —
+ * or point a future prefix-delete at the whole season.
+ */
+export function assertSubmissionAssetPrefix(prefix: string): void {
+  const root = `${loadConfig().uploadPrefix}/`;
+  const value = String(prefix || "").trim();
+
+  if (!value.startsWith(root)) {
+    throw new Error(
+      `Refusing to use submission prefix "${value}": it is not under "${root}".`,
+    );
+  }
+
+  // Allowlisted to exactly the charset slugify emits, so "/", "." and ".."
+  // are structurally impossible rather than individually blacklisted — a
+  // remainder of ".." has no slash in it and would otherwise pass.
+  const remainder = value.slice(root.length).replace(/\/+$/, "");
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(remainder)) {
+    throw new Error(
+      `Refusing to use submission prefix "${value}": expected exactly one folder under "${root}".`,
+    );
+  }
+}
+
 export type SubmissionAssetTarget = {
   ref: string;
   title: string;
@@ -332,10 +412,17 @@ export type SubmissionAssetTarget = {
 };
 
 /**
- * Presigned PUT for one file inside a submission's folder.
+ * Presigned POST for one file inside a submission's folder.
  *
  * Kept separate from createPresignedUpload (which still serves partner logos)
  * so the two naming schemes can't drift into one another's parameters.
+ *
+ * POST rather than PUT specifically so the policy can carry
+ * `content-length-range`: a presigned PUT URL has no way to express a size
+ * limit, which left the 5MB cap enforceable only in the browser and trivially
+ * bypassed by posting straight at the signed URL. This is the anonymous,
+ * public submit-film path — the one place where that matters — so it is the
+ * one helper that pays for a policy. The staff-only helpers stay on PUT.
  *
  * Re-uploading the same slot overwrites deliberately: a retried submit should
  * replace the half-uploaded file rather than leave an orphan beside it.
@@ -349,17 +436,68 @@ export async function createSubmissionAssetUpload(
   const prefix = buildSubmissionAssetPrefix(target.ref, target.title);
   const key = `${prefix}/${target.group}/${slugify(target.name)}.${extension}`;
 
-  const command = new PutObjectCommand({
+  const { url, fields } = await createPresignedPost(getClient(), {
     Bucket: config.bucket,
     Key: key,
-    ContentType: contentType,
+    Expires: PRESIGN_EXPIRY_SECONDS,
+    // Conditions are what S3 actually checks on upload. Fields set defaults;
+    // conditions constrain them, including against a tampered client.
+    Conditions: [
+      ["content-length-range", MIN_UPLOAD_BYTES, MAX_UPLOAD_BYTES],
+      ["eq", "$Content-Type", contentType],
+    ],
+    Fields: {
+      "Content-Type": contentType,
+    },
   });
 
-  const uploadUrl = await getSignedUrl(getClient(), command, {
-    expiresIn: PRESIGN_EXPIRY_SECONDS,
+  return { uploadUrl: url, fields, key };
+}
+
+/**
+ * Presigned POST into a submission folder that already exists.
+ *
+ * Distinct from createSubmissionAssetUpload, which derives the folder from
+ * ref + title. That derivation is only correct at submit time: the slug is a
+ * snapshot of the title, so recomputing it later for a retitled film would
+ * point at a folder that does not hold the film's existing assets. The CMS
+ * edit path therefore passes the stored prefix through verbatim (validated,
+ * never client-supplied) so a replacement photo lands beside the originals.
+ *
+ * Accepts png and jpeg as well as webp: staff replacing a photo are working
+ * from whatever a distributor sent, and unlike the public form there is no
+ * browser-side converter in front of them.
+ */
+export async function createSubmissionAssetUploadAtPrefix(
+  prefix: string,
+  group: SubmissionAssetGroup,
+  name: string,
+  contentType: string,
+): Promise<PresignedUpload> {
+  assertSubmissionAssetPrefix(prefix);
+
+  const extension = EXTENSION_BY_CONTENT_TYPE[contentType];
+  if (!extension) {
+    throw new Error(`Unsupported content type for submission asset: ${contentType}`);
+  }
+
+  const config = loadConfig();
+  const key = `${prefix}/${group}/${slugify(name)}.${extension}`;
+
+  const { url, fields } = await createPresignedPost(getClient(), {
+    Bucket: config.bucket,
+    Key: key,
+    Expires: PRESIGN_EXPIRY_SECONDS,
+    Conditions: [
+      ["content-length-range", MIN_UPLOAD_BYTES, MAX_UPLOAD_BYTES],
+      ["eq", "$Content-Type", contentType],
+    ],
+    Fields: {
+      "Content-Type": contentType,
+    },
   });
 
-  return { uploadUrl, key };
+  return { uploadUrl: url, fields, key };
 }
 
 /* -------------------------------------------------------------------------

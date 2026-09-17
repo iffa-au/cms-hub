@@ -39,6 +39,84 @@ function normalizeNotes(value: unknown): string {
   return String(value).trim().slice(0, 1000);
 }
 
+/**
+ * Array position is the display order — the schema has no `order` path, so a
+ * sort key would be silently dropped by Mongoose strict mode.
+ */
+function normalizeCrewGroup(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .slice(0, 200)
+    .map((x: any) => ({
+      fullName: String(x?.fullName || "").trim(),
+      role: String(x?.role || "").trim(),
+      imageUrl: String(x?.imageUrl || "").trim(),
+      biography: String(x?.biography || "").trim(),
+      instagramUrl: String(x?.instagramUrl || "").trim(),
+      email: String(x?.email || "").trim().toLowerCase(),
+      // Optional on the public form. Not normalised beyond a trim: a phone
+      // number has no single correct shape once submissions are
+      // international, and reformatting one is how a reachable number stops
+      // being reachable. Both are staff-only — see the crew projection in
+      // getSubmission.
+      contactPhone: String(x?.contactPhone || "").trim(),
+      notes: String(x?.notes || "").trim(),
+    }))
+    .filter((x) => x.fullName);
+}
+
+/**
+ * Shared by the public create path and the CMS update path so the two can't
+ * drift into normalizing the same payload differently.
+ *
+ * A group the caller omits comes back empty rather than untouched: `crew` is
+ * written as a whole object, so a partial payload would otherwise silently
+ * keep stale members in the missing groups.
+ */
+/**
+ * The crew shape the public site is allowed to see.
+ *
+ * An allow-list, deliberately, where the rest of `getSubmission` denies by
+ * name. That endpoint returns the whole document, so a crew field is public
+ * the moment it is added to the model unless someone remembers to exclude it —
+ * which is how `email` came to be served to anyone holding a film's id, and
+ * what `contactPhone` and `notes` would have done next. Adding a crew field
+ * should not be a privacy decision; here it is private until listed.
+ *
+ * These three are what `mapCrewGroup` in ../iffa-2026's synopsis page actually
+ * reads. Anything it starts needing gets added here on purpose.
+ */
+const PUBLIC_CREW_FIELDS = ["fullName", "role", "imageUrl"] as const;
+
+const publicCrewGroup = (value: unknown) =>
+  Array.isArray(value)
+    ? value.map((member: any) =>
+        Object.fromEntries(
+          PUBLIC_CREW_FIELDS.map((key) => [key, member?.[key] ?? ""]),
+        ),
+      )
+    : [];
+
+export function publicCrew(crew: unknown) {
+  const source = crew && typeof crew === "object" ? (crew as any) : {};
+  return {
+    actors: publicCrewGroup(source.actors),
+    directors: publicCrewGroup(source.directors),
+    producers: publicCrewGroup(source.producers),
+    other: publicCrewGroup(source.other),
+  };
+}
+
+export function normalizeCrewPayload(crew: unknown) {
+  const source = crew && typeof crew === "object" ? (crew as any) : {};
+  return {
+    actors: normalizeCrewGroup(source.actors),
+    directors: normalizeCrewGroup(source.directors),
+    producers: normalizeCrewGroup(source.producers),
+    other: normalizeCrewGroup(source.other),
+  };
+}
+
 // Sentinel distinguishing "field not provided" (undefined) from
 // "field provided but out of range / not a whole number" (INVALID_DURATION).
 const INVALID_DURATION = Symbol("invalid-duration");
@@ -388,6 +466,7 @@ export const createSubmission = async (req: AuthedRequest, res) => {
       landscapeImageUrl = "",
       imdbUrl = "",
       trailerUrl = "",
+      trailerPassword = "",
       releaseLinkUrl = "",
       durationHours,
       durationMinutes,
@@ -446,6 +525,7 @@ export const createSubmission = async (req: AuthedRequest, res) => {
       landscapeImageUrl,
       imdbUrl,
       trailerUrl,
+      trailerPassword: String(trailerPassword || "").trim(),
       releaseLinkUrl: String(releaseLinkUrl || "").trim(),
       ...parsedDuration,
       submission_year: resolvedSubmissionYear,
@@ -496,6 +576,7 @@ export const createSubmissionPublic = async (req, res) => {
       landscapeImageUrl = "",
       imdbUrl = "",
       trailerUrl = "",
+      trailerPassword = "",
       releaseLinkUrl = "",
       submissionYear,
       durationHours,
@@ -524,6 +605,18 @@ export const createSubmissionPublic = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Duration hours must be 0-10 and minutes must be 0-59",
+      });
+    }
+
+    // A runtime of 0h 0m is indistinguishable from not answering, and every
+    // such record has to be chased up by hand before the film can be
+    // judged. The public form blocks it too; this is the backstop, and is
+    // deliberately not applied to the staff-facing createSubmission, where
+    // an incomplete record is sometimes entered on purpose.
+    if (!parsedDuration.durationHours && !parsedDuration.durationMinutes) {
+      return res.status(400).json({
+        success: false,
+        message: "Duration is required — a runtime of 0h 0m is not accepted",
       });
     }
 
@@ -563,31 +656,7 @@ export const createSubmissionPublic = async (req, res) => {
     // Create anonymous creator id for public submission
     const creatorId = new Types.ObjectId();
 
-    // Normalize crew payload if present
-    const normalizeGroup = (arr: any) =>
-      Array.isArray(arr)
-        ? arr
-            .slice(0, 200)
-            .map((x) => ({
-              fullName: String(x?.fullName || "").trim(),
-              role: String(x?.role || "").trim(),
-              imageUrl: String(x?.imageUrl || "").trim(),
-              biography: String(x?.biography || "").trim(),
-              instagramUrl: String(x?.instagramUrl || "").trim(),
-              email: String(x?.email || "").trim().toLowerCase(),
-              order: Number.isFinite(x?.order) ? Number(x.order) : 0,
-            }))
-            .filter((x) => x.fullName)
-        : [];
-    const crewGroups =
-      crew && typeof crew === "object"
-        ? {
-            actors: normalizeGroup((crew as any).actors),
-            directors: normalizeGroup((crew as any).directors),
-            producers: normalizeGroup((crew as any).producers),
-            other: normalizeGroup((crew as any).other),
-          }
-        : { actors: [], directors: [], producers: [], other: [] };
+    const crewGroups = normalizeCrewPayload(crew);
 
     const uniqueGenreIds = Array.from(new Set(providedGenreIds)) as string[];
 
@@ -600,6 +669,7 @@ export const createSubmissionPublic = async (req, res) => {
       landscapeImageUrl,
       imdbUrl,
       trailerUrl,
+      trailerPassword: String(trailerPassword || "").trim(),
       releaseLinkUrl: String(releaseLinkUrl || "").trim(),
       contactEmail: String(contactEmail || "").trim().toLowerCase(),
       // Recomputed from the same ref + title the presign calls used, rather
@@ -704,6 +774,7 @@ export const updateSubmission = async (req: AuthedRequest, res) => {
       landscapeImageUrl,
       imdbUrl,
       trailerUrl,
+      trailerPassword,
       releaseLinkUrl,
       contactEmail,
       durationHours,
@@ -719,6 +790,7 @@ export const updateSubmission = async (req: AuthedRequest, res) => {
       releaseCountryIds,
       watchFormats,
       notes,
+      crew,
     } = req.body || {};
 
     const updates: Record<string, unknown> = {};
@@ -742,6 +814,8 @@ export const updateSubmission = async (req: AuthedRequest, res) => {
       updates.landscapeImageUrl = landscapeImageUrl;
     if (imdbUrl !== undefined) updates.imdbUrl = imdbUrl;
     if (trailerUrl !== undefined) updates.trailerUrl = trailerUrl;
+    if (trailerPassword !== undefined)
+      updates.trailerPassword = String(trailerPassword || "").trim();
     if (releaseLinkUrl !== undefined)
       updates.releaseLinkUrl = String(releaseLinkUrl || "").trim();
     if (contactEmail !== undefined)
@@ -802,6 +876,19 @@ export const updateSubmission = async (req: AuthedRequest, res) => {
       updates.watchFormats = normalized;
     }
     if (notes !== undefined) updates.notes = normalizeNotes(notes);
+    // Sent as a whole object, never a partial: an omitted group is cleared,
+    // so the CMS editor must always post all four. Staff-only because crew is
+    // curated after submission — a submitter editing their own entry should
+    // not be able to rewrite the credits a reviewer has already corrected.
+    if (crew !== undefined) {
+      if (!isAdmin && role !== "staff") {
+        return res.status(403).json({
+          success: false,
+          message: "Only staff can edit crew",
+        });
+      }
+      updates.crew = normalizeCrewPayload(crew);
+    }
 
     // Handle genres update if provided
     const updatingGenres = Array.isArray(genreIds);
@@ -890,10 +977,12 @@ export const getSubmission = async (req: Request, res: Response) => {
     if (!Types.ObjectId.isValid(id)) {
       return res.status(400).json({ success: false, message: "Invalid ID" });
     }
-    // Public endpoint (synopsis page) — contactEmail is submitter PII and
-    // must never be exposed here.
+    // Public endpoint (synopsis page). This returns the whole document, so
+    // every staff-only field has to be excluded by name: contactEmail is
+    // submitter PII, and trailerPassword would hand anyone with a film's id
+    // the key to its private screener folder.
     const item = await Submission.findById(id)
-      .select("-contactEmail")
+      .select("-contactEmail -trailerPassword")
       .populate("genreIds");
     if (!item) {
       return res
@@ -901,7 +990,7 @@ export const getSubmission = async (req: Request, res: Response) => {
         .json({ success: false, message: "Submission not found" });
     }
     // Return the object directly for the Synopsis component
-    res.status(200).json(item);
+    res.status(200).json({ ...item.toObject(), crew: publicCrew(item.crew) });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: "Internal server error" });
@@ -986,6 +1075,7 @@ export const getSubmissionOverview = async (req, res) => {
           contentTypeId: 1,
           imdbUrl: 1,
           trailerUrl: 1,
+          trailerPassword: 1,
           releaseLinkUrl: 1,
           contactEmail: 1,
           durationHours: 1,
@@ -1236,6 +1326,7 @@ export const adminListSubmissions = async (req, res) => {
           contentTypeId: 1,
           imdbUrl: 1,
           trailerUrl: 1,
+          trailerPassword: 1,
           contactEmail: 1,
           durationHours: 1,
           durationMinutes: 1,
