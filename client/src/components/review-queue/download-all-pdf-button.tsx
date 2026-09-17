@@ -3,6 +3,7 @@
 import { getData } from '@/lib/fetch-util';
 import { buildSubmissionListPdf, type SubmissionListRow } from '@/lib/submission-pdf';
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 
 type ListResponse = {
   success: boolean;
@@ -82,12 +83,8 @@ export default function DownloadAllPdfButton({ query, onError }: DownloadAllPdfB
   };
 
   return (
-    <button
-      onClick={() => void onDownload()}
-      disabled={isDownloading}
-      className='bg-primary text-primary-foreground px-4 py-2 rounded text-xs font-bold tracking-widest hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed'
-    >
-      {isDownloading ? 'DOWNLOADING...' : 'DOWNLOAD ALL PDF'}
-    </button>
+    <Button onClick={() => void onDownload()} disabled={isDownloading}>
+      {isDownloading ? 'Preparing\u2026' : 'Download all as PDF'}
+    </Button>
   );
 }

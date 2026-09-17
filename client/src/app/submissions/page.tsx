@@ -2,7 +2,14 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { getData, deleteData, patchData } from '@/lib/fetch-util';
+import PageShell from '@/components/page-shell';
+import ConfirmDialog from '@/components/confirm-dialog';
+import Pagination from '@/components/pagination';
+import RecordList, { type Column } from '@/components/record-list';
+import { StatusChip, type RecordStatus } from '@/components/status';
+import { Button } from '@/components/ui/button';
 
 type Submission = {
   _id: string;
@@ -68,6 +75,7 @@ export default function SubmissionsPage() {
   const [error, setError] = useState<string | null>(null);
   const [pageMeta, setPageMeta] = useState<{ page: number; limit: number; total: number } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [pendingDelete, setPendingDelete] = useState<Submission | null>(null);
 
   const yearOptions = useMemo(() => {
     const currentYear = new Date().getFullYear();
@@ -174,8 +182,6 @@ export default function SubmissionsPage() {
 
   async function remove(id: string) {
     if (!id) return;
-    const ok = typeof window !== 'undefined' ? window.confirm('Delete this submission? This cannot be undone.') : true;
-    if (!ok) return;
     try {
       await deleteData(`/submissions/${id}`);
       await load();
@@ -193,96 +199,176 @@ export default function SubmissionsPage() {
     }
   }
 
-  return (
-    <main className='flex-1 py-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full'>
-      <div className='flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4'>
-        <div>
-          <h1 className='font-serif text-3xl md:text-4xl text-white mb-2'>Content Library</h1>
-          <p className='text-accent-foreground text-sm'>Manage feature films, shorts, series, and historical archives.</p>
+  const columns: Column<Submission>[] = [
+    {
+      key: 'title',
+      header: 'Film',
+      role: 'title',
+      cell: (item) => (
+        <div className="min-w-0">
+          <h3 className="truncate font-serif text-lg text-foreground">{item.title}</h3>
+          <p className="line-clamp-1 max-w-md text-xs text-muted-foreground">
+            {item.synopsis || '—'}
+          </p>
         </div>
-        <button className='bg-primary hover:opacity-90 text-black px-6 py-2.5 rounded font-bold text-sm tracking-widest transition-all transform hover:scale-105 shadow-lg shadow-primary/20 flex items-center gap-2'>
-          ADD CONTENT
-        </button>
-      </div>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      role: 'cardHidden',
+      cell: (item) =>
+        item.status ? (
+          <StatusChip status={item.status as RecordStatus} />
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
+    },
+    {
+      key: 'contentType',
+      header: 'Type',
+      cell: (item) => (
+        <span className="text-foreground/80">{item.contentTypeName || '—'}</span>
+      ),
+    },
+    {
+      key: 'release',
+      header: 'Release',
+      align: 'center',
+      cell: (item) => (
+        <span className="font-mono text-xs text-muted-foreground">
+          {item.releaseDate ? new Date(item.releaseDate).getFullYear() : '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'duration',
+      header: 'Duration',
+      align: 'center',
+      showFrom: 'xl',
+      cell: (item) => (
+        <span className="font-mono text-xs text-muted-foreground">
+          {formatDuration(item.durationHours, item.durationMinutes)}
+        </span>
+      ),
+    },
+    {
+      key: 'genres',
+      header: 'Genres',
+      showFrom: 'xl',
+      cell: (item) => (
+        <div className="flex flex-wrap gap-1.5">
+          {(item.genreNames && item.genreNames.length > 0
+            ? item.genreNames
+            : ['—']
+          ).map((g, idx) => (
+            <span
+              key={idx}
+              className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground"
+            >
+              {g}
+            </span>
+          ))}
+        </div>
+      ),
+    },
+  ];
 
-      {/* Search and primary filters */}
-      <div className='bg-card p-2 rounded border border-border mb-8 flex items-center gap-2'>
-        <div className='relative grow'>
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                void load();
-              }
-            }}
-            className='w-full bg-transparent border-none focus:ring-0 pl-3 text-sm text-foreground placeholder:text-muted-foreground/70 py-3'
-            placeholder='Search by title...'
-            type='text'
-          />
-        </div>
-        <div className='flex items-center gap-2 pl-2 border-l border-border'>
-          <label className='text-xs text-muted-foreground tracking-widest uppercase'>Status</label>
+  return (
+    <PageShell
+      title="Content library"
+      description="Feature films, shorts, series and historical archives."
+      actions={
+        <Button asChild>
+          <Link href="/submissions/new">Add content</Link>
+        </Button>
+      }
+    >
+      {/* Search and primary filters. Wraps to its own rows below `sm` — as a
+          single non-wrapping flex row this pushed the search field to nothing
+          on a phone. */}
+      <div className="mb-6 flex flex-col gap-2 rounded-lg border border-border bg-card p-2 sm:flex-row sm:items-center">
+        <label htmlFor="submissions-search" className="sr-only">
+          Search submissions by title
+        </label>
+        <input
+          id="submissions-search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') void load();
+          }}
+          className="w-full grow rounded bg-transparent px-3 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          placeholder="Search by title"
+          type="search"
+        />
+
+        <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-border pt-2 sm:border-l sm:border-t-0 sm:pl-2 sm:pt-0">
+          <label htmlFor="status-filter" className="text-xs text-muted-foreground">
+            Status
+          </label>
           <select
+            id="status-filter"
             value={statusFilter}
             onChange={(e) => {
               const val = e.target.value as StatusFilter;
               setStatusFilter(val);
               void load({ status: val });
             }}
-            className='bg-transparent text-sm px-2 py-2 rounded border border-border text-foreground'
+            className="rounded border border-border bg-transparent px-2 py-2 text-sm text-foreground"
           >
-            <option value='ALL'>All</option>
-            <option value='SUBMITTED'>Submitted</option>
-            <option value='APPROVED'>Approved</option>
-            <option value='REJECTED'>Rejected</option>
+            <option value="ALL">All</option>
+            <option value="SUBMITTED">Submitted</option>
+            <option value="APPROVED">Approved</option>
+            <option value="REJECTED">Rejected</option>
           </select>
+
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            aria-expanded={isFiltersOpen}
+            aria-controls="advanced-filters-panel"
+            onClick={() => setIsFiltersOpen((open) => !open)}
+          >
+            {`Filters${activeFiltersCount > 0 ? ` (${activeFiltersCount})` : ''}`}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setQuery('');
+              void load({ q: '' });
+            }}
+          >
+            Clear
+          </Button>
+          <Button type="button" size="sm" onClick={() => void load()}>
+            Search
+          </Button>
         </div>
-        <button
-          type='button'
-          aria-expanded={isFiltersOpen}
-          aria-controls='advanced-filters-panel'
-          onClick={() => setIsFiltersOpen((open) => !open)}
-          className='px-4 py-2 text-muted-foreground hover:text-primary transition-colors border-l border-border text-xs font-semibold tracking-widest'
-        >
-          {`FILTERS${activeFiltersCount > 0 ? ` (${activeFiltersCount})` : ''}`}
-        </button>
-        <button
-          onClick={() => {
-            setQuery('');
-            void load({ q: '' });
-          }}
-          className='px-4 py-2 text-muted-foreground hover:text-primary transition-colors border-l border-border text-xs font-semibold tracking-widest'
-        >
-          CLEAR
-        </button>
-        <button
-          onClick={() => void load()}
-          className='bg-foreground text-background px-6 py-2.5 rounded text-xs font-bold tracking-widest hover:opacity-90 transition-opacity'
-        >
-          SEARCH
-        </button>
       </div>
 
       {/* Advanced filters */}
       {isFiltersOpen ? (
         <div
-          className='fixed inset-0 z-50 bg-black/45 backdrop-blur-sm px-4 py-8 overflow-y-auto'
+          className="fixed inset-0 z-50 overflow-y-auto bg-black/45 px-4 py-8 backdrop-blur-sm"
           onClick={() => setIsFiltersOpen(false)}
         >
           <div
-            id='advanced-filters-panel'
-            role='dialog'
-            aria-modal='true'
-            aria-label='Advanced filters'
-            className='mx-auto max-w-6xl bg-card border border-border rounded-lg p-4 md:p-5 space-y-4'
+            id="advanced-filters-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Advanced filters"
+            className="mx-auto max-w-3xl space-y-5 rounded-lg border border-border bg-surface-overlay p-4 sm:p-6"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className='flex items-center justify-between'>
-              <h2 className='text-xs font-bold tracking-[0.2em] uppercase text-muted-foreground'>
-                Advanced Filters
-              </h2>
-              <button
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="text-sm font-semibold">Advanced filters</h2>
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => {
                   setQuery('');
                   setStatusFilter('ALL');
@@ -301,21 +387,23 @@ export default function SubmissionsPage() {
                     year: '',
                   });
                 }}
-                className='text-xs font-semibold tracking-widest text-muted-foreground hover:text-primary transition-colors'
               >
-                CLEAR ALL FILTERS
-              </button>
+                Clear all
+              </Button>
             </div>
 
-            <div className='grid grid-cols-1 md:grid-cols-3 gap-3'>
-              <div className='flex flex-col gap-1'>
-                <label className='text-[10px] tracking-widest uppercase text-muted-foreground'>Country</label>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="flex flex-col gap-1">
+                <label htmlFor="filter-country" className="text-xs text-muted-foreground">
+                  Country
+                </label>
                 <select
+                  id="filter-country"
                   value={selectedCountryId}
                   onChange={(e) => setSelectedCountryId(e.target.value)}
-                  className='bg-transparent text-sm px-2 py-2 rounded border border-border text-foreground'
+                  className="rounded border border-border bg-transparent px-2 py-2 text-sm text-foreground"
                 >
-                  <option value=''>All Countries</option>
+                  <option value="">All countries</option>
                   {countries.map((c) => (
                     <option key={c._id} value={c._id}>
                       {c.name}
@@ -324,14 +412,17 @@ export default function SubmissionsPage() {
                 </select>
               </div>
 
-              <div className='flex flex-col gap-1'>
-                <label className='text-[10px] tracking-widest uppercase text-muted-foreground'>Language</label>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="filter-language" className="text-xs text-muted-foreground">
+                  Language
+                </label>
                 <select
+                  id="filter-language"
                   value={selectedLanguageId}
                   onChange={(e) => setSelectedLanguageId(e.target.value)}
-                  className='bg-transparent text-sm px-2 py-2 rounded border border-border text-foreground'
+                  className="rounded border border-border bg-transparent px-2 py-2 text-sm text-foreground"
                 >
-                  <option value=''>All Languages</option>
+                  <option value="">All languages</option>
                   {languages.map((l) => (
                     <option key={l._id} value={l._id}>
                       {l.name}
@@ -340,14 +431,17 @@ export default function SubmissionsPage() {
                 </select>
               </div>
 
-              <div className='flex flex-col gap-1'>
-                <label className='text-[10px] tracking-widest uppercase text-muted-foreground'>Year</label>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="filter-year" className="text-xs text-muted-foreground">
+                  Year
+                </label>
                 <select
+                  id="filter-year"
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(e.target.value)}
-                  className='bg-transparent text-sm px-2 py-2 rounded border border-border text-foreground'
+                  className="rounded border border-border bg-transparent px-2 py-2 text-sm text-foreground"
                 >
-                  <option value=''>All Years</option>
+                  <option value="">All years</option>
                   {yearOptions.map((year) => (
                     <option key={year} value={year}>
                       {year}
@@ -357,21 +451,20 @@ export default function SubmissionsPage() {
               </div>
             </div>
 
-            <div className='space-y-2'>
-              <label className='text-[10px] tracking-widest uppercase text-muted-foreground'>
-                Categories (multi-select)
-              </label>
-              <div className='flex flex-wrap gap-2'>
+            <fieldset className="space-y-2">
+              <legend className="text-xs text-muted-foreground">Categories</legend>
+              <div className="flex flex-wrap gap-2">
                 {contentTypes.map((item) => {
                   const selected = selectedContentTypeIds.includes(item._id);
                   return (
                     <button
                       key={item._id}
-                      type='button'
+                      type="button"
+                      aria-pressed={selected}
                       onClick={() =>
                         toggleMulti(item._id, selectedContentTypeIds, setSelectedContentTypeIds)
                       }
-                      className={`px-2 py-1 rounded-full border text-[10px] uppercase font-semibold tracking-wider transition-colors ${
+                      className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
                         selected
                           ? 'border-primary bg-primary/10 text-primary'
                           : 'border-border text-muted-foreground hover:text-primary'
@@ -382,21 +475,20 @@ export default function SubmissionsPage() {
                   );
                 })}
               </div>
-            </div>
+            </fieldset>
 
-            <div className='space-y-2'>
-              <label className='text-[10px] tracking-widest uppercase text-muted-foreground'>
-                Genres (multi-select)
-              </label>
-              <div className='flex flex-wrap gap-2'>
+            <fieldset className="space-y-2">
+              <legend className="text-xs text-muted-foreground">Genres</legend>
+              <div className="flex flex-wrap gap-2">
                 {genres.map((item) => {
                   const selected = selectedGenreIds.includes(item._id);
                   return (
                     <button
                       key={item._id}
-                      type='button'
+                      type="button"
+                      aria-pressed={selected}
                       onClick={() => toggleMulti(item._id, selectedGenreIds, setSelectedGenreIds)}
-                      className={`px-2 py-1 rounded-full border text-[10px] uppercase font-semibold tracking-wider transition-colors ${
+                      className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
                         selected
                           ? 'border-primary bg-primary/10 text-primary'
                           : 'border-border text-muted-foreground hover:text-primary'
@@ -407,182 +499,103 @@ export default function SubmissionsPage() {
                   );
                 })}
               </div>
-            </div>
+            </fieldset>
 
-            <div className='flex justify-end gap-2'>
-              <button
-                type='button'
-                onClick={() => setIsFiltersOpen(false)}
-                className='px-4 py-2 rounded text-xs font-bold tracking-widest border border-border text-muted-foreground hover:text-primary transition-colors'
-              >
-                CANCEL
-              </button>
-              <button
-                type='button'
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setIsFiltersOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
                 onClick={() => {
                   void load();
                   setIsFiltersOpen(false);
                 }}
-                className='bg-foreground text-background px-4 py-2 rounded text-xs font-bold tracking-widest hover:opacity-90 transition-opacity'
               >
-                APPLY FILTERS
-              </button>
+                Apply filters
+              </Button>
             </div>
           </div>
         </div>
       ) : null}
 
-      {/* Table */}
-      <div className='overflow-x-auto'>
-        <table className='w-full text-left border-separate border-spacing-y-2'>
-          <thead>
-            <tr className='text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-bold'>
-              <th className='px-4 py-3'>Film Details</th>
-              <th className='px-4 py-3'>Content Type</th>
-              <th className='px-4 py-3 text-center'>Release</th>
-              <th className='px-4 py-3 text-center'>Duration</th>
-              <th className='px-4 py-3'>Genres</th>
-              <th className='px-4 py-3 text-right'>Actions</th>
-            </tr>
-          </thead>
-          <tbody className='text-sm'>
-            {loading && (
-              <tr className='bg-card/60'>
-                <td className='px-4 py-6' colSpan={6}>
-                  <div className='animate-pulse h-4 w-1/3 bg-border rounded mb-3' />
-                  <div className='animate-pulse h-3 w-2/3 bg-border rounded' />
-                </td>
-              </tr>
-            )}
-            {!loading && error && (
-              <tr className='bg-card/60'>
-                <td className='px-4 py-6' colSpan={6}>
-                  <span className='text-red-400 text-sm'>{error}</span>
-                </td>
-              </tr>
-            )}
-            {!loading && !error && items.length === 0 && (
-              <tr className='bg-card/60'>
-                <td className='px-4 py-6' colSpan={6}>
-                  <span className='text-muted-foreground text-sm'>No submissions found.</span>
-                </td>
-              </tr>
-            )}
-            {!loading &&
-              !error &&
-              items.map((item) => {
-                const release = item.releaseDate ? new Date(item.releaseDate).getFullYear().toString() : '—';
-                return (
-                  <tr key={item._id} className='bg-card/60'>
-                    <td className='px-4 py-6 border-l-2 border-primary'>
-                      <h3 className='font-serif text-primary font-bold text-lg mb-1'>{item.title}</h3>
-                      {item.synopsis ? (
-                        <p className='text-muted-foreground text-xs line-clamp-1 max-w-md'>{item.synopsis}</p>
-                      ) : (
-                        <p className='text-muted-foreground text-xs line-clamp-1 max-w-md'>—</p>
-                      )}
-                    </td>
-                    <td className='px-4 py-6'>
-                      <span className='text-foreground/80 font-medium'>
-                        {item.contentTypeName || '—'}
-                      </span>
-                    </td>
-                    <td className='px-4 py-6 text-center'>
-                      <span className='text-muted-foreground'>{release}</span>
-                    </td>
-                    <td className='px-4 py-6 text-center'>
-                      <span className='text-muted-foreground'>
-                        {formatDuration(item.durationHours, item.durationMinutes)}
-                      </span>
-                    </td>
-                    <td className='px-4 py-6'>
-                      <div className='flex flex-wrap gap-2'>
-                        {(item.genreNames && item.genreNames.length > 0 ? item.genreNames : ['—']).map((g, idx) => (
-                          <span key={idx} className='px-2 py-0.5 border border-border rounded-full text-[10px] text-primary uppercase font-semibold'>
-                            {g}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td className='px-4 py-6 text-right'>
-                      <div className='flex items-center justify-end space-x-3'>
-                        <button
-                          onClick={() => router.push(`/submissions/${item._id}/edit`)}
-                          className='text-primary hover:text-foreground transition-colors text-[10px] font-bold tracking-widest'
-                        >
-                          EDIT
-                        </button>
-                        <button
-                          onClick={() => router.push(`/submissions/${item._id}/crew`)}
-                          className='text-primary hover:text-foreground transition-colors text-[10px] font-bold tracking-widest'
-                        >
-                          MANAGE CREW
-                        </button>
-                        <button
-                          onClick={() => router.push(`/submissions/${item._id}/nomination`)}
-                          className='text-primary hover:text-foreground transition-colors text-[10px] font-bold tracking-widest'
-                        >
-                          NOMINATE
-                        </button>
-                        {item.status === 'REJECTED' ? (
-                          <button
-                            onClick={() => void approve(item._id)}
-                            className='text-green-500 hover:text-green-400 transition-colors text-[10px] font-bold tracking-widest'
-                          >
-                            APPROVE
-                          </button>
-                        ) : null}
-                        <button
-                          onClick={() => void remove(item._id)}
-                          className='text-red-500 hover:text-red-400 transition-colors text-[10px] font-bold tracking-widest'
-                        >
-                          DELETE
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Footer / pagination summary */}
-      <div className='mt-8 flex items-center justify-between border-t border-border pt-6'>
-        <span className='text-xs text-muted-foreground tracking-wider'>
-          {`SHOWING ${showingStart}-${showingEnd} OF ${total} SUBMISSIONS`}
-        </span>
-        <div className='flex space-x-2'>
-          <button
-            onClick={() => void load({ page: currentPage - 1 })}
-            disabled={currentPage <= 1 || loading}
-            className='w-8 h-8 rounded border border-border flex items-center justify-center text-muted-foreground hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed'
-          >
-            ‹
-          </button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-            <button
-              key={p}
-              onClick={() => void load({ page: p })}
-              disabled={loading}
-              className={`w-8 h-8 rounded text-xs font-bold transition-colors disabled:cursor-not-allowed ${
-                p === currentPage
-                  ? 'bg-primary text-black'
-                  : 'border border-border text-muted-foreground hover:text-primary'
-              }`}
+      <RecordList
+        items={items}
+        columns={columns}
+        getKey={(item) => item._id}
+        getStatus={(item) => item.status as RecordStatus | undefined}
+        loading={loading}
+        error={error}
+        empty="No submissions match these filters."
+        actions={(item) => (
+          <>
+            <Button
+              variant="rowAction"
+              size="inline"
+              onClick={() => router.push(`/submissions/${item._id}/edit`)}
             >
-              {p}
-            </button>
-          ))}
-          <button
-            onClick={() => void load({ page: currentPage + 1 })}
-            disabled={currentPage >= totalPages || loading}
-            className='w-8 h-8 rounded border border-border flex items-center justify-center text-muted-foreground hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed'
-          >
-            ›
-          </button>
-        </div>
-      </div>
-    </main>
+              Edit
+            </Button>
+            <Button
+              variant="rowAction"
+              size="inline"
+              onClick={() => router.push(`/submissions/${item._id}/crew`)}
+            >
+              Crew
+            </Button>
+            <Button
+              variant="rowAction"
+              size="inline"
+              onClick={() => router.push(`/submissions/${item._id}/nomination`)}
+            >
+              Nominate
+            </Button>
+            {item.status === 'REJECTED' ? (
+              <Button
+                variant="rowPositive"
+                size="inline"
+                onClick={() => void approve(item._id)}
+              >
+                Approve
+              </Button>
+            ) : null}
+            <Button
+              variant="rowDanger"
+              size="inline"
+              onClick={() => setPendingDelete(item)}
+            >
+              Delete
+            </Button>
+          </>
+        )}
+      />
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        tone="danger"
+        title="Delete this submission?"
+        description={
+          <>
+            <span className="text-foreground">{pendingDelete?.title}</span> and its
+            uploaded assets will be removed. This can&apos;t be undone.
+          </>
+        }
+        confirmLabel="Delete submission"
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => {
+          const id = pendingDelete?._id;
+          setPendingDelete(null);
+          if (id) void remove(id);
+        }}
+      />
+
+      <Pagination
+        page={currentPage}
+        totalPages={totalPages}
+        onPage={(p) => void load({ page: p })}
+        disabled={loading}
+        summary={`Showing ${showingStart}–${showingEnd} of ${total} submissions`}
+      />
+    </PageShell>
   );
 }

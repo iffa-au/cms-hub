@@ -117,9 +117,11 @@
   --label-color: #bab19c;
   --placeholder: #544e3b;
 
-  --status-submitted: #5b7fa6;
-  --status-approved: #4a9e6f;
-  --status-rejected: #c2564c;
+  /* Light enough to double as text on --background (all >6.8:1) so one token
+     serves both the row edge and the chip label. */
+  --status-submitted: #8fb3d9;
+  --status-approved: #6fc795;
+  --status-rejected: #e8837a;
   --status-nominated: #f2b90d;
 
   --border: #393528;

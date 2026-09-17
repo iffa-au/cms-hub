@@ -7,6 +7,7 @@ import {
   type SubmissionOverview,
 } from '@/lib/submission-pdf';
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 
 type OverviewResponse = {
   success: boolean;
@@ -65,12 +66,13 @@ export default function DownloadPdfButton({
   };
 
   return (
-    <button
+    <Button
+      variant="rowAction"
+      size="inline"
       onClick={() => void onDownload()}
       disabled={isDownloading}
-      className='text-blue-400 hover:text-blue-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-[10px] font-bold tracking-widest'
     >
-      {isDownloading ? 'DOWNLOADING...' : 'DOWNLOAD PDF'}
-    </button>
+      {isDownloading ? 'Preparing\u2026' : 'Download PDF'}
+    </Button>
   );
 }
