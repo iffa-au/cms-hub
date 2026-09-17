@@ -103,7 +103,7 @@ export default function AdminCrewPage() {
     <main className='mx-auto w-full flex-1 px-4 py-8 sm:px-6 sm:py-10 lg:px-8 max-w-7xl'>
       <div className='flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4'>
         <div>
-          <h1 className='font-serif text-3xl md:text-4xl text-white mb-2'>Crew Directory</h1>
+          <h1 className='text-2xl font-semibold tracking-tight sm:text-3xl'>Crew Directory</h1>
           <p className='text-accent-foreground text-sm'>Manage people and their default bios.</p>
         </div>
         <button
@@ -145,7 +145,7 @@ export default function AdminCrewPage() {
         {/* Left: Crew list */}
         <section className='lg:col-span-2 rounded border border-border bg-surface-dark h-[520px] flex flex-col overflow-hidden'>
           <div className='px-6 py-4 border-b border-border'>
-            <h3 className='text-white text-sm font-bold tracking-widest uppercase font-serif'>All Crew Members</h3>
+            <h3 className='text-sm font-semibold'>All Crew Members</h3>
           </div>
           <div className='divide-y divide-border flex-1 overflow-y-auto min-h-0'>
             {loading ? (
@@ -166,13 +166,13 @@ export default function AdminCrewPage() {
                   <div className='flex items-center gap-2 shrink-0'>
                     <button
                       onClick={() => router.push(`/crew/create?id=${m._id}&next=/admin/crew`)}
-                      className='text-primary hover:text-foreground transition-colors text-[10px] font-bold tracking-widest'
+                      className='text-xs font-semibold text-primary underline-offset-4 transition-colors hover:text-foreground hover:underline'
                     >
                       EDIT
                     </button>
                     <button
                       onClick={() => void deleteMember(m._id)}
-                      className='text-red-500 hover:text-red-400 transition-colors text-[10px] font-bold tracking-widest'
+                      className='text-xs font-semibold text-status-rejected underline-offset-4 transition-colors hover:text-foreground hover:underline'
                     >
                       DELETE
                     </button>
@@ -186,11 +186,11 @@ export default function AdminCrewPage() {
         {/* Right: Role management */}
         <section className='rounded border border-border bg-surface-dark h-[520px] flex flex-col overflow-hidden'>
           <div className='px-6 py-4 border-b border-border'>
-            <h3 className='text-white text-sm font-bold tracking-widest uppercase font-serif'>Crew Roles</h3>
+            <h3 className='text-sm font-semibold'>Crew Roles</h3>
           </div>
           <div className='p-6 space-y-4 flex-1 flex flex-col min-h-0'>
             <div>
-              <label className='text-accent-foreground text-xs font-bold uppercase tracking-widest'>Role Name</label>
+              <label className='block text-xs font-medium text-label'>Role Name</label>
               <input
                 className='w-full bg-background border border-border rounded px-4 py-3 text-white placeholder:text-[var(--placeholder)] focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all mt-2'
                 placeholder='e.g. Director'
@@ -199,7 +199,7 @@ export default function AdminCrewPage() {
               />
             </div>
             <div>
-              <label className='text-accent-foreground text-xs font-bold uppercase tracking-widest'>Description</label>
+              <label className='block text-xs font-medium text-label'>Description</label>
               <textarea
                 className='w-full bg-background border border-border rounded px-4 py-3 text-white placeholder:text-[var(--placeholder)] focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all mt-2 resize-none'
                 placeholder='Optional details'
@@ -233,7 +233,7 @@ export default function AdminCrewPage() {
                     </div>
                     <button
                       onClick={() => void deleteRole(r._id)}
-                      className='text-red-500 hover:text-red-400 transition-colors text-[10px] font-bold tracking-widest'
+                      className='text-xs font-semibold text-status-rejected underline-offset-4 transition-colors hover:text-foreground hover:underline'
                     >
                       DELETE
                     </button>

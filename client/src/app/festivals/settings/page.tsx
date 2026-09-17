@@ -49,7 +49,7 @@ const field =
 const labelClass = "mb-1 block text-xs text-muted-foreground";
 const sectionClass = "mb-6 space-y-4 rounded-lg border border-border bg-card/60 p-6";
 const headingClass =
-  "text-sm font-bold uppercase tracking-[0.2em] text-muted-foreground";
+  "text-sm font-semibold text-foreground";
 
 /** Short lines are one per row. */
 const toLines = (text: string) =>
@@ -246,12 +246,12 @@ export default function FestivalSettingsPage() {
     <main className="mx-auto w-full flex-1 px-4 py-8 sm:px-6 sm:py-10 lg:px-8 max-w-4xl">
       <Link
         href="/festivals"
-        className="mb-6 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-primary"
+        className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary"
       >
         <ArrowLeft size={14} /> All festivals
       </Link>
 
-      <h1 className="mb-2 font-serif text-3xl text-white md:text-4xl">Festivals Page</h1>
+      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Festivals Page</h1>
       <p className="mb-8 text-sm text-accent-foreground">
         Every section of the public Festivals page except the festivals themselves,
         which are managed separately.
@@ -390,7 +390,7 @@ export default function FestivalSettingsPage() {
           </section>
 
           <button type="button" onClick={() => void handleSave()} disabled={saving}
-            className="rounded bg-foreground px-6 py-2.5 text-xs font-bold tracking-widest text-background transition-opacity hover:opacity-90 disabled:opacity-50">
+            className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50">
             {saving ? "SAVING..." : "SAVE SETTINGS"}
           </button>
         </>

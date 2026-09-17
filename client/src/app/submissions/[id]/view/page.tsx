@@ -16,7 +16,7 @@ type OverviewResponse = {
   message?: string;
 };
 
-const LABEL = 'text-accent-foreground text-xs font-bold uppercase tracking-widest';
+const LABEL = 'block text-xs font-medium text-label';
 const VALUE = 'text-white mt-1';
 const CARD = 'rounded-xl border border-border bg-surface-dark/80 p-6';
 const SECTION_TITLE = 'uppercase tracking-widest font-bold text-sm text-primary';
@@ -221,7 +221,7 @@ export default function ViewSubmissionPage() {
       <div className='max-w-6xl mx-auto pb-24'>
         <div className='flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8'>
           <div>
-            <h1 className='font-serif text-3xl md:text-4xl text-white mb-2'>Film Details</h1>
+            <h1 className='text-2xl font-semibold tracking-tight sm:text-3xl'>Film Details</h1>
             <p className='text-accent-foreground text-sm'>Submission details from the filmmaker.</p>
           </div>
           <div className='flex items-center gap-3'>
@@ -330,13 +330,13 @@ export default function ViewSubmissionPage() {
                     genres.map((genre) => (
                       <span
                         key={genre._id}
-                        className='px-2 py-0.5 border border-border rounded-full text-[10px] text-primary uppercase font-semibold'
+                        className='rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground'
                       >
                         {genre.name}
                       </span>
                     ))
                   ) : (
-                    <span className='px-2 py-0.5 border border-border rounded-full text-[10px] text-primary uppercase font-semibold'>
+                    <span className='rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground'>
                       —
                     </span>
                   )}
@@ -352,7 +352,7 @@ export default function ViewSubmissionPage() {
                   {crewGroups.map(([group, list]) =>
                     list.length > 0 ? (
                       <div key={group} className='space-y-4'>
-                        <h3 className='text-white font-semibold tracking-widest uppercase text-sm'>{group}</h3>
+                        <h3 className='text-sm font-semibold'>{group}</h3>
                         <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                           {list.map((member, idx) => (
                             <div
@@ -361,7 +361,7 @@ export default function ViewSubmissionPage() {
                             >
                               <div className='flex items-baseline justify-between gap-3'>
                                 <p className='text-white font-medium'>{valueOrDash(member.fullName)}</p>
-                                <p className='text-xs uppercase tracking-widest text-accent-foreground shrink-0'>
+                                <p className='text-xs font-medium text-label shrink-0'>
                                   {valueOrDash(member.role)}
                                 </p>
                               </div>

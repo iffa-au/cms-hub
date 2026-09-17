@@ -281,7 +281,7 @@ export default function SubmissionDetailPage() {
                     Basic Information
                   </h3>
                 </div>
-                <div className="text-xs uppercase tracking-widest text-label">
+                <div className="text-xs font-medium text-label">
                   Status:{" "}
                   <span className="font-semibold text-white">{status}</span>
                 </div>
@@ -521,7 +521,7 @@ export default function SubmissionDetailPage() {
                       Proposed Crew (Public Submission)
                     </h3>
                   </div>
-                  <div className="text-xs uppercase tracking-widest text-label">
+                  <div className="text-xs font-medium text-label">
                     Read-only
                   </div>
                 </div>
@@ -534,7 +534,7 @@ export default function SubmissionDetailPage() {
                   ] as const).map(([label, list]) =>
                     list.length ? (
                       <div key={label} className="space-y-4">
-                        <h4 className="text-white font-semibold tracking-widest uppercase text-sm">
+                        <h4 className="text-sm font-semibold">
                           {label}
                         </h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -548,7 +548,7 @@ export default function SubmissionDetailPage() {
                                   <div className="text-white font-medium">
                                     {p.fullName || "—"}
                                   </div>
-                                  <div className="text-xs uppercase tracking-widest text-label">
+                                  <div className="text-xs font-medium text-label">
                                     {p.role || "—"}
                                   </div>
                                 </div>

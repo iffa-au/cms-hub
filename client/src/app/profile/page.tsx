@@ -80,14 +80,14 @@ export default function ProfilePage() {
     <main className='mx-auto w-full flex-1 px-4 py-8 sm:px-6 sm:py-10 lg:px-8 max-w-5xl'>
       <div className='flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4'>
         <div>
-          <h1 className='font-serif text-3xl md:text-4xl text-white mb-2'>Account Profile</h1>
+          <h1 className='text-2xl font-semibold tracking-tight sm:text-3xl'>Account Profile</h1>
           <p className='text-accent-foreground text-sm'>Manage your personal info and credentials.</p>
         </div>
       </div>
 
       <section className='rounded-xl border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50'>
         <div className='px-8 py-6 border-b border-border flex justify-between items-center bg-surface-dark'>
-          <h3 className='text-white text-lg font-bold tracking-widest uppercase font-serif'>Basic Information</h3>
+          <h3 className='text-sm font-semibold'>Basic Information</h3>
         </div>
         <div className='p-8 grid grid-cols-1 md:grid-cols-2 gap-8'>
           <div className='space-y-2'>

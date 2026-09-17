@@ -162,7 +162,7 @@ export default function SubmissionNominationPage() {
     <main className='mx-auto w-full flex-1 px-4 py-8 sm:px-6 sm:py-10 lg:px-8 max-w-7xl'>
       <div className='flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4'>
         <div>
-          <h1 className='font-serif text-3xl md:text-4xl text-white mb-2'>Award Nominations</h1>
+          <h1 className='text-2xl font-semibold tracking-tight sm:text-3xl'>Award Nominations</h1>
           <p className='text-accent-foreground text-sm'>
             Tracking nominations for {submission ? `"${submission.title}"` : '…'}
           </p>
@@ -172,14 +172,14 @@ export default function SubmissionNominationPage() {
       {/* Submission history */}
       <section className='rounded border border-border bg-surface-dark mb-8'>
         <div className='px-6 py-4 border-b border-border'>
-          <h3 className='text-white text-sm font-bold tracking-widest uppercase font-serif'>
+          <h3 className='text-sm font-semibold'>
             Submission History
           </h3>
         </div>
         <div className='overflow-x-auto'>
           <table className='w-full text-left border-separate border-spacing-y-2'>
             <thead>
-              <tr className='text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-bold'>
+              <tr className='text-xs font-semibold text-muted-foreground'>
                 <th className='px-4 py-3'>Award Edition (Year)</th>
                 <th className='px-4 py-3'>Award Category</th>
                 <th className='px-4 py-3'>Crew Member</th>
@@ -218,13 +218,13 @@ export default function SubmissionNominationPage() {
                       <div className='flex items-center justify-end space-x-3'>
                         <button
                           onClick={() => startEdit(n)}
-                          className='text-primary hover:text-foreground transition-colors text-[10px] font-bold tracking-widest'
+                          className='text-xs font-semibold text-primary underline-offset-4 transition-colors hover:text-foreground hover:underline'
                         >
                           EDIT
                         </button>
                         <button
                           onClick={() => void onDelete(n._id)}
-                          className='text-red-500 hover:text-red-400 transition-colors text-[10px] font-bold tracking-widest'
+                          className='text-xs font-semibold text-status-rejected underline-offset-4 transition-colors hover:text-foreground hover:underline'
                         >
                           DELETE
                         </button>
@@ -241,7 +241,7 @@ export default function SubmissionNominationPage() {
       {/* Create new nomination */}
       <section className='rounded border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50'>
         <div className='px-6 py-4 border-b border-border'>
-          <h3 className='text-white text-sm font-bold tracking-widest uppercase font-serif'>
+          <h3 className='text-sm font-semibold'>
             Create a new Nomination
           </h3>
         </div>
@@ -285,7 +285,7 @@ export default function SubmissionNominationPage() {
             </select>
           </div>
           <div className='flex items-center gap-3'>
-            <span className='text-accent-foreground text-xs font-bold uppercase tracking-widest'>
+            <span className='block text-xs font-medium text-label'>
               Winner
             </span>
             <button
@@ -303,7 +303,7 @@ export default function SubmissionNominationPage() {
                 }`}
               />
             </button>
-            <span className='text-accent-foreground text-xs font-bold uppercase tracking-widest'>
+            <span className='block text-xs font-medium text-label'>
               {isWinner ? 'Winner' : 'Not Winner'}
             </span>
           </div>
@@ -312,7 +312,7 @@ export default function SubmissionNominationPage() {
             <button
               onClick={() => void onCreate()}
               disabled={saving}
-              className='bg-primary hover:opacity-90 text-black px-6 py-2.5 rounded font-bold text-xs tracking-widest transition-all disabled:opacity-60 disabled:cursor-not-allowed'
+              className='inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed'
             >
               {saving ? 'Saving...' : 'Save Nomination'}
             </button>
@@ -324,7 +324,7 @@ export default function SubmissionNominationPage() {
       {editing ? (
         <section className='mt-8 rounded border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50'>
           <div className='px-6 py-4 border-b border-border'>
-            <h3 className='text-white text-sm font-bold tracking-widest uppercase font-serif'>
+            <h3 className='text-sm font-semibold'>
               Edit Nomination
             </h3>
           </div>
@@ -364,7 +364,7 @@ export default function SubmissionNominationPage() {
               </select>
             </div>
             <div className='flex items-center gap-3'>
-              <span className='text-accent-foreground text-xs font-bold uppercase tracking-widest'>
+              <span className='block text-xs font-medium text-label'>
                 Winner
               </span>
               <button
@@ -382,7 +382,7 @@ export default function SubmissionNominationPage() {
                   }`}
                 />
               </button>
-              <span className='text-accent-foreground text-xs font-bold uppercase tracking-widest'>
+              <span className='block text-xs font-medium text-label'>
                 {eIsWinner ? 'Winner' : 'Not Winner'}
               </span>
             </div>
@@ -390,14 +390,14 @@ export default function SubmissionNominationPage() {
             <div className='md:col-span-2 flex justify-end gap-3'>
               <button
                 onClick={cancelEdit}
-                className='px-6 py-2.5 rounded bg-secondary text-white hover:bg-secondary/80 border border-border font-bold uppercase tracking-widest text-xs'
+                className='inline-flex h-9 items-center justify-center rounded-md border border-border bg-secondary px-4 text-sm font-medium text-secondary-foreground transition-colors hover:bg-secondary/80'
               >
                 Cancel
               </button>
               <button
                 onClick={() => void onUpdate()}
                 disabled={eSaving}
-                className='bg-primary hover:opacity-90 text-black px-6 py-2.5 rounded font-bold text-xs tracking-widest transition-all disabled:opacity-60 disabled:cursor-not-allowed'
+                className='inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed'
               >
                 {eSaving ? 'Updating...' : 'Update Nomination'}
               </button>

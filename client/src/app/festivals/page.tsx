@@ -201,7 +201,7 @@ export default function FestivalsAdminPage() {
     <main className="mx-auto w-full flex-1 px-4 py-8 sm:px-6 sm:py-10 lg:px-8 max-w-6xl">
       <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="mb-2 font-serif text-3xl text-white md:text-4xl">Festival</h1>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Festival</h1>
           <p className="max-w-2xl text-sm text-accent-foreground">
             IFFA runs one festival a year, so this is a calendar rather than a
             list. The published festival for the current or next year is the one
@@ -251,7 +251,7 @@ export default function FestivalsAdminPage() {
                     <p className="truncate text-sm font-semibold text-white">
                       {festival.name}
                       {!festival.isPublished && (
-                        <span className="ml-2 rounded border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                        <span className="ml-2 rounded border border-border px-1.5 py-0.5 text-xs text-muted-foreground">
                           Draft
                         </span>
                       )}

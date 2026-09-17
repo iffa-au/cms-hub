@@ -129,7 +129,7 @@ export default function CarouselManagementPage() {
   return (
     <main className="mx-auto w-full flex-1 px-4 py-8 sm:px-6 sm:py-10 lg:px-8 max-w-7xl">
       <div className="mb-8">
-        <h1 className="font-serif text-3xl md:text-4xl text-white mb-2">
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
           Carousel Management
         </h1>
         <p className="text-accent-foreground text-sm">
@@ -158,7 +158,7 @@ export default function CarouselManagementPage() {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-8">
           {/* Selected slots */}
           <section>
-            <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground mb-3">
+            <h2 className="mb-3 text-sm font-semibold text-foreground">
               Selected ({selectedIds.length}/{MAX_SLOTS})
             </h2>
             <div className="space-y-2">
@@ -241,7 +241,7 @@ export default function CarouselManagementPage() {
 
           {/* Browse / add */}
           <section>
-            <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground mb-3">
+            <h2 className="mb-3 text-sm font-semibold text-foreground">
               Approved Films
             </h2>
             <input

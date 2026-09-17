@@ -152,11 +152,11 @@ export default function AssignCrewPage() {
               <div className="inline-flex items-center justify-center w-7 h-7 rounded bg-[#2a261b]">
                 <Lock className="h-4 w-4 text-primary" />
               </div>
-              <h3 className="text-white text-lg font-bold tracking-widest uppercase font-serif">
+              <h3 className="text-sm font-semibold">
                 Current Assignment
               </h3>
             </div>
-            <div className="text-xs uppercase tracking-widest text-label">
+            <div className="text-xs font-medium text-label">
               Total Count:{" "}
               <span className="ml-2 inline-flex items-center px-3 py-1 rounded bg-[#2a261b] text-[#e2c35a]">
                 {assignments.length} Members
@@ -164,7 +164,7 @@ export default function AssignCrewPage() {
             </div>
           </div>
           <div className="divide-y divide-border">
-            <div className="grid grid-cols-12 px-6 py-3 text-label text-xs uppercase tracking-widest">
+            <div className="grid grid-cols-12 px-6 py-3 text-xs font-medium text-label">
               <div className="col-span-6">Name</div>
               <div className="col-span-4">Role</div>
               <div className="col-span-2 text-right">Actions</div>
@@ -214,7 +214,7 @@ export default function AssignCrewPage() {
               <div className="inline-flex items-center justify-center w-7 h-7 rounded bg-[#2a261b]">
                 <Users className="h-4 w-4 text-primary" />
               </div>
-              <h3 className="text-white text-lg font-bold tracking-widest uppercase font-serif">
+              <h3 className="text-sm font-semibold">
                 Add Crew Member
               </h3>
             </div>
@@ -281,7 +281,7 @@ export default function AssignCrewPage() {
                 <button
                   onClick={addAssignment}
                   disabled={working}
-                  className="px-6 py-3 rounded bg-primary text-black hover:bg-[#d9a50b] font-bold uppercase tracking-widest text-xs disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {working ? "Adding..." : "Add"}
                 </button>

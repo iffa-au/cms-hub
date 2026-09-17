@@ -152,7 +152,7 @@ export default function FilmEnquiryDetailPage() {
         </div>
         <button
           onClick={() => setConfirmingDelete(true)}
-          className="text-red-500 hover:text-red-400 transition-colors text-[10px] font-bold tracking-widest self-start sm:self-center"
+          className="text-xs font-semibold text-status-rejected underline-offset-4 transition-colors hover:text-foreground hover:underline self-start sm:self-center"
         >
           DELETE ENQUIRY
         </button>

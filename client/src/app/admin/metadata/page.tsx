@@ -216,7 +216,7 @@ export default function AdminMetadataPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-6">
         {/* Header */}
         <div className="flex-1">
-          <h2 className="text-white text-3xl lg:text-4xl font-serif font-bold leading-tight tracking-wide mb-4">
+          <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
             Metadata Management
           </h2>
           <p className="text-label text-lg font-light max-w-2xl mb-4">

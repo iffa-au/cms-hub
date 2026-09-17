@@ -90,14 +90,14 @@ export default function SignupPage() {
         </div> */}
         <Image src="/assets/IFFA_logo.png" alt="IFFA Logo" width={200} height={200} />
         <div className="h-px w-24 mx-auto my-3 bg-linear-to-r from-transparent via-primary to-transparent opacity-60" />
-        <p className="text-xs uppercase tracking-widest text-accent-foreground">
+        <p className="text-xs font-medium text-label">
           CMS Hub Sign Up
         </p>
       </div>
 
       <Card className="relative max-w-md w-full shadow-xl border border-border bg-surface-dark">
         <CardHeader className="mb-2 text-center space-y-1">
-          <CardTitle className="text-xl font-serif font-bold tracking-widest text-white">
+          <CardTitle className="text-lg font-semibold">
             Sign Up
           </CardTitle>
           <CardDescription className="text-xs text-accent-foreground tracking-wider">
