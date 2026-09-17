@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getData, updateData } from "@/lib/fetch-util";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
+import { SkeletonRows } from "@/components/skeleton";
 
 const INPUT =
   "w-full bg-[#0a0a0a] border border-[#393528] rounded px-4 py-3 text-white placeholder-[#544e3b] focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all mt-2 disabled:opacity-70";
@@ -266,7 +267,7 @@ export default function SubmissionDetailPage() {
         </p>
 
         {isLoading ? (
-          <p className="text-sm text-muted-foreground">Loading...</p>
+          <SkeletonRows rows={6} label="Loading submission" />
         ) : (
           <form
             className="flex flex-col gap-10"

@@ -8,6 +8,7 @@ import PageShell from "@/components/page-shell";
 import RecordList, { type Column } from "@/components/record-list";
 import ConfirmDialog from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 type PopulatedRef = { _id: string; name: string };
 type FilmEnquiryItem = {
@@ -67,9 +68,10 @@ export default function AdminFilmEnquiryPage() {
     async (id: string) => {
       try {
         await deleteData(`/film-enquiries/${id}`);
+        toast.success("Enquiry deleted");
         await load();
       } catch (e: any) {
-        setError(e?.message || "Failed to delete enquiry");
+        toast.error(e?.message || "Failed to delete enquiry");
       }
     },
     [load]

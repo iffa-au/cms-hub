@@ -5,6 +5,7 @@ import { getData, deleteData } from "@/lib/fetch-util";
 import { useAuth } from "@/providers/auth-context";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import ConfirmDialog from "@/components/confirm-dialog";
 
 type PopulatedRef = { _id: string; name: string };
 type FilmEnquiryItem = {
@@ -47,6 +48,7 @@ export default function FilmEnquiryDetailPage() {
   const [item, setItem] = useState<FilmEnquiryItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated || user?.role !== "admin") {
@@ -123,7 +125,6 @@ export default function FilmEnquiryDetailPage() {
   }
 
   const handleDelete = async () => {
-    if (!window.confirm(`Delete enquiry "${item.title}"? This cannot be undone.`)) return;
     try {
       await deleteData(`/film-enquiries/${item._id}`);
       router.push("/admin/film-enquiry");
@@ -150,7 +151,7 @@ export default function FilmEnquiryDetailPage() {
           </p>
         </div>
         <button
-          onClick={handleDelete}
+          onClick={() => setConfirmingDelete(true)}
           className="text-red-500 hover:text-red-400 transition-colors text-[10px] font-bold tracking-widest self-start sm:self-center"
         >
           DELETE ENQUIRY
@@ -275,6 +276,24 @@ export default function FilmEnquiryDetailPage() {
           </section>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmingDelete}
+        tone="danger"
+        title="Delete this enquiry?"
+        description={
+          <>
+            <span className="text-foreground">{item.title}</span> from {item.name}{" "}
+            will be removed. This can&apos;t be undone.
+          </>
+        }
+        confirmLabel="Delete enquiry"
+        onCancel={() => setConfirmingDelete(false)}
+        onConfirm={() => {
+          setConfirmingDelete(false);
+          void handleDelete();
+        }}
+      />
     </main>
   );
 }

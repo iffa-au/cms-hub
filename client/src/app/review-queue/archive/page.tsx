@@ -9,6 +9,7 @@ import Pagination from '@/components/pagination';
 import RecordList, { type Column } from '@/components/record-list';
 import ConfirmDialog from '@/components/confirm-dialog';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 type Submission = {
   _id: string;
@@ -106,9 +107,10 @@ export default function ArchivePage() {
   const restore = async (id: string) => {
     try {
       await patchData(`/submissions/${id}/restore`, {});
+      toast.success('Returned to the review queue');
       await load(query, activePage);
     } catch (e: unknown) {
-      setError(getErrorMessage(e, 'Failed to restore submission'));
+      toast.error(getErrorMessage(e, 'Failed to restore submission'));
     }
   };
 

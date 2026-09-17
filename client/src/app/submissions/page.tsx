@@ -10,6 +10,7 @@ import Pagination from '@/components/pagination';
 import RecordList, { type Column } from '@/components/record-list';
 import { StatusChip, type RecordStatus } from '@/components/status';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 type Submission = {
   _id: string;
@@ -184,18 +185,20 @@ export default function SubmissionsPage() {
     if (!id) return;
     try {
       await deleteData(`/submissions/${id}`);
-      await load();
+      toast.success('Submission deleted');
+      await load({ page: currentPage });
     } catch (e: any) {
-      setError(e?.message || 'Failed to delete submission');
+      toast.error(e?.message || 'Failed to delete submission');
     }
   }
 
   async function approve(id: string) {
     try {
       await patchData(`/submissions/${id}/approve`, {});
-      await load();
+      toast.success('Submission approved');
+      await load({ page: currentPage });
     } catch (e: any) {
-      setError(e?.message || 'Failed to approve submission');
+      toast.error(e?.message || 'Failed to approve submission');
     }
   }
 

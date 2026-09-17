@@ -122,6 +122,7 @@ function LoginPageInner() {
                         <Input
                           type="email"
                           placeholder="name@iffa.com"
+                          autoComplete="email"
                           className="pl-10"
                           {...field}
                         />
@@ -136,15 +137,7 @@ function LoginPageInner() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    {/* <div className="flex justify-between items-center">
-                      <FormLabel>Password</FormLabel>
-                      <Link
-                        href="/forgot-password"
-                        className="text-sm text-secondary hover:underline"
-                      >
-                        Forgot Password?
-                      </Link>
-                    </div> */}
+                    <FormLabel>Password</FormLabel>
                     <FormControl>
                       <div className="relative">
                         <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-muted-foreground">
@@ -161,6 +154,7 @@ function LoginPageInner() {
                         <Input
                           type="password"
                           placeholder="Enter your password"
+                          autoComplete="current-password"
                           className="pl-10"
                           {...field}
                         />

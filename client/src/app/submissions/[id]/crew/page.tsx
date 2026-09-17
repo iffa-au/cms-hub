@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { deleteData, getData, postData } from "@/lib/fetch-util";
 import { toast } from "sonner";
 import { Search, X, Lock, Users, Trash2 } from "lucide-react";
+import { SkeletonRows } from "@/components/skeleton";
 
 type CrewMember = { _id: string; name: string };
 type CrewRole = { _id: string; name: string };
@@ -170,7 +171,7 @@ export default function AssignCrewPage() {
               <div className="col-span-2 text-right">Actions</div>
             </div>
             {loading ? (
-              <div className="px-6 py-4 text-sm text-muted-foreground">Loading...</div>
+              <SkeletonRows rows={3} className="px-6 py-4" label="Loading crew" />
             ) : assignments.length === 0 ? (
               <div className="px-6 py-6 text-sm text-muted-foreground">
                 No crew assigned yet.

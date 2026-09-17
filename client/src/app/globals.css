@@ -168,6 +168,28 @@
   input[type="date"] {
     color-scheme: dark;
   }
+
+  /*
+   * A visible keyboard ring on everything focusable.
+   *
+   * Ten pages set `outline-none` on their inputs for looks, which removed the
+   * only affordance a keyboard user had for knowing where they were. These
+   * selectors are (0,1,1) and beat the `.outline-none` utility at (0,1,0), so
+   * they win wherever it's applied without needing those pages edited.
+   *
+   * Pointer users never see this: :focus-visible only matches keyboard focus.
+   */
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  summary:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

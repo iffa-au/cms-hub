@@ -8,6 +8,7 @@ import PartnerLogoUpload, {
   uploadPartnerLogo,
 } from "@/components/partners/partner-logo-upload";
 import { Pencil, Trash2, Plus, X } from "lucide-react";
+import ConfirmDialog from "@/components/confirm-dialog";
 
 const TIERS = [
   { value: "PRESENTING", label: "Presenting Partner" },
@@ -185,8 +186,9 @@ export default function PartnersAdminPage() {
     }
   };
 
+  const [pendingDelete, setPendingDelete] = useState<Partner | null>(null);
+
   const handleDelete = async (partner: Partner) => {
-    if (!window.confirm(`Remove "${partner.name}" from the partners page?`)) return;
     try {
       setError(null);
       await deleteData(`/partners/${partner._id}`);
@@ -402,7 +404,7 @@ export default function PartnersAdminPage() {
                           <Pencil size={15} />
                         </button>
                         <button
-                          onClick={() => void handleDelete(partner)}
+                          onClick={() => setPendingDelete(partner)}
                           className="p-1.5 text-muted-foreground hover:text-red-400"
                           aria-label={`Delete ${partner.name}`}
                         >
@@ -417,6 +419,25 @@ export default function PartnersAdminPage() {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        tone="danger"
+        title="Remove this partner?"
+        description={
+          <>
+            <span className="text-foreground">{pendingDelete?.name}</span> will no
+            longer appear on the public partners page.
+          </>
+        }
+        confirmLabel="Remove partner"
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => {
+          const partner = pendingDelete;
+          setPendingDelete(null);
+          if (partner) void handleDelete(partner);
+        }}
+      />
     </main>
   );
 }

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { deleteData, getData, postData } from '@/lib/fetch-util';
 import { Search, X } from 'lucide-react';
+import { SkeletonRows } from '@/components/skeleton';
 
 type CrewMember = {
   _id: string;
@@ -148,7 +149,7 @@ export default function AdminCrewPage() {
           </div>
           <div className='divide-y divide-border flex-1 overflow-y-auto min-h-0'>
             {loading ? (
-              <div className='p-6 text-sm text-muted-foreground'>Loading…</div>
+              <SkeletonRows rows={4} className='p-6' label='Loading crew members' />
             ) : error ? (
               <div className='p-6 text-sm text-red-400'>{error}</div>
             ) : filtered.length === 0 ? (
