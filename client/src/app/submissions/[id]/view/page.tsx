@@ -511,6 +511,14 @@ export default function ViewSubmissionPage() {
                               {member.email ? (
                                 <p className='text-muted-foreground text-xs mt-2 break-all'>{member.email}</p>
                               ) : null}
+                              {member.contactPhone ? (
+                                <p className='text-muted-foreground text-xs mt-2 break-all'>{member.contactPhone}</p>
+                              ) : null}
+                              {member.notes ? (
+                                <p className='text-muted-foreground text-xs mt-2 whitespace-pre-wrap border-l-2 border-border pl-2'>
+                                  {member.notes}
+                                </p>
+                              ) : null}
                               {member.instagramUrl ? (
                                 <a
                                   href={member.instagramUrl}
