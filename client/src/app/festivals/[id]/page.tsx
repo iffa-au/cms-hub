@@ -476,7 +476,7 @@ export default function FestivalEditorPage() {
   if (isAuthenticated && user?.role !== "admin" && user?.role !== "staff") return null;
 
   return (
-    <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10 sm:px-6 lg:px-8">
+    <main className="mx-auto w-full flex-1 px-4 py-8 sm:px-6 sm:py-10 lg:px-8 max-w-5xl">
       <Link
         href="/festivals"
         className="mb-6 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-primary"

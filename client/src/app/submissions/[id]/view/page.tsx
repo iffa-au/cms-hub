@@ -217,7 +217,7 @@ export default function ViewSubmissionPage() {
   const genres = details?.genres ?? [];
 
   return (
-    <main className='flex-1 w-full overflow-y-auto px-6 py-10 lg:px-10 scroll-smooth'>
+    <main className='mx-auto w-full flex-1 px-4 py-8 sm:px-6 sm:py-10 lg:px-8 max-w-5xl'>
       <div className='max-w-6xl mx-auto pb-24'>
         <div className='flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8'>
           <div>

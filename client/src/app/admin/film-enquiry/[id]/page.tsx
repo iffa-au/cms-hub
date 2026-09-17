@@ -6,6 +6,7 @@ import { useAuth } from "@/providers/auth-context";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import ConfirmDialog from "@/components/confirm-dialog";
+import { labelClass } from "@/components/form-section";
 
 type PopulatedRef = { _id: string; name: string };
 type FilmEnquiryItem = {
@@ -29,8 +30,7 @@ type FilmEnquiryItem = {
   updatedAt?: string;
 };
 
-const LABEL =
-  "text-accent-foreground text-xs font-bold uppercase tracking-widest";
+const LABEL = labelClass;
 const VALUE = "text-foreground mt-1";
 
 const WATCH_FORMAT_LABELS: Record<string, string> = {
@@ -100,7 +100,7 @@ export default function FilmEnquiryDetailPage() {
 
   if (loading) {
     return (
-      <main className="flex-1 py-10 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto w-full">
+      <main className="mx-auto w-full flex-1 px-4 py-8 sm:px-6 sm:py-10 lg:px-8 max-w-3xl">
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-border rounded w-1/3" />
           <div className="h-4 bg-border rounded w-full" />
@@ -112,7 +112,7 @@ export default function FilmEnquiryDetailPage() {
 
   if (error || !item) {
     return (
-      <main className="flex-1 py-10 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto w-full">
+      <main className="mx-auto w-full flex-1 px-4 py-8 sm:px-6 sm:py-10 lg:px-8 max-w-3xl">
         <p className="text-red-400 mb-4">{error || "Enquiry not found"}</p>
         <Link
           href="/admin/film-enquiry"
@@ -134,7 +134,7 @@ export default function FilmEnquiryDetailPage() {
   };
 
   return (
-    <main className="flex-1 py-10 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto w-full">
+    <main className="mx-auto w-full flex-1 px-4 py-8 sm:px-6 sm:py-10 lg:px-8 max-w-3xl">
       <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <Link

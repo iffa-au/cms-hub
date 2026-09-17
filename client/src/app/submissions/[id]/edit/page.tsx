@@ -481,7 +481,7 @@ export default function EditSubmissionPage() {
                     </option>
                   ))}
                 </select>
-                <p className='text-xs text-[#8a845f]'>Hold Cmd/Ctrl to select multiple.</p>
+                <p className='text-xs text-muted-foreground'>Hold Cmd/Ctrl to select multiple.</p>
               </div>
             </div>
           </section>
@@ -499,7 +499,7 @@ export default function EditSubmissionPage() {
                     Proposed Crew (Public Submission)
                   </h3>
                 </div>
-                <div className='text-xs uppercase tracking-widest text-[#bab29c]'>Read-only</div>
+                <div className='text-xs uppercase tracking-widest text-label'>Read-only</div>
               </div>
               <div className='p-8 space-y-10'>
                 {([
@@ -515,14 +515,14 @@ export default function EditSubmissionPage() {
                         {list.map((p, idx) => (
                           <div
                             key={`${label}-${idx}-${p.fullName}-${p.role}`}
-                            className='rounded border border-[#393528] p-4 bg-[#0b0b0b]'
+                            className='rounded border border-border p-4 bg-background'
                           >
                             <div className='flex flex-col gap-2'>
                               <div className='flex items-baseline justify-between'>
                                 <div className='text-white font-medium'>{p.fullName || '—'}</div>
-                                <div className='text-xs uppercase tracking-widest text-[#bab29c]'>{p.role || '—'}</div>
+                                <div className='text-xs uppercase tracking-widest text-label'>{p.role || '—'}</div>
                               </div>
-                              <div className='text-xs text-[#8a845f] break-all'>
+                              <div className='text-xs text-muted-foreground break-all'>
                                 Image URL:{' '}
                                 {p.imageUrl ? (
                                   <a
@@ -537,7 +537,7 @@ export default function EditSubmissionPage() {
                                   '—'
                                 )}
                               </div>
-                              <div className='text-xs text-[#8a845f] break-all'>
+                              <div className='text-xs text-muted-foreground break-all'>
                                 Instagram:{' '}
                                 {p.instagramUrl ? (
                                   <a
@@ -665,7 +665,7 @@ export default function EditSubmissionPage() {
                       value={durationHours}
                       onChange={(e) => sanitizeDigitInput(e.target.value, 10, setDurationHours)}
                     />
-                    <span className='text-xs text-[#8a845f]'>hr</span>
+                    <span className='text-xs text-muted-foreground'>hr</span>
                   </div>
                   <div className='flex items-center gap-2'>
                     <input
@@ -679,7 +679,7 @@ export default function EditSubmissionPage() {
                       value={durationMinutes}
                       onChange={(e) => sanitizeDigitInput(e.target.value, 59, setDurationMinutes)}
                     />
-                    <span className='text-xs text-[#8a845f]'>min</span>
+                    <span className='text-xs text-muted-foreground'>min</span>
                   </div>
                 </div>
               </div>
@@ -695,7 +695,7 @@ export default function EditSubmissionPage() {
                   value={submissionYear}
                   onChange={(e) => setSubmissionYear(e.target.value)}
                 />
-                <p className='text-xs text-[#8a845f]'>
+                <p className='text-xs text-muted-foreground'>
                   Controls which event year this film appears under on the public site (e.g. /events/2026/submissions). Leave blank only if intentionally hidden from every year.
                 </p>
               </div>

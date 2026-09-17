@@ -198,7 +198,7 @@ export default function FestivalsAdminPage() {
   if (isAuthenticated && user?.role !== "admin" && user?.role !== "staff") return null;
 
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6 lg:px-8">
+    <main className="mx-auto w-full flex-1 px-4 py-8 sm:px-6 sm:py-10 lg:px-8 max-w-6xl">
       <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="mb-2 font-serif text-3xl text-white md:text-4xl">Festival</h1>

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { getData, postData, deleteData } from "@/lib/fetch-util";
 import { Trash2 } from "lucide-react";
+import { inputClass } from "@/components/form-section";
 // Reusable style constants (scoped to this file)
 const PANEL =
   "rounded-xl border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50 flex flex-col";
@@ -10,8 +11,7 @@ const PANEL_HEADER =
   "px-8 py-6 border-b border-border flex flex-col gap-4 bg-surface-dark";
 const TITLE = "text-xl font-display font-semibold text-white tracking-wide";
 const GRID = "grid grid-cols-1 sm:grid-cols-12 gap-3 w-full";
-const INPUT_BASE =
-  "w-full bg-[#0a0a0a] border border-[#393528] rounded px-4 py-3 text-white placeholder-[#544e3b] focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all mt-2";
+const INPUT_BASE = inputClass;
 const ADD_BTN =
   "w-full bg-primary hover:bg-primary-hover text-black font-semibold px-2 py-1.5 rounded text-sm shadow-md transition-colors uppercase tracking-wider text-xs h-9 flex items-center justify-center";
 const LIST_SCROLL = "flex-1 overflow-y-auto custom-scrollbar p-3";
@@ -212,14 +212,14 @@ export default function AdminMetadataPage() {
     [loadAwardCategories]
   );
   return (
-    <main className="flex-1 py-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
+    <main className="mx-auto w-full flex-1 px-4 py-8 sm:px-6 sm:py-10 lg:px-8 max-w-7xl">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-6">
         {/* Header */}
         <div className="flex-1">
           <h2 className="text-white text-3xl lg:text-4xl font-serif font-bold leading-tight tracking-wide mb-4">
             Metadata Management
           </h2>
-          <p className="text-[#bab29c] text-lg font-light max-w-2xl mb-4">
+          <p className="text-label text-lg font-light max-w-2xl mb-4">
             Configure reference data for content and submissions.
           </p>
         </div>

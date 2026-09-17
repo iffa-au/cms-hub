@@ -281,7 +281,7 @@ export default function SubmissionDetailPage() {
                     Basic Information
                   </h3>
                 </div>
-                <div className="text-xs uppercase tracking-widest text-[#bab29c]">
+                <div className="text-xs uppercase tracking-widest text-label">
                   Status:{" "}
                   <span className="font-semibold text-white">{status}</span>
                 </div>
@@ -521,7 +521,7 @@ export default function SubmissionDetailPage() {
                       Proposed Crew (Public Submission)
                     </h3>
                   </div>
-                  <div className="text-xs uppercase tracking-widest text-[#bab29c]">
+                  <div className="text-xs uppercase tracking-widest text-label">
                     Read-only
                   </div>
                 </div>
@@ -541,18 +541,18 @@ export default function SubmissionDetailPage() {
                           {list.map((p, idx) => (
                             <div
                               key={`${label}-${idx}-${p.fullName}-${p.role}`}
-                              className="rounded border border-[#393528] p-4 bg-[#0b0b0b]"
+                              className="rounded border border-border p-4 bg-background"
                             >
                               <div className="flex flex-col gap-2">
                                 <div className="flex items-baseline justify-between">
                                   <div className="text-white font-medium">
                                     {p.fullName || "—"}
                                   </div>
-                                  <div className="text-xs uppercase tracking-widest text-[#bab29c]">
+                                  <div className="text-xs uppercase tracking-widest text-label">
                                     {p.role || "—"}
                                   </div>
                                 </div>
-                                <div className="text-xs text-[#8a845f] break-all">
+                                <div className="text-xs text-muted-foreground break-all">
                                   Image URL: {p.imageUrl ? (
                                     <a
                                       href={p.imageUrl}

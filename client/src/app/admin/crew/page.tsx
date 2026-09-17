@@ -100,7 +100,7 @@ export default function AdminCrewPage() {
   };
 
   return (
-    <main className='flex-1 py-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full'>
+    <main className='mx-auto w-full flex-1 px-4 py-8 sm:px-6 sm:py-10 lg:px-8 max-w-7xl'>
       <div className='flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4'>
         <div>
           <h1 className='font-serif text-3xl md:text-4xl text-white mb-2'>Crew Directory</h1>
@@ -192,7 +192,7 @@ export default function AdminCrewPage() {
             <div>
               <label className='text-accent-foreground text-xs font-bold uppercase tracking-widest'>Role Name</label>
               <input
-                className='w-full bg-[#0a0a0a] border border-[#393528] rounded px-4 py-3 text-white placeholder-[#544e3b] focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all mt-2'
+                className='w-full bg-background border border-border rounded px-4 py-3 text-white placeholder:text-[var(--placeholder)] focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all mt-2'
                 placeholder='e.g. Director'
                 value={roleName}
                 onChange={(e) => setRoleName(e.target.value)}
@@ -201,7 +201,7 @@ export default function AdminCrewPage() {
             <div>
               <label className='text-accent-foreground text-xs font-bold uppercase tracking-widest'>Description</label>
               <textarea
-                className='w-full bg-[#0a0a0a] border border-[#393528] rounded px-4 py-3 text-white placeholder-[#544e3b] focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all mt-2 resize-none'
+                className='w-full bg-background border border-border rounded px-4 py-3 text-white placeholder:text-[var(--placeholder)] focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all mt-2 resize-none'
                 placeholder='Optional details'
                 rows={3}
                 value={roleDesc}

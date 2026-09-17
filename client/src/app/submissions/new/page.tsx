@@ -357,7 +357,7 @@ export default function NewSubmissionPage() {
                     </option>
                   ))}
                 </select>
-                <p className="text-xs text-[#8a845f]">Hold Cmd/Ctrl to select multiple.</p>
+                <p className="text-xs text-muted-foreground">Hold Cmd/Ctrl to select multiple.</p>
               </div>
           </FormSection>
 
@@ -445,7 +445,7 @@ export default function NewSubmissionPage() {
                       value={durationHours}
                       onChange={(e) => sanitizeDigitInput(e.target.value, 10, setDurationHours)}
                     />
-                    <span className="text-xs text-[#8a845f]">hr</span>
+                    <span className="text-xs text-muted-foreground">hr</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <input
@@ -459,7 +459,7 @@ export default function NewSubmissionPage() {
                       value={durationMinutes}
                       onChange={(e) => sanitizeDigitInput(e.target.value, 59, setDurationMinutes)}
                     />
-                    <span className="text-xs text-[#8a845f]">min</span>
+                    <span className="text-xs text-muted-foreground">min</span>
                   </div>
                 </div>
               </div>
@@ -478,7 +478,7 @@ export default function NewSubmissionPage() {
                   onChange={(e) => setSubmissionYear(e.target.value)}
                   required
                 />
-                <p className="text-xs text-[#8a845f]">
+                <p className="text-xs text-muted-foreground">
                   Controls which event year this film appears under on the public site.
                 </p>
               </div>

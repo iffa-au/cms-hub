@@ -3,10 +3,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { deleteData, getData, postData, updateData } from '@/lib/fetch-util';
+import { inputClass, labelClass } from '@/components/form-section';
 
-const INPUT =
-  'w-full bg-[#0a0a0a] border border-[#393528] rounded px-4 py-3 text-white placeholder-[#544e3b] focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all mt-2';
-const LABEL = 'text-accent-foreground text-xs font-bold uppercase tracking-widest';
+const INPUT = inputClass;
+const LABEL = labelClass;
 
 type SubmissionDetail = { _id: string; title: string };
 type AwardCategory = { _id: string; name: string };
@@ -159,7 +159,7 @@ export default function SubmissionNominationPage() {
   };
 
   return (
-    <main className='flex-1 py-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full'>
+    <main className='mx-auto w-full flex-1 px-4 py-8 sm:px-6 sm:py-10 lg:px-8 max-w-7xl'>
       <div className='flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4'>
         <div>
           <h1 className='font-serif text-3xl md:text-4xl text-white mb-2'>Award Nominations</h1>
@@ -390,7 +390,7 @@ export default function SubmissionNominationPage() {
             <div className='md:col-span-2 flex justify-end gap-3'>
               <button
                 onClick={cancelEdit}
-                className='px-6 py-2.5 rounded bg-[#222] text-white hover:bg-[#333] border border-border font-bold uppercase tracking-widest text-xs'
+                className='px-6 py-2.5 rounded bg-secondary text-white hover:bg-secondary/80 border border-border font-bold uppercase tracking-widest text-xs'
               >
                 Cancel
               </button>

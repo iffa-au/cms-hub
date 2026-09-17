@@ -127,7 +127,7 @@ export default function CarouselManagementPage() {
   if (isAuthenticated && user?.role !== "admin" && user?.role !== "staff") return null;
 
   return (
-    <main className="flex-1 py-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
+    <main className="mx-auto w-full flex-1 px-4 py-8 sm:px-6 sm:py-10 lg:px-8 max-w-7xl">
       <div className="mb-8">
         <h1 className="font-serif text-3xl md:text-4xl text-white mb-2">
           Carousel Management
