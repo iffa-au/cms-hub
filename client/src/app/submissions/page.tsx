@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { getData } from '@/lib/fetch-util';
 import PageShell from '@/components/page-shell';
 import Pagination from '@/components/pagination';
@@ -257,11 +256,6 @@ export default function SubmissionsPage() {
     <PageShell
       title="Content library"
       description="Feature films, shorts, series and historical archives."
-      actions={
-        <Button asChild>
-          <Link href="/submissions/new">Add content</Link>
-        </Button>
-      }
     >
       {/* Search and primary filters. Wraps to its own rows below `sm` — as a
           single non-wrapping flex row this pushed the search field to nothing

@@ -3,14 +3,6 @@
 import { useEffect, useState } from "react";
 import { getData, postData } from "@/lib/fetch-util";
 import { useRouter } from "next/navigation";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
 import { format } from "date-fns";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -21,9 +13,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { ChevronDownIcon } from "lucide-react";
-import { Label } from "@radix-ui/react-dropdown-menu";
+import Link from "next/link";
+import { toast } from "sonner";
 import PageShell from "@/components/page-shell";
+import CrewEditor, { EMPTY_CREW } from "@/components/crew/crew-editor";
+import ConfirmDialog from "@/components/confirm-dialog";
 import {
   FormSection,
   inputClass,
@@ -64,6 +58,14 @@ export default function NewSubmissionPage() {
   const [languages, setLanguages] = useState<MetaItem[]>([]);
   const [contentTypes, setContentTypes] = useState<MetaItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Crew can only be attached once the film exists: CrewEditor saves through
+  // PATCH /submissions/:id and uploads photos under the submission's own S3
+  // prefix, and the create endpoint doesn't accept crew at all. So adding a
+  // film is two steps, and the second one happens here rather than sending
+  // people off to the edit screen to finish.
+  const [created, setCreated] = useState<{ id: string; title: string } | null>(null);
+  const [crewDirty, setCrewDirty] = useState(false);
+  const [confirmingLeave, setConfirmingLeave] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [potraitImageUrl, setPotraitImageUrl] = useState<string | undefined>(
     undefined
@@ -145,10 +147,12 @@ export default function NewSubmissionPage() {
         data?: { _id: string };
         message?: string;
       }>("/submissions", payload);
-      if (res && (res as any).success && (res as any).data?._id) {
-        router.push("/dashboard");
+      const newId = res?.data?._id;
+      if (res?.success && newId) {
+        toast.success("Film saved. Add its crew below.");
+        setCreated({ id: newId, title: payload.title });
       } else {
-        setError((res as any)?.message || "Failed to create submission");
+        setError(res?.message || "Failed to create submission");
       }
     } catch (err: any) {
       setError(err?.response?.data?.message || "Failed to create submission");
@@ -160,10 +164,56 @@ export default function NewSubmissionPage() {
   return (
     <PageShell
       width="medium"
-      title="Submit a film"
-      description="Enter the film's details. Media links should point at high-resolution files."
+      title={created ? "Add the crew" : "Submit a film"}
+      description={
+        created
+          ? "The film is saved. Add its cast and crew now, or finish and come back to it later."
+          : "Enter the film's details. You'll add cast and crew on the next step."
+      }
     >
-        {/* Information Form */}
+      {created ? (
+        <div className="flex flex-col gap-6">
+          <p className="rounded-lg border border-status-approved/35 bg-status-approved/10 px-4 py-3 text-sm text-status-approved">
+            <span className="font-medium">{created.title}</span> was saved.
+          </p>
+
+          <section className="overflow-hidden rounded-xl border border-border bg-surface-dark">
+            <div className="p-4 sm:p-6">
+              <CrewEditor
+                submissionId={created.id}
+                initialCrew={EMPTY_CREW}
+                heading="Crew"
+                onDirtyChange={setCrewDirty}
+              />
+            </div>
+          </section>
+
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button variant="outline" size="lg" asChild>
+              <Link href={`/submissions/${created.id}/edit`}>Edit film details</Link>
+            </Button>
+            <Button
+              size="lg"
+              onClick={() =>
+                crewDirty ? setConfirmingLeave(true) : router.push("/dashboard")
+              }
+            >
+              Done
+            </Button>
+          </div>
+
+          <ConfirmDialog
+            open={confirmingLeave}
+            title="Leave without saving the crew?"
+            description="The crew you've entered hasn't been saved yet. Save it first, or leave and add it later from the film's edit screen."
+            confirmLabel="Leave anyway"
+            cancelLabel="Stay"
+            onCancel={() => setConfirmingLeave(false)}
+            onConfirm={() => router.push("/dashboard")}
+          />
+        </div>
+      ) : (
+        /* Information Form */
         <form className="flex flex-col gap-10" onSubmit={handleSubmit}>
           {/* Basic Information */}
           <FormSection title="Basic information">
@@ -498,6 +548,7 @@ export default function NewSubmissionPage() {
             </Button>
           </div>
         </form>
+      )}
     </PageShell>
   );
 }

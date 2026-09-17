@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronRight, ExternalLink, ImageUp, Plus, Trash2, UserRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { postData, updateData } from '@/lib/fetch-util';
@@ -143,6 +143,8 @@ type CrewEditorProps = {
   initialCrew: CrewGroups;
   /** Called after a successful save with the crew that was persisted. */
   onSaved?: (crew: CrewGroups) => void;
+  /** Lets a caller warn before navigating away from unsaved crew. */
+  onDirtyChange?: (dirty: boolean) => void;
   /** Rendered above the groups — lets the review queue title its modal. */
   heading?: string;
 };
@@ -151,6 +153,7 @@ export default function CrewEditor({
   submissionId,
   initialCrew,
   onSaved,
+  onDirtyChange,
   heading = 'Crew',
 }: CrewEditorProps) {
   const [crew, setCrew] = useState<CrewGroups>(() => toCrewGroups(initialCrew));
@@ -178,6 +181,10 @@ export default function CrewEditor({
     () => JSON.stringify(crew) !== JSON.stringify(saved),
     [crew, saved],
   );
+
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
 
   const total = GROUPS.reduce((n, g) => n + crew[g.key].length, 0);
 
