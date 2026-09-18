@@ -49,6 +49,7 @@ export default function Navbar() {
         label: "Site content",
         children: [
           { href: "/carousel", label: "Submissions carousel" },
+          { href: "/featured-films", label: "Featured films" },
           { href: "/partners", label: "Partners" },
           { href: "/festivals", label: "Festivals" },
           { href: "/festivals/settings", label: "Festivals page" },

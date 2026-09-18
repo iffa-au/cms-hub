@@ -21,6 +21,7 @@ import uploadRoutes from "./upload.js";
 import partnerRoutes from "./partner.js";
 import festivalRoutes from "./festival.js";
 import podcastRoutes from "./podcast.js";
+import featuredFilmsRoutes from "./featuredFilms.js";
 
 const router = e.Router();
 
@@ -48,5 +49,6 @@ router.use("/uploads", uploadRoutes);
 router.use("/partners", partnerRoutes);
 router.use("/festivals", festivalRoutes);
 router.use("/podcasts", podcastRoutes);
+router.use("/featured-films", featuredFilmsRoutes);
 
 export default router;

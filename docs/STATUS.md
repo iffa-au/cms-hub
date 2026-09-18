@@ -1,6 +1,6 @@
 # Status
 
-Updated: 2026-09-15
+Updated: 2026-09-18
 
 Short by design — delete finished items rather than accumulating a changelog.
 The public site's status lives in `../iffa-2026/docs/STATUS.md`; the AWS
@@ -13,6 +13,20 @@ backend merged first — otherwise the UI can land against an API that has not
 caught up, and writes silently no-op.
 
 ## Committed, not deployed
+
+**Featured film management (branch `featured`).** Site
+content → Featured films (`/featured-films`) curates the homepage "Featured
+Selection" row: up to 6 approved films, ordered, each with an optional badge,
+highlighted title ending and short genre. Stored as one `FeaturedFilms`
+singleton document, not as flags on submissions, so a save is a single write.
+Routes: public `GET /featured-films`, staff `GET /featured-films/manage` and
+`PUT /featured-films`. The public site's half is on `iffa-2026` branch
+`featured`; merge and deploy this backend first.
+
+**Not run against a database.** There's no local Mongo, and the local backend
+reads production. The CMS page was checked in a browser against a mocked API.
+After deploying, confirm `GET /featured-films` answers
+`{"configured": false, "data": []}` before the first save.
 
 **Credit roles — the "Other Crew" vocabulary, client half.** The backend (#30)
 is live and seeded; the client is not. Its original PR (#31) was merged into
