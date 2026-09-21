@@ -1,4 +1,5 @@
 import CrewRole from "../models/crewRole.model.js";
+import CrewAssignment from "../models/crewAssignment.model.js";
 
 export const getCrewRoles = async (req, res) => {
   try {
@@ -104,9 +105,33 @@ export const updateCrewRole = async (req, res) => {
   }
 };
 
+/**
+ * Refuses to delete a role any crew assignment still uses.
+ *
+ * A role label is shared across films — one row here backs hundreds of
+ * credits on 2022-2025 submissions. Deleting it used to leave every one of
+ * those assignments pointing at an id that resolves to nothing, which is how
+ * 616 of the 1,516 assignments in production came to reference a role that no
+ * longer exists. The record vanished from the CMS and its references did not,
+ * which reads as "the delete didn't reach the database".
+ *
+ * Blocking rather than cascading is deliberate: cascading would make one
+ * click destroy hundreds of historical credits with no undo. Reassign or
+ * remove the assignments first, then the role deletes.
+ */
 export const deleteCrewRole = async (req, res) => {
   try {
     const { id } = req.params;
+
+    const inUse = await CrewAssignment.countDocuments({ crewRoleId: id });
+    if (inUse > 0) {
+      return res.status(409).json({
+        success: false,
+        message: `This role is used by ${inUse} crew assignment${inUse === 1 ? "" : "s"} and cannot be deleted. Reassign them first.`,
+        inUse,
+      });
+    }
+
     const deleted = await CrewRole.findByIdAndDelete(id);
     if (!deleted) {
       return res
