@@ -14,10 +14,15 @@ caught up, and writes silently no-op.
 
 ## Committed, not deployed
 
-**Deletes now clean up after themselves (backend).** Deleting a record removed
-it but left everything pointing at it, so the row vanished from the CMS while
-its references stayed in Mongo — which is what "deleted from the CMS but not
-the database" turned out to mean. Client half is a separate PR.
+**Deletes now clean up after themselves.** Deleting a record removed it but
+left everything pointing at it, so the row vanished from the CMS while its
+references stayed in Mongo — which is what "deleted from the CMS but not the
+database" turned out to mean. Backend #36 (merged); client #37.
+
+`/admin/crew` used to discard every delete error in a bare `catch {}`, which
+would have made the new 409 refusals look like a dead button. It now shows the
+server's message — the count is the useful part — and confirms first, which
+every other destructive action in the CMS already did.
 
 - `deleteCrewRole` refuses with **409** when assignments still use the role,
   and says how many. **79 of 90 roles are in use**, so most can no longer be
