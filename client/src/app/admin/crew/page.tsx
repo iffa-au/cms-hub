@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { deleteData, getData, postData } from '@/lib/fetch-util';
 import { Search, X } from 'lucide-react';
 import { SkeletonRows } from '@/components/skeleton';
+import ConfirmDialog from '@/components/confirm-dialog';
 
 type CrewMember = {
   _id: string;
@@ -40,6 +41,22 @@ export default function AdminCrewPage() {
   const [roleDesc, setRoleDesc] = useState('');
   const [savingRole, setSavingRole] = useState(false);
   const [roleError, setRoleError] = useState<string | null>(null);
+
+  // Deleting either kind can now be refused by the API rather than silently
+  // orphaning its references: a role still used by crew assignments answers
+  // 409, as does a person named on a nomination. Those messages carry the
+  // count, so they have to reach the screen — this page used to discard every
+  // delete error, which made a refusal look like a dead button.
+  const [pendingDelete, setPendingDelete] = useState<
+    { kind: 'member' | 'role'; id: string; name: string } | null
+  >(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const messageFrom = (e: unknown, fallback: string) =>
+    (e as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+    (e as { message?: string })?.message ||
+    fallback;
 
   async function loadAll() {
     try {
@@ -81,21 +98,22 @@ export default function AdminCrewPage() {
     }
   };
 
-  const deleteRole = async (id: string) => {
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    const { kind, id } = pendingDelete;
+    setDeleting(true);
+    setDeleteError(null);
     try {
-      await deleteData(`/crew-roles/${id}`);
+      await deleteData(kind === 'role' ? `/crew-roles/${id}` : `/crew-members/${id}`);
+      setPendingDelete(null);
       await loadAll();
-    } catch {
-      // ignore errors for now
-    }
-  };
-
-  const deleteMember = async (id: string) => {
-    try {
-      await deleteData(`/crew-members/${id}`);
-      await loadAll();
-    } catch {
-      // ignore errors for now
+    } catch (e: unknown) {
+      // Kept on screen after the dialog closes: a 409 explains how many
+      // records are in the way, which is the whole point of the refusal.
+      setDeleteError(messageFrom(e, `Failed to delete ${kind === 'role' ? 'role' : 'crew member'}`));
+      setPendingDelete(null);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -141,6 +159,19 @@ export default function AdminCrewPage() {
         </div>
       </div>
 
+      {deleteError ? (
+        <div className='mb-6 flex items-start justify-between gap-4 rounded border border-status-rejected/40 bg-status-rejected/10 px-4 py-3'>
+          <p className='text-sm text-status-rejected'>{deleteError}</p>
+          <button
+            onClick={() => setDeleteError(null)}
+            aria-label='Dismiss'
+            className='shrink-0 text-muted-foreground transition-colors hover:text-foreground'
+          >
+            <X className='h-4 w-4' />
+          </button>
+        </div>
+      ) : null}
+
       <div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
         {/* Left: Crew list */}
         <section className='lg:col-span-2 rounded border border-border bg-surface-dark h-[520px] flex flex-col overflow-hidden'>
@@ -171,7 +202,7 @@ export default function AdminCrewPage() {
                       EDIT
                     </button>
                     <button
-                      onClick={() => void deleteMember(m._id)}
+                      onClick={() => setPendingDelete({ kind: 'member', id: m._id, name: m.name })}
                       className='text-xs font-semibold text-status-rejected underline-offset-4 transition-colors hover:text-foreground hover:underline'
                     >
                       DELETE
@@ -232,7 +263,7 @@ export default function AdminCrewPage() {
                       ) : null}
                     </div>
                     <button
-                      onClick={() => void deleteRole(r._id)}
+                      onClick={() => setPendingDelete({ kind: 'role', id: r._id, name: r.name })}
                       className='text-xs font-semibold text-status-rejected underline-offset-4 transition-colors hover:text-foreground hover:underline'
                     >
                       DELETE
@@ -244,6 +275,35 @@ export default function AdminCrewPage() {
           </div>
         </section>
       </div>
+
+      {/* Every other destructive action in the CMS confirms first; this page
+          was missed. It matters more here now that deleting a person also
+          removes the crew assignments linking them to films. */}
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        tone='danger'
+        busy={deleting}
+        title={
+          pendingDelete?.kind === 'role' ? 'Delete this role?' : 'Delete this crew member?'
+        }
+        description={
+          pendingDelete?.kind === 'role' ? (
+            <>
+              <span className='text-foreground'>{pendingDelete?.name}</span> will be removed
+              from the role list. If any crew assignment still uses it, the delete will be
+              refused rather than leaving those credits pointing at nothing.
+            </>
+          ) : (
+            <>
+              <span className='text-foreground'>{pendingDelete?.name}</span> will be removed,
+              along with the crew assignments linking them to films. This cannot be undone.
+            </>
+          )
+        }
+        confirmLabel={pendingDelete?.kind === 'role' ? 'Delete role' : 'Delete crew member'}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => void confirmDelete()}
+      />
     </main>
   );
 }
