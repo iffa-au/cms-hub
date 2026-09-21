@@ -430,20 +430,43 @@ export const deleteSubmission = async (req: AuthedRequest, res) => {
         .status(404)
         .json({ success: false, message: "Submission not found" });
     }
-    // Best-effort cascading deletes
+    // Dependents first, and a failure here aborts the whole delete.
+    //
+    // This used to be best-effort: log the error and remove the submission
+    // anyway. That is how a cleanup failure turned into permanent orphans —
+    // rows pointing at a submission id that resolves to nothing, with the
+    // submission itself already gone and no way to find them again. Production
+    // carries 50 such submissiongenres and 6 crewassignments.
+    //
+    // Failing before the submission is removed leaves the record intact and
+    // the request retryable. Every operation below is idempotent, so a retry
+    // after a transient error costs nothing.
     try {
       const CrewAssignment = (await import("../models/crewAssignment.model.js"))
         .default;
       const Nomination = (await import("../models/nomination.model.js"))
         .default;
+      const FeaturedFilms = (await import("../models/featuredFilms.model.js"))
+        .default;
       await Promise.all([
         SubmissionGenre.deleteMany({ submissionId: existing._id }),
         CrewAssignment.deleteMany({ submissionId: existing._id }),
         Nomination.deleteMany({ submissionId: existing._id }),
+        // A singleton holding an ordered array, so this is a $pull rather than
+        // a delete. Added later than the three above, which is why a deleted
+        // film could still sit in the homepage's featured row.
+        FeaturedFilms.updateMany(
+          {},
+          { $pull: { entries: { submissionId: existing._id } } },
+        ),
       ]);
     } catch (e) {
       console.error("Related cleanup failed during submission delete:", e);
-      // continue; not fatal
+      return res.status(500).json({
+        success: false,
+        message:
+          "Could not remove this submission's related records, so it was left in place. Nothing was deleted — try again.",
+      });
     }
     await Submission.findByIdAndDelete(existing._id);
     return res.status(200).json({

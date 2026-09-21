@@ -14,6 +14,34 @@ caught up, and writes silently no-op.
 
 ## Committed, not deployed
 
+**Deletes now clean up after themselves (backend).** Deleting a record removed
+it but left everything pointing at it, so the row vanished from the CMS while
+its references stayed in Mongo — which is what "deleted from the CMS but not
+the database" turned out to mean. Client half is a separate PR.
+
+- `deleteCrewRole` refuses with **409** when assignments still use the role,
+  and says how many. **79 of 90 roles are in use**, so most can no longer be
+  deleted without reassigning first — there is no UI for that yet.
+- `deleteCrewMember` cascades their `CrewAssignment` rows, but refuses with 409
+  if a nomination names them (12 of 1,182). Award history is not collateral.
+- `deleteSubmission` now `$pull`s the film out of the `featuredfilms`
+  singleton, and **fails closed**: the cascade runs first and a failure aborts
+  the delete instead of logging and removing the submission anyway. That
+  best-effort behaviour is what produced the existing orphans.
+
+`scripts/audit-orphans.ts` reports the backlog. **Read-only — no `--confirm`,
+no write path.** As of 2026-09-21:
+
+```
+crewassignments.crewRoleId    616      submissiongenres.submissionId  50
+crewassignments.crewMemberId    6      nominations.*                   0
+crewassignments.submissionId    6      featuredfilms                   0
+                                            total 678
+```
+
+Nothing has been cleaned up. Deciding what to remove is a separate step.
+
+
 **Featured film management (branch `featured`).** Site
 content → Featured films (`/featured-films`) curates the homepage "Featured
 Selection" row: up to 6 approved films, ordered, each with an optional badge,
