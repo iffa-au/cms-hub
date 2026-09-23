@@ -9,6 +9,14 @@ import PageShell from '@/components/page-shell';
 import Pagination from '@/components/pagination';
 import RecordList, { type Column } from '@/components/record-list';
 import { Button } from '@/components/ui/button';
+import {
+  AdvancedFiltersDialog,
+  EMPTY_FILTERS,
+  appendFilterParams,
+  countActiveFilters,
+  useFilterOptions,
+  type AdvancedFilters,
+} from '@/components/submissions/advanced-filters';
 
 type Submission = {
   _id: string;
@@ -19,6 +27,7 @@ type Submission = {
   durationMinutes?: number;
   createdAt?: string;
   contentTypeName?: string | null;
+  countryName?: string | null;
   genreNames?: string[];
 };
 
@@ -56,6 +65,10 @@ const formatSubmittedAt = (value?: string) => {
 export default function ReviewQueuePage() {
   const router = useRouter();
   const [query, setQuery] = useState('');
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [filters, setFilters] = useState<AdvancedFilters>(EMPTY_FILTERS);
+  const filterOptions = useFilterOptions();
+  const activeFiltersCount = countActiveFilters(filters);
   const [currentPage, setCurrentPage] = useState(1);
   const [items, setItems] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,7 +89,7 @@ export default function ReviewQueuePage() {
     return fallback;
   };
 
-  const load = useCallback(async (q: string, page: number) => {
+  const load = useCallback(async (q: string, f: AdvancedFilters, page: number) => {
     try {
       setLoading(true);
       setError(null);
@@ -84,6 +97,7 @@ export default function ReviewQueuePage() {
       const safeQuery = q.trim();
       const parts = [`page=${safePage}`, `limit=${PAGE_LIMIT}`, `status=SUBMITTED`];
       if (safeQuery) parts.push(`q=${encodeURIComponent(safeQuery)}`);
+      appendFilterParams(parts, f);
       const res = await getData<ListResponse>(`/submissions?${parts.join('&')}`);
       setItems(res?.data ?? []);
       const meta = res?.meta ?? { page: safePage, limit: PAGE_LIMIT, total: res?.data?.length ?? 0 };
@@ -97,7 +111,7 @@ export default function ReviewQueuePage() {
   }, []);
 
   useEffect(() => {
-    void load('', 1);
+    void load('', EMPTY_FILTERS, 1);
   }, [load]);
 
   const activePage = pageMeta?.page ?? currentPage;
@@ -109,7 +123,7 @@ export default function ReviewQueuePage() {
   const goToPage = (targetPage: number) => {
     if (loading || targetPage === activePage || targetPage < 1 || targetPage > totalPages) return;
     setCurrentPage(targetPage);
-    void load(query, targetPage);
+    void load(query, filters, targetPage);
   };
 
   const columns: Column<Submission>[] = [
@@ -131,6 +145,13 @@ export default function ReviewQueuePage() {
       header: 'Type',
       cell: (item) => (
         <span className="text-foreground/80">{item.contentTypeName || '—'}</span>
+      ),
+    },
+    {
+      key: 'country',
+      header: 'Country',
+      cell: (item) => (
+        <span className="text-foreground/80">{item.countryName || '—'}</span>
       ),
     },
     {
@@ -194,7 +215,7 @@ export default function ReviewQueuePage() {
           <Button variant="outline" asChild>
             <Link href="/review-queue/archive">Archive</Link>
           </Button>
-          <DownloadAllPdfButton query={query} onError={setActionError} />
+          <DownloadAllPdfButton query={query} filters={filters} onError={setActionError} />
         </>
       }
     >
@@ -218,7 +239,7 @@ export default function ReviewQueuePage() {
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               setCurrentPage(1);
-              void load(query, 1);
+              void load(query, filters, 1);
             }
           }}
           className="w-full grow rounded bg-transparent px-3 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
@@ -227,12 +248,22 @@ export default function ReviewQueuePage() {
         />
         <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-border pt-2 sm:border-l sm:border-t-0 sm:pl-2 sm:pt-0">
           <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            aria-expanded={isFiltersOpen}
+            aria-controls="advanced-filters-panel"
+            onClick={() => setIsFiltersOpen((open) => !open)}
+          >
+            {`Filters${activeFiltersCount > 0 ? ` (${activeFiltersCount})` : ''}`}
+          </Button>
+          <Button
             variant="ghost"
             size="sm"
             onClick={() => {
               setQuery('');
               setCurrentPage(1);
-              void load('', 1);
+              void load('', filters, 1);
             }}
           >
             Clear
@@ -241,13 +272,31 @@ export default function ReviewQueuePage() {
             size="sm"
             onClick={() => {
               setCurrentPage(1);
-              void load(query, 1);
+              void load(query, filters, 1);
             }}
           >
             Search
           </Button>
         </div>
       </div>
+
+      <AdvancedFiltersDialog
+        open={isFiltersOpen}
+        onClose={() => setIsFiltersOpen(false)}
+        options={filterOptions}
+        value={filters}
+        onChange={setFilters}
+        onApply={() => {
+          setCurrentPage(1);
+          void load(query, filters, 1);
+        }}
+        onClearAll={() => {
+          setQuery('');
+          setFilters(EMPTY_FILTERS);
+          setCurrentPage(1);
+          void load('', EMPTY_FILTERS, 1);
+        }}
+      />
 
       <RecordList
         items={items}

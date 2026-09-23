@@ -43,11 +43,18 @@ export const metadata: Metadata = {
   icons: {
     icon: "/CMSfavicon.ico",
   },
+  // The CMS is dark-only. Without this, Dark Reader recolours it — visibly in
+  // dev, where the stylesheet loads after its dark-theme check has already run.
+  other: {
+    // Dark Reader only checks presence; Next drops a meta with empty content.
+    "darkreader-lock": "true",
+  },
 };
 
 export const viewport = {
   width: "device-width",
   initialScale: 1,
+  colorScheme: "dark",
   themeColor: "#0f0f0f",
 };
 
@@ -57,7 +64,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    // Browser extensions (e.g. Dark Reader) add attributes to <html> before
+    // React hydrates. This only silences attribute mismatches on this one
+    // element — children are still checked.
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${archivo.variable} ${newsreader.variable} ${geistMono.variable} font-sans antialiased min-h-svh flex flex-col`}
       >

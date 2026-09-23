@@ -197,6 +197,14 @@
   input[type="date"] {
     color-scheme: dark;
   }
+  /* Edge/Chrome on Windows can still draw the option list white while the
+     options inherit the select's light text — light grey on white. Colouring
+     the options directly is honoured regardless of color-scheme. */
+  option,
+  optgroup {
+    background-color: var(--popover);
+    color: var(--popover-foreground);
+  }
 
   /*
    * A visible keyboard ring on everything focusable.

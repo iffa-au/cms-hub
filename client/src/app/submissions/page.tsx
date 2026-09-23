@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getData } from '@/lib/fetch-util';
 import PageShell from '@/components/page-shell';
@@ -8,6 +8,14 @@ import Pagination from '@/components/pagination';
 import RecordList, { type Column } from '@/components/record-list';
 import { StatusChip, type RecordStatus } from '@/components/status';
 import { Button } from '@/components/ui/button';
+import {
+  AdvancedFiltersDialog,
+  EMPTY_FILTERS,
+  appendFilterParams,
+  countActiveFilters,
+  useFilterOptions,
+  type AdvancedFilters,
+} from '@/components/submissions/advanced-filters';
 
 type Submission = {
   _id: string;
@@ -19,6 +27,7 @@ type Submission = {
   contentTypeId?: string;
   genreIds?: string[];
   contentTypeName?: string | null;
+  countryName?: string | null;
   genreNames?: string[];
   status?: 'SUBMITTED' | 'APPROVED' | 'REJECTED';
 };
@@ -38,18 +47,12 @@ type ListResponse = {
   meta?: { page: number; limit: number; total: number };
 };
 
-type FilterOption = { _id: string; name: string };
-type OptionsResponse = { success: boolean; data: FilterOption[] };
 type StatusFilter = 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'ALL';
 
 type LoadOverrides = {
   q?: string;
   status?: StatusFilter;
-  contentTypeIds?: string[];
-  genreIds?: string[];
-  countryId?: string;
-  languageId?: string;
-  year?: string;
+  filters?: AdvancedFilters;
   page?: number;
 };
 
@@ -58,54 +61,16 @@ export default function SubmissionsPage() {
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('APPROVED');
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
-  const [selectedContentTypeIds, setSelectedContentTypeIds] = useState<string[]>([]);
-  const [selectedGenreIds, setSelectedGenreIds] = useState<string[]>([]);
-  const [selectedCountryId, setSelectedCountryId] = useState('');
-  const [selectedLanguageId, setSelectedLanguageId] = useState('');
-  const [selectedYear, setSelectedYear] = useState('');
+  const [filters, setFilters] = useState<AdvancedFilters>(EMPTY_FILTERS);
+  const filterOptions = useFilterOptions();
 
-  const [contentTypes, setContentTypes] = useState<FilterOption[]>([]);
-  const [genres, setGenres] = useState<FilterOption[]>([]);
-  const [countries, setCountries] = useState<FilterOption[]>([]);
-  const [languages, setLanguages] = useState<FilterOption[]>([]);
   const [items, setItems] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pageMeta, setPageMeta] = useState<{ page: number; limit: number; total: number } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
-  const yearOptions = useMemo(() => {
-    const currentYear = new Date().getFullYear();
-    return Array.from({ length: 40 }, (_, i) => String(currentYear - i));
-  }, []);
-  const activeFiltersCount = useMemo(() => {
-    return (
-      selectedContentTypeIds.length +
-      selectedGenreIds.length +
-      (selectedCountryId ? 1 : 0) +
-      (selectedLanguageId ? 1 : 0) +
-      (selectedYear ? 1 : 0)
-    );
-  }, [
-    selectedContentTypeIds.length,
-    selectedGenreIds.length,
-    selectedCountryId,
-    selectedLanguageId,
-    selectedYear,
-  ]);
-
-  const toggleMulti = (
-    value: string,
-    values: string[],
-    setter: (next: string[]) => void,
-  ) => {
-    if (!value) return;
-    if (values.includes(value)) {
-      setter(values.filter((v) => v !== value));
-      return;
-    }
-    setter([...values, value]);
-  };
+  const activeFiltersCount = countActiveFilters(filters);
 
   async function load(overrides: LoadOverrides = {}) {
     try {
@@ -115,22 +80,9 @@ export default function SubmissionsPage() {
       const parts = [`page=${page}`, `limit=20`];
       const s = overrides.status ?? statusFilter;
       const q = overrides.q ?? query;
-      const contentTypeIds = overrides.contentTypeIds ?? selectedContentTypeIds;
-      const genreIds = overrides.genreIds ?? selectedGenreIds;
-      const countryId = overrides.countryId ?? selectedCountryId;
-      const languageId = overrides.languageId ?? selectedLanguageId;
-      const year = overrides.year ?? selectedYear;
       if (s && s !== 'ALL') parts.push(`status=${encodeURIComponent(s)}`);
       if (q && q.trim()) parts.push(`q=${encodeURIComponent(q.trim())}`);
-      if (contentTypeIds.length > 0) {
-        parts.push(`contentTypeIds=${encodeURIComponent(contentTypeIds.join(','))}`);
-      }
-      if (genreIds.length > 0) {
-        parts.push(`genreIds=${encodeURIComponent(genreIds.join(','))}`);
-      }
-      if (countryId) parts.push(`countryId=${encodeURIComponent(countryId)}`);
-      if (languageId) parts.push(`languageId=${encodeURIComponent(languageId)}`);
-      if (year) parts.push(`year=${encodeURIComponent(year)}`);
+      appendFilterParams(parts, overrides.filters ?? filters);
       const res = await getData<ListResponse>(`/submissions?${parts.join('&')}`);
       setItems(res?.data ?? []);
       setPageMeta(res?.meta ?? null);
@@ -143,33 +95,7 @@ export default function SubmissionsPage() {
   }
 
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      if (!mounted) return;
-      try {
-        const [countriesRes, languagesRes, genresRes, contentTypesRes] = await Promise.all([
-          getData<OptionsResponse>('/countries'),
-          getData<OptionsResponse>('/languages'),
-          getData<OptionsResponse>('/genres'),
-          getData<OptionsResponse>('/content-types'),
-        ]);
-        if (!mounted) return;
-        setCountries(countriesRes?.data ?? []);
-        setLanguages(languagesRes?.data ?? []);
-        setGenres(genresRes?.data ?? []);
-        setContentTypes(contentTypesRes?.data ?? []);
-      } catch {
-        if (!mounted) return;
-        setCountries([]);
-        setLanguages([]);
-        setGenres([]);
-        setContentTypes([]);
-      }
-      await load({ q: '', status: statusFilter });
-    })();
-    return () => {
-      mounted = false;
-    };
+    void load({ q: '', status: statusFilter });
   }, []);
 
   const showingStart = items.length === 0 ? 0 : (currentPage - 1) * 20 + 1;
@@ -207,6 +133,13 @@ export default function SubmissionsPage() {
       header: 'Type',
       cell: (item) => (
         <span className="text-foreground/80">{item.contentTypeName || '—'}</span>
+      ),
+    },
+    {
+      key: 'country',
+      header: 'Country',
+      cell: (item) => (
+        <span className="text-foreground/80">{item.countryName || '—'}</span>
       ),
     },
     {
@@ -323,174 +256,20 @@ export default function SubmissionsPage() {
         </div>
       </div>
 
-      {/* Advanced filters */}
-      {isFiltersOpen ? (
-        <div
-          className="fixed inset-0 z-50 overflow-y-auto bg-black/45 px-4 py-8 backdrop-blur-sm"
-          onClick={() => setIsFiltersOpen(false)}
-        >
-          <div
-            id="advanced-filters-panel"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Advanced filters"
-            className="mx-auto max-w-3xl space-y-5 rounded-lg border border-border bg-surface-overlay p-4 sm:p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between gap-4">
-              <h2 className="text-sm font-semibold">Advanced filters</h2>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setQuery('');
-                  setStatusFilter('ALL');
-                  setSelectedContentTypeIds([]);
-                  setSelectedGenreIds([]);
-                  setSelectedCountryId('');
-                  setSelectedLanguageId('');
-                  setSelectedYear('');
-                  void load({
-                    q: '',
-                    status: 'ALL',
-                    contentTypeIds: [],
-                    genreIds: [],
-                    countryId: '',
-                    languageId: '',
-                    year: '',
-                  });
-                }}
-              >
-                Clear all
-              </Button>
-            </div>
-
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="flex flex-col gap-1">
-                <label htmlFor="filter-country" className="text-xs text-muted-foreground">
-                  Country
-                </label>
-                <select
-                  id="filter-country"
-                  value={selectedCountryId}
-                  onChange={(e) => setSelectedCountryId(e.target.value)}
-                  className="rounded border border-border bg-transparent px-2 py-2 text-sm text-foreground"
-                >
-                  <option value="">All countries</option>
-                  {countries.map((c) => (
-                    <option key={c._id} value={c._id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label htmlFor="filter-language" className="text-xs text-muted-foreground">
-                  Language
-                </label>
-                <select
-                  id="filter-language"
-                  value={selectedLanguageId}
-                  onChange={(e) => setSelectedLanguageId(e.target.value)}
-                  className="rounded border border-border bg-transparent px-2 py-2 text-sm text-foreground"
-                >
-                  <option value="">All languages</option>
-                  {languages.map((l) => (
-                    <option key={l._id} value={l._id}>
-                      {l.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label htmlFor="filter-year" className="text-xs text-muted-foreground">
-                  Year
-                </label>
-                <select
-                  id="filter-year"
-                  value={selectedYear}
-                  onChange={(e) => setSelectedYear(e.target.value)}
-                  className="rounded border border-border bg-transparent px-2 py-2 text-sm text-foreground"
-                >
-                  <option value="">All years</option>
-                  {yearOptions.map((year) => (
-                    <option key={year} value={year}>
-                      {year}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <fieldset className="space-y-2">
-              <legend className="text-xs text-muted-foreground">Categories</legend>
-              <div className="flex flex-wrap gap-2">
-                {contentTypes.map((item) => {
-                  const selected = selectedContentTypeIds.includes(item._id);
-                  return (
-                    <button
-                      key={item._id}
-                      type="button"
-                      aria-pressed={selected}
-                      onClick={() =>
-                        toggleMulti(item._id, selectedContentTypeIds, setSelectedContentTypeIds)
-                      }
-                      className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
-                        selected
-                          ? 'border-primary bg-primary/10 text-primary'
-                          : 'border-border text-muted-foreground hover:text-primary'
-                      }`}
-                    >
-                      {item.name}
-                    </button>
-                  );
-                })}
-              </div>
-            </fieldset>
-
-            <fieldset className="space-y-2">
-              <legend className="text-xs text-muted-foreground">Genres</legend>
-              <div className="flex flex-wrap gap-2">
-                {genres.map((item) => {
-                  const selected = selectedGenreIds.includes(item._id);
-                  return (
-                    <button
-                      key={item._id}
-                      type="button"
-                      aria-pressed={selected}
-                      onClick={() => toggleMulti(item._id, selectedGenreIds, setSelectedGenreIds)}
-                      className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
-                        selected
-                          ? 'border-primary bg-primary/10 text-primary'
-                          : 'border-border text-muted-foreground hover:text-primary'
-                      }`}
-                    >
-                      {item.name}
-                    </button>
-                  );
-                })}
-              </div>
-            </fieldset>
-
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => setIsFiltersOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => {
-                  void load();
-                  setIsFiltersOpen(false);
-                }}
-              >
-                Apply filters
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <AdvancedFiltersDialog
+        open={isFiltersOpen}
+        onClose={() => setIsFiltersOpen(false)}
+        options={filterOptions}
+        value={filters}
+        onChange={setFilters}
+        onApply={() => void load()}
+        onClearAll={() => {
+          setQuery('');
+          setStatusFilter('ALL');
+          setFilters(EMPTY_FILTERS);
+          void load({ q: '', status: 'ALL', filters: EMPTY_FILTERS });
+        }}
+      />
 
       <RecordList
         items={items}
