@@ -7,6 +7,13 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import ConfirmDialog from "@/components/confirm-dialog";
 import { labelClass } from "@/components/form-section";
+import { Button } from "@/components/ui/button";
+import { FileDown } from "lucide-react";
+import {
+  buildFilmEnquiryPdf,
+  filmEnquiryPdfFileName,
+  type FilmEnquiryPdfData,
+} from "@/lib/film-enquiry-pdf";
 
 type PopulatedRef = { _id: string; name: string };
 type FilmEnquiryItem = {
@@ -49,6 +56,8 @@ export default function FilmEnquiryDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated || user?.role !== "admin") {
@@ -124,6 +133,21 @@ export default function FilmEnquiryDetailPage() {
     );
   }
 
+  const handleDownloadPdf = async () => {
+    try {
+      setPdfError(null);
+      setDownloading(true);
+      const { jsPDF } = await import("jspdf");
+      const doc = new jsPDF({ unit: "pt", format: "a4" });
+      buildFilmEnquiryPdf(doc, item as FilmEnquiryPdfData);
+      doc.save(filmEnquiryPdfFileName(item as FilmEnquiryPdfData));
+    } catch (e: unknown) {
+      setPdfError(e instanceof Error && e.message ? e.message : "Failed to generate PDF");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   const handleDelete = async () => {
     try {
       await deleteData(`/film-enquiries/${item._id}`);
@@ -150,13 +174,35 @@ export default function FilmEnquiryDetailPage() {
             {item.title}
           </p>
         </div>
-        <button
-          onClick={() => setConfirmingDelete(true)}
-          className="text-xs font-semibold text-status-rejected underline-offset-4 transition-colors hover:text-foreground hover:underline self-start sm:self-center"
-        >
-          DELETE ENQUIRY
-        </button>
+        {/* The everyday action gets the button; delete stays a quiet text
+            link at the far edge so it isn't the thing a hurried click lands on. */}
+        <div className="flex items-center gap-5 self-start sm:self-center">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void handleDownloadPdf()}
+            disabled={downloading}
+          >
+            <FileDown aria-hidden="true" />
+            {downloading ? "Preparing…" : "Download PDF"}
+          </Button>
+          <button
+            onClick={() => setConfirmingDelete(true)}
+            className="text-xs font-semibold text-status-rejected underline-offset-4 transition-colors hover:text-foreground hover:underline"
+          >
+            DELETE ENQUIRY
+          </button>
+        </div>
       </div>
+
+      {pdfError && (
+        <p
+          role="alert"
+          className="mb-4 rounded-lg border border-status-rejected/35 bg-status-rejected/10 px-4 py-3 text-sm text-status-rejected"
+        >
+          {pdfError}
+        </p>
+      )}
 
       <div className="bg-card/60 rounded-lg border border-border overflow-hidden">
         <div className="p-6 space-y-6">
