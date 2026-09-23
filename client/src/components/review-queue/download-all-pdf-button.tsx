@@ -4,6 +4,11 @@ import { getData } from '@/lib/fetch-util';
 import { buildSubmissionListPdf, type SubmissionListRow } from '@/lib/submission-pdf';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import {
+  EMPTY_FILTERS,
+  appendFilterParams,
+  type AdvancedFilters,
+} from '@/components/submissions/advanced-filters';
 
 type ListResponse = {
   success: boolean;
@@ -14,12 +19,17 @@ type ListResponse = {
 
 type DownloadAllPdfButtonProps = {
   query: string;
+  filters?: AdvancedFilters;
   onError: (message: string) => void;
 };
 
 const PAGE_SIZE = 100;
 
-export default function DownloadAllPdfButton({ query, onError }: DownloadAllPdfButtonProps) {
+export default function DownloadAllPdfButton({
+  query,
+  filters = EMPTY_FILTERS,
+  onError,
+}: DownloadAllPdfButtonProps) {
   const [isDownloading, setIsDownloading] = useState(false);
 
   const getErrorMessage = (value: unknown, fallback: string) => {
@@ -45,6 +55,7 @@ export default function DownloadAllPdfButton({ query, onError }: DownloadAllPdfB
       if (query.trim()) {
         parts.push(`q=${encodeURIComponent(query.trim())}`);
       }
+      appendFilterParams(parts, filters);
 
       const response = await getData<ListResponse>(`/submissions?${parts.join('&')}`);
       const pageRows = response?.data ?? [];
