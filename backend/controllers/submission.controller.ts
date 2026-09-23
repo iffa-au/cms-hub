@@ -1332,6 +1332,15 @@ export const adminListSubmissions = async (req, res) => {
           as: "contentType",
         },
       },
+      // Join country of origin
+      {
+        $lookup: {
+          from: "countries",
+          localField: "countryId",
+          foreignField: "_id",
+          as: "country",
+        },
+      },
       { $sort: { createdAt: -1 } },
       { $skip: skip },
       { $limit: limitNum },
@@ -1360,6 +1369,9 @@ export const adminListSubmissions = async (req, res) => {
           updatedAt: 1,
           contentTypeName: {
             $ifNull: [{ $arrayElemAt: ["$contentType.name", 0] }, null],
+          },
+          countryName: {
+            $ifNull: [{ $arrayElemAt: ["$country.name", 0] }, null],
           },
           genreNames: {
             $map: { input: "$genres", as: "g", in: "$$g.name" },
