@@ -29,6 +29,8 @@ export type SubmissionOverview = {
   imdbUrl?: string;
   trailerUrl?: string;
   trailerPassword?: string;
+  /** Staff-only passwords, like trailerPassword; the public API strips them. */
+  promoClips?: Array<{ url: string; password?: string }>;
   releaseLinkUrl?: string;
   contactEmail?: string;
   productionHouse?: string;
@@ -253,6 +255,14 @@ export const buildSubmissionPdf = (doc: jsPDF, details: SubmissionOverview) => {
   addLinkField('IMDB URL', details.imdbUrl);
   addLinkField('Trailer Download URL', details.trailerUrl);
   addField('Trailer Password', details.trailerPassword?.trim() || 'Not password-protected');
+  const promoClips = details.promoClips ?? [];
+  if (promoClips.length === 0) {
+    addField('Short Promotional Clips', '—');
+  }
+  promoClips.forEach((clip, index) => {
+    addLinkField(`Promo Clip ${index + 1}`, clip.url);
+    addField(`Promo Clip ${index + 1} Password`, clip.password?.trim() || 'Not password-protected');
+  });
   addLinkField('Release, Broadcast or Exhibition Link', details.releaseLinkUrl);
   addLinkField('Portrait Image', details.potraitImageUrl);
   addLinkField('Landscape Image', details.landscapeImageUrl);

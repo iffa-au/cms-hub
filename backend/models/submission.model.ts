@@ -24,6 +24,7 @@ export interface ISubmission {
   imdbUrl?: string;
   trailerUrl?: string;
   trailerPassword?: string;
+  promoClips?: Array<{ url: string; password?: string }>;
   releaseLinkUrl?: string;
   contactEmail?: string;
   genreIds: Types.ObjectId[];
@@ -184,6 +185,20 @@ const submissionSchema = new Schema<ISubmission>(
       type: String,
       default: "",
       trim: true,
+    },
+    // Short clips the submitter offers for social promotion, each a download
+    // link plus the password for it when the folder is protected. The
+    // passwords are staff-only on the same terms as trailerPassword — see
+    // the exclusion in getSubmission.
+    promoClips: {
+      type: [
+        {
+          _id: false,
+          url: { type: String, required: true, trim: true },
+          password: { type: String, default: "", trim: true },
+        },
+      ],
+      default: [],
     },
     releaseLinkUrl: {
       type: String,

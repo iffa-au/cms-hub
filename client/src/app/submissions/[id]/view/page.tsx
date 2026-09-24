@@ -111,11 +111,11 @@ function UrlField({ label, value }: { label: string; value?: string }) {
 }
 
 /**
- * The trailer link plus, when the submitter told us the folder is locked,
- * the password to open it — sat right beside the URL so a reviewer never
- * has to go hunting or email the filmmaker to get in.
+ * The password for a protected link, sat right beside the URL so a reviewer
+ * never has to go hunting or email the filmmaker to get in. Shared by the
+ * trailer and every promotional clip.
  */
-function TrailerField({ url, password }: { url?: string; password?: string }) {
+function PasswordChip({ password }: { password?: string }) {
   const [copied, setCopied] = useState(false);
   const secret = password?.trim();
 
@@ -131,24 +131,46 @@ function TrailerField({ url, password }: { url?: string; password?: string }) {
     }
   };
 
+  return secret ? (
+    <div className='mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2'>
+      <span className={LABEL}>Password</span>
+      <code className='font-mono text-white text-sm break-all'>{secret}</code>
+      <button
+        type='button'
+        onClick={copy}
+        className='ml-auto rounded border border-border px-2 py-1 text-xs font-bold tracking-widest text-foreground hover:border-primary transition-colors'
+      >
+        {copied ? 'COPIED' : 'COPY'}
+      </button>
+    </div>
+  ) : (
+    <p className='mt-2 text-muted-foreground text-xs'>No password provided</p>
+  );
+}
+
+function TrailerField({ url, password }: { url?: string; password?: string }) {
   return (
     <div className='min-w-0'>
       <UrlField label='Trailer URL' value={url} />
-      {secret ? (
-        <div className='mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2'>
-          <span className={LABEL}>Password</span>
-          <code className='font-mono text-white text-sm break-all'>{secret}</code>
-          <button
-            type='button'
-            onClick={copy}
-            className='ml-auto rounded border border-border px-2 py-1 text-xs font-bold tracking-widest text-foreground hover:border-primary transition-colors'
-          >
-            {copied ? 'COPIED' : 'COPY'}
-          </button>
-        </div>
-      ) : (
-        <p className='mt-2 text-muted-foreground text-xs'>No password provided</p>
-      )}
+      <PasswordChip password={password} />
+    </div>
+  );
+}
+
+function PromoClipsField({ clips }: { clips?: Array<{ url: string; password?: string }> }) {
+  const list = clips ?? [];
+  if (list.length === 0) return <Field label='Short Promotional Clips' value='—' />;
+  return (
+    <div className='min-w-0'>
+      <p className={LABEL}>Short Promotional Clips</p>
+      <div className='mt-2 grid grid-cols-1 md:grid-cols-2 gap-4'>
+        {list.map((clip, index) => (
+          <div key={`${index}-${clip.url}`} className='min-w-0 rounded-lg border border-border p-4'>
+            <UrlField label={`Clip ${index + 1}`} value={clip.url} />
+            <PasswordChip password={clip.password} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -440,6 +462,9 @@ export default function ViewSubmissionPage() {
                 <UrlField label='IMDb URL' value={details.imdbUrl} />
                 <TrailerField url={details.trailerUrl} password={details.trailerPassword} />
                 <UrlField label='Release, Broadcast or Exhibition Link' value={details.releaseLinkUrl} />
+                <div className='md:col-span-2'>
+                  <PromoClipsField clips={details.promoClips} />
+                </div>
               </div>
             </section>
 
