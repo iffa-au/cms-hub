@@ -59,7 +59,7 @@ type LoadOverrides = {
 export default function SubmissionsPage() {
   const router = useRouter();
   const [query, setQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('APPROVED');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [filters, setFilters] = useState<AdvancedFilters>(EMPTY_FILTERS);
   const filterOptions = useFilterOptions();

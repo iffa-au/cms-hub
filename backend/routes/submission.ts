@@ -26,8 +26,16 @@ router.get("/fetchSubmission", fetchSubmission);
 router.get("/fetchWinner", fetchWinner);
 router.get("/fetchWinnerDetailed", fetchWinnerDetailed);
 router.get("/", (req, res, next) => {
-  // If year or featured=true or isFeatured=true is provided, it's a public fetch
-  if (req.query.year || req.query.featured === "true" || req.query.isFeatured === "true") {
+  // The public site's year/featured feed and the staff list share this path.
+  // Tell them apart by the bearer token, not the query: the CMS sends `year`
+  // too (the All submissions year filter), and routing on that alone handed
+  // staff the approved-only public feed with their other filters ignored.
+  // The public site never sends a token.
+  const isStaffRequest = req.header("Authorization")?.startsWith("Bearer ");
+  if (
+    !isStaffRequest &&
+    (req.query.year || req.query.featured === "true" || req.query.isFeatured === "true")
+  ) {
     return fetchSubmission(req, res);
   }
   next();

@@ -13,7 +13,12 @@ const router = e.Router();
 
 router.get("/fetchNomination", fetchNomination);
 router.get("/", (req, res, next) => {
-  if (req.query.year) {
+  // A year alone used to mean "public feed", but the CMS Nominations page
+  // sends `year` too and got back the public shape (a bare array), which it
+  // rendered as an empty list. The bearer token is what marks a staff
+  // request; the public site never sends one (it uses /fetchNomination).
+  const isStaffRequest = req.header("Authorization")?.startsWith("Bearer ");
+  if (!isStaffRequest && req.query.year) {
     return fetchNomination(req, res);
   }
   next();

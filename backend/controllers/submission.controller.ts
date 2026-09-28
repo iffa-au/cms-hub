@@ -1281,11 +1281,13 @@ export const adminListSubmissions = async (req, res) => {
     if (trimmedQuery) {
       filter.title = { $regex: escapeRegex(trimmedQuery), $options: "i" };
     }
+    // Festival year, the same field the public feed filters on — not
+    // releaseDate. The archive imports carry release dates unrelated to the
+    // festival they screened at, so a release-year filter finds 0 of 128
+    // 2024 films.
     const yearNum = parseInt(String(year || ""), 10);
     if (!Number.isNaN(yearNum) && yearNum >= 1900 && yearNum <= 3000) {
-      const start = new Date(Date.UTC(yearNum, 0, 1, 0, 0, 0, 0));
-      const end = new Date(Date.UTC(yearNum + 1, 0, 1, 0, 0, 0, 0));
-      filter.releaseDate = { $gte: start, $lt: end };
+      filter.submission_year = yearNum;
     }
 
     const pageNum = Math.max(parseInt(page || "1", 10) || 1, 1);
