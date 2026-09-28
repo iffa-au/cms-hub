@@ -346,7 +346,7 @@ export default function ViewSubmissionPage() {
                     CrewMember directory, which holds nothing for any film
                     submitted from 2026 onward. */}
                 <button
-                  onClick={() => router.push(`/submissions/${id}/edit#crew`)}
+                  onClick={() => router.push(`/submissions/${id}/edit?from=submissions#crew`)}
                   className='rounded-lg border border-border text-foreground px-4 py-2 text-xs font-bold tracking-widest hover:border-primary transition-colors'
                 >
                   MANAGE CREW

@@ -254,8 +254,13 @@ export default function EditSubmissionPage() {
         payload
       );
       if ((res as any)?.success) {
-        if (from === 'review-queue') {
-          router.push('/review-queue');
+        // Back to the Film Details page staff came from, keeping `from`: it
+        // decides that page's actions (approve/reject vs crew/nominate) and
+        // where its Back button goes. Replace, so Back doesn't reopen the form.
+        // No `from` means the owner's link on /dashboard; the details page
+        // reads a staff-only endpoint, so they go back there instead.
+        if (from) {
+          router.replace(`/submissions/${id}/view?from=${encodeURIComponent(from)}`);
         } else {
           router.push('/dashboard');
         }
