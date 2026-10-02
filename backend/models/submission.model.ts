@@ -41,6 +41,8 @@ export interface ISubmission {
       imageUrl?: string;
       biography?: string;
       instagramUrl?: string;
+      representativeName?: string;
+      representativeRelationship?: string;
       email?: string;
       contactPhone?: string;
       notes?: string;
@@ -52,6 +54,8 @@ export interface ISubmission {
       imageUrl?: string;
       instagramUrl?: string;
       biography?: string;
+      representativeName?: string;
+      representativeRelationship?: string;
       email?: string;
       contactPhone?: string;
       notes?: string;
@@ -62,6 +66,8 @@ export interface ISubmission {
       imageUrl?: string;
       instagramUrl?: string;
       biography?: string;
+      representativeName?: string;
+      representativeRelationship?: string;
       email?: string;
       contactPhone?: string;
       notes?: string;
@@ -72,6 +78,8 @@ export interface ISubmission {
       imageUrl?: string;
       instagramUrl?: string;
       biography?: string;
+      representativeName?: string;
+      representativeRelationship?: string;
       email?: string;
       contactPhone?: string;
       notes?: string;
@@ -249,6 +257,11 @@ const submissionSchema = new Schema<ISubmission>(
               trim: true,
             },
             instagramUrl: { type: String, default: "", trim: true },
+            // Required on public submissions, but enforced in
+            // createSubmissionPublic rather than here: records that predate
+            // these fields would otherwise fail every staff save.
+            representativeName: { type: String, default: "", trim: true },
+            representativeRelationship: { type: String, default: "", trim: true },
             email: { type: String, default: "", trim: true },
             contactPhone: { type: String, default: "", trim: true },
             notes: { type: String, default: "", trim: true, maxLength: 1000 },
@@ -273,6 +286,8 @@ const submissionSchema = new Schema<ISubmission>(
               default: "",
               trim: true,
             },
+            representativeName: { type: String, default: "", trim: true },
+            representativeRelationship: { type: String, default: "", trim: true },
             email: { type: String, default: "", trim: true },
             contactPhone: { type: String, default: "", trim: true },
             notes: { type: String, default: "", trim: true, maxLength: 1000 },
@@ -297,6 +312,8 @@ const submissionSchema = new Schema<ISubmission>(
               default: "",
               trim: true,
             },
+            representativeName: { type: String, default: "", trim: true },
+            representativeRelationship: { type: String, default: "", trim: true },
             email: { type: String, default: "", trim: true },
             contactPhone: { type: String, default: "", trim: true },
             notes: { type: String, default: "", trim: true, maxLength: 1000 },
@@ -321,6 +338,8 @@ const submissionSchema = new Schema<ISubmission>(
               default: "",
               trim: true,
             },
+            representativeName: { type: String, default: "", trim: true },
+            representativeRelationship: { type: String, default: "", trim: true },
             email: { type: String, default: "", trim: true },
             contactPhone: { type: String, default: "", trim: true },
             notes: { type: String, default: "", trim: true, maxLength: 1000 },

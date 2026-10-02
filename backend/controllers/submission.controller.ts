@@ -69,6 +69,8 @@ function normalizeCrewGroup(value: unknown) {
       imageUrl: String(x?.imageUrl || "").trim(),
       biography: String(x?.biography || "").trim(),
       instagramUrl: String(x?.instagramUrl || "").trim(),
+      representativeName: String(x?.representativeName || "").trim(),
+      representativeRelationship: String(x?.representativeRelationship || "").trim(),
       email: String(x?.email || "").trim().toLowerCase(),
       // Optional on the public form. Not normalised beyond a trim: a phone
       // number has no single correct shape once submissions are
@@ -121,6 +123,44 @@ export function publicCrew(crew: unknown) {
     producers: publicCrewGroup(source.producers),
     other: publicCrewGroup(source.other),
   };
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const CREW_GROUP_LABELS = {
+  actors: "Actor",
+  directors: "Director",
+  producers: "Producer",
+  other: "Crew member",
+} as const;
+
+/**
+ * Every credited person on a public submission must name a representative
+ * IFFA can contact: their name, their relationship to the person, and a
+ * valid email. The public form enforces the same; this is the backstop.
+ * Deliberately not applied to the staff create/update paths — records that
+ * predate these fields have to stay editable.
+ *
+ * Returns the first problem as a user-facing message, or null.
+ */
+function findMissingRepresentative(
+  crew: ReturnType<typeof normalizeCrewPayload>,
+): string | null {
+  for (const key of Object.keys(CREW_GROUP_LABELS) as Array<keyof typeof CREW_GROUP_LABELS>) {
+    for (const [index, member] of crew[key].entries()) {
+      const who = `${CREW_GROUP_LABELS[key]} ${index + 1} (${member.fullName})`;
+      if (!member.representativeName) {
+        return `${who}: representative name is required`;
+      }
+      if (!member.representativeRelationship) {
+        return `${who}: representative relationship is required`;
+      }
+      if (!EMAIL_RE.test(member.email)) {
+        return `${who}: a valid representative email is required`;
+      }
+    }
+  }
+  return null;
 }
 
 export function normalizeCrewPayload(crew: unknown) {
@@ -699,6 +739,10 @@ export const createSubmissionPublic = async (req, res) => {
     const creatorId = new Types.ObjectId();
 
     const crewGroups = normalizeCrewPayload(crew);
+    const representativeError = findMissingRepresentative(crewGroups);
+    if (representativeError) {
+      return res.status(400).json({ success: false, message: representativeError });
+    }
 
     const uniqueGenreIds = Array.from(new Set(providedGenreIds)) as string[];
 

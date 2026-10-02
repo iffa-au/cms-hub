@@ -7,6 +7,9 @@ export type CrewEntry = {
   biography?: string;
   instagramUrl?: string;
   imageUrl?: string;
+  /** Who to contact about this credit — the person themselves or e.g. their agent. */
+  representativeName?: string;
+  representativeRelationship?: string;
   email?: string;
   /**
    * Optional on the public submission form. Staff-only, both of them: the

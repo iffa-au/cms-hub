@@ -533,12 +533,49 @@ export default function ViewSubmissionPage() {
                               {member.biography ? (
                                 <p className='text-muted-foreground mt-2 whitespace-pre-wrap'>{member.biography}</p>
                               ) : null}
-                              {member.email ? (
-                                <p className='text-muted-foreground text-xs mt-2 break-all'>{member.email}</p>
-                              ) : null}
-                              {member.contactPhone ? (
-                                <p className='text-muted-foreground text-xs mt-2 break-all'>{member.contactPhone}</p>
-                              ) : null}
+                              {/* Always rendered, with dashes for gaps, so a
+                                  reviewer can see at a glance who to contact —
+                                  and that an older record has no representative
+                                  on file rather than that the block is missing. */}
+                              <div className='mt-3 rounded-md border border-border bg-surface-dark/60 p-3'>
+                                <p className='text-[11px] font-bold uppercase tracking-widest text-label'>
+                                  Representative
+                                </p>
+                                <dl className='mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-xs'>
+                                  <div className='min-w-0'>
+                                    <dt className='text-muted-foreground'>Name</dt>
+                                    <dd className='text-white break-words'>{valueOrDash(member.representativeName)}</dd>
+                                  </div>
+                                  <div className='min-w-0'>
+                                    <dt className='text-muted-foreground'>Role</dt>
+                                    <dd className='text-white break-words'>{valueOrDash(member.representativeRelationship)}</dd>
+                                  </div>
+                                  <div className='min-w-0'>
+                                    <dt className='text-muted-foreground'>Email</dt>
+                                    <dd className='text-white break-all'>
+                                      {member.email ? (
+                                        <a href={`mailto:${member.email}`} className='underline hover:text-primary transition-colors'>
+                                          {member.email}
+                                        </a>
+                                      ) : (
+                                        '—'
+                                      )}
+                                    </dd>
+                                  </div>
+                                  <div className='min-w-0'>
+                                    <dt className='text-muted-foreground'>Contact</dt>
+                                    <dd className='text-white break-all'>
+                                      {member.contactPhone ? (
+                                        <a href={`tel:${member.contactPhone.replace(/[^\d+]/g, '')}`} className='underline hover:text-primary transition-colors'>
+                                          {member.contactPhone}
+                                        </a>
+                                      ) : (
+                                        '—'
+                                      )}
+                                    </dd>
+                                  </div>
+                                </dl>
+                              </div>
                               {member.notes ? (
                                 <p className='text-muted-foreground text-xs mt-2 whitespace-pre-wrap border-l-2 border-border pl-2'>
                                   {member.notes}
