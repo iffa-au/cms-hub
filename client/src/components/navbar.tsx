@@ -70,6 +70,7 @@ export default function Navbar() {
         children: [
           { href: "/admin/metadata", label: "Metadata" },
           { href: "/admin/film-enquiry", label: "Film enquiries" },
+          { href: "/admin/distribution-enquiry", label: "Distribution enquiries" },
         ],
       });
     }
