@@ -264,6 +264,10 @@ Each has:
 | GET | `/film-enquiries/:id` | Admin | Get film enquiry by id |
 | PUT | `/film-enquiries/:id` | Admin | Update film enquiry |
 | DELETE | `/film-enquiries/:id` | Admin | Delete film enquiry |
+| POST | `/distribution-enquiries` | Public | Submit distribution enquiry form |
+| GET | `/distribution-enquiries` | Admin | List distribution enquiries |
+| GET | `/distribution-enquiries/:id` | Admin | Get distribution enquiry by id |
+| DELETE | `/distribution-enquiries/:id` | Admin | Delete distribution enquiry |
 | GET | `/getfilmenquiry/:id` | Admin | Alternate admin endpoint to fetch enquiry by id |
 
 ### Nomination Endpoints
