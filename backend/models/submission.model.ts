@@ -85,7 +85,15 @@ export interface ISubmission {
       notes?: string;
     }>;
   };
+  nominations?: Array<{
+    awardCategoryId: Types.ObjectId;
+    categoryName: string;
+    wholeTeam: boolean;
+    nominees: Array<{ group: CrewGroup; fullName: string; role: string }>;
+  }>;
 }
+
+export type CrewGroup = "actors" | "directors" | "producers" | "other";
 
 const submissionSchema = new Schema<ISubmission>(
   {
@@ -347,6 +355,43 @@ const submissionSchema = new Schema<ISubmission>(
         ],
         default: [],
       },
+    },
+    // The awards the submitter asked to be considered for. A request, not a
+    // nomination: staff create the real ones in the `nominations` collection.
+    // Nominees are name snapshots rather than crew subdocument ids because
+    // the CMS crew editor saves crew as a whole object, which can mint new
+    // ids and would orphan any reference to the old ones.
+    nominations: {
+      type: [
+        {
+          _id: false,
+          awardCategoryId: {
+            type: Schema.Types.ObjectId,
+            ref: "AwardCategory",
+            required: true,
+          },
+          // Kept beside the id so the request still reads correctly if the
+          // category is later renamed or deleted.
+          categoryName: { type: String, required: true, trim: true },
+          wholeTeam: { type: Boolean, default: false },
+          nominees: {
+            type: [
+              {
+                _id: false,
+                group: {
+                  type: String,
+                  enum: ["actors", "directors", "producers", "other"],
+                  required: true,
+                },
+                fullName: { type: String, required: true, trim: true },
+                role: { type: String, default: "", trim: true },
+              },
+            ],
+            default: [],
+          },
+        },
+      ],
+      default: [],
     },
   },
   { timestamps: true },

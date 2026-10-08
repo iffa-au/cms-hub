@@ -12,6 +12,25 @@ client. They are not atomic, so a change spanning both wants two PRs with the
 backend merged first — otherwise the UI can land against an API that has not
 caught up, and writes silently no-op.
 
+## Not pushed: crew representatives + award nominations (2026-10-08)
+
+A stacked chain, each branch on the one before. Merge **in this order**, each
+deployed before the next — App Runner deploys the backend before Amplify
+deploys the form, so a requirement that ships with the form rejects every
+submission from the live one in between.
+
+1. cms-hub `chore/submission-form`: stores representatives + promo clips, does not require them
+2. iffa-2026 `chore/submit-film`: the form that sends them
+3. cms-hub `chore/require-representative`: switches the representative check on
+4. cms-hub `feat/nominations`: open categories (`GET /award-categories?open=true`) and optional `nominations` on public submissions, staff overview only
+5. Run `scripts/seed-award-categories.ts` (dry run, then `--confirm`): opens 17 categories, inserts the 4 missing ones (Negative Role, Debut Actor/Actress, Best Editor). **Not run yet** — not even the dry run.
+6. iffa-2026 `feat/nominations`: the Award Nominations step (required on the form)
+7. cms-hub `chore/require-nominations`: requires at least one nomination
+
+Still to build: a "Requested nominations" panel on the CMS submission view so
+reviewers can see them, and the nominations line in the submission PDF. The
+data is already in `GET /submissions/:id/overview`.
+
 ## In review, not merged (branch `feat/search-filter`, 2026-09-23)
 
 **Review queue: Country column + advanced filters.** The staff list now

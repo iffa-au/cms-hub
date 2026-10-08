@@ -1,5 +1,9 @@
 import { Request, Response } from "express";
-import Submission from "../models/submission.model.js";
+import Submission, {
+  type CrewGroup,
+  type ISubmission,
+} from "../models/submission.model.js";
+import AwardCategory, { type NomineeType } from "../models/awardCategory.model.js";
 import type { AuthedRequest } from "../middlewares/auth.middleware.js";
 import { Types } from "mongoose";
 import SubmissionGenre from "../models/submissionGenre.model.js";
@@ -171,6 +175,109 @@ export function normalizeCrewPayload(crew: unknown) {
     producers: normalizeCrewGroup(source.producers),
     other: normalizeCrewGroup(source.other),
   };
+}
+
+/** Which crew groups may be named for each kind of category. */
+const NOMINEE_GROUPS: Record<NomineeType, readonly CrewGroup[]> = {
+  actors: ["actors"],
+  directors: ["directors"],
+  craft: ["other", "directors", "producers"],
+  producers: ["producers"],
+  "whole-team": [],
+};
+
+type NominationsResult =
+  | { ok: true; nominations: NonNullable<ISubmission["nominations"]> }
+  | { ok: false; message: string };
+
+/**
+ * Validates the public form's award requests against the categories open
+ * for submission and the crew in the same payload. Each category may appear
+ * once; an individual category needs at least one nominee, each matched by
+ * name to a credit in an eligible crew group. Whole-team categories take no
+ * nominees. Returns the first problem as a user-facing message.
+ */
+async function normalizeNominations(
+  value: unknown,
+  crew: ReturnType<typeof normalizeCrewPayload>,
+  contentTypeId: string,
+): Promise<NominationsResult> {
+  if (!Array.isArray(value) || value.length === 0) {
+    return { ok: true, nominations: [] };
+  }
+  const requests = value.slice(0, 50);
+
+  const ids = requests.map((r: any) => String(r?.awardCategoryId || ""));
+  if (ids.some((id) => !Types.ObjectId.isValid(id))) {
+    return { ok: false, message: "Unknown award category" };
+  }
+  if (new Set(ids).size !== ids.length) {
+    return { ok: false, message: "Each award category can be chosen only once" };
+  }
+
+  const categories = await AwardCategory.find({
+    _id: { $in: ids.map((id) => new Types.ObjectId(id)) },
+    openForSubmission: true,
+  }).lean();
+  const byId = new Map(categories.map((c) => [String(c._id), c]));
+
+  const nominations: NonNullable<ISubmission["nominations"]> = [];
+  for (const [index, request] of requests.entries()) {
+    const category = byId.get(ids[index]);
+    if (!category) {
+      return { ok: false, message: "An award category is no longer open for submission" };
+    }
+    const formats = (category.contentTypeIds ?? []).map(String);
+    if (formats.length > 0 && !formats.includes(String(contentTypeId))) {
+      return {
+        ok: false,
+        message: `${category.name} isn't open to this screen format`,
+      };
+    }
+
+    const nomineeType = (category.nomineeType ?? "whole-team") as NomineeType;
+    if (nomineeType === "whole-team") {
+      nominations.push({
+        awardCategoryId: category._id,
+        categoryName: category.name,
+        wholeTeam: true,
+        nominees: [],
+      });
+      continue;
+    }
+
+    const eligible = NOMINEE_GROUPS[nomineeType];
+    const raw = Array.isArray((request as any)?.nominees) ? (request as any).nominees : [];
+    const nominees: Array<{ group: CrewGroup; fullName: string; role: string }> = [];
+    const seen = new Set<string>();
+    for (const n of raw.slice(0, 50)) {
+      const group = String(n?.group || "") as CrewGroup;
+      const fullName = String(n?.fullName || "").trim();
+      if (!eligible.includes(group)) {
+        return { ok: false, message: `${category.name}: that nominee can't be entered in this category` };
+      }
+      const member = crew[group].find(
+        (m) => m.fullName.toLowerCase() === fullName.toLowerCase(),
+      );
+      if (!member) {
+        return { ok: false, message: `${category.name}: ${fullName || "a nominee"} isn't in the crew list` };
+      }
+      const key = `${group}:${member.fullName.toLowerCase()}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      nominees.push({ group, fullName: member.fullName, role: member.role });
+    }
+    if (nominees.length === 0) {
+      return { ok: false, message: `${category.name}: choose at least one nominee` };
+    }
+    nominations.push({
+      awardCategoryId: category._id,
+      categoryName: category.name,
+      wholeTeam: false,
+      nominees,
+    });
+  }
+  return { ok: true, nominations };
 }
 
 // Sentinel distinguishing "field not provided" (undefined) from
@@ -675,6 +782,7 @@ export const createSubmissionPublic = async (req, res) => {
       watchFormats,
       notes = "",
       submissionRef,
+      nominations,
     } = req.body || {};
 
     const parsedSubmissionYear = Number(submissionYear);
@@ -744,6 +852,17 @@ export const createSubmissionPublic = async (req, res) => {
       return res.status(400).json({ success: false, message: representativeError });
     }
 
+    const nominationsResult = await normalizeNominations(
+      nominations,
+      crewGroups,
+      String(contentTypeId),
+    );
+    // `in` rather than `!ok`: without strictNullChecks, TypeScript doesn't
+    // narrow a union on a boolean discriminant.
+    if ("message" in nominationsResult) {
+      return res.status(400).json({ success: false, message: nominationsResult.message });
+    }
+
     const uniqueGenreIds = Array.from(new Set(providedGenreIds)) as string[];
 
     const created = await Submission.create({
@@ -774,6 +893,7 @@ export const createSubmissionPublic = async (req, res) => {
       contentTypeId,
       genreIds: uniqueGenreIds.map((gId) => new Types.ObjectId(gId)),
       crew: crewGroups,
+      nominations: nominationsResult.nominations,
       productionHouse: String(productionHouse || "").trim(),
       distributor: String(distributor || "").trim(),
       releaseCountryIds: normalizedReleaseCountries,
@@ -1071,8 +1191,10 @@ export const getSubmission = async (req: Request, res: Response) => {
     // every staff-only field has to be excluded by name: contactEmail is
     // submitter PII, and trailerPassword (like each promo clip's password)
     // would hand anyone with a film's id the key to its private folders.
+    // Requested nominations are the submitter's wish list, not the
+    // festival's announced nominees, so they stay out of public view too.
     const item = await Submission.findById(id)
-      .select("-contactEmail -trailerPassword -promoClips.password")
+      .select("-contactEmail -trailerPassword -promoClips.password -nominations")
       .populate("genreIds");
     if (!item) {
       return res
@@ -1167,6 +1289,7 @@ export const getSubmissionOverview = async (req, res) => {
           trailerUrl: 1,
           trailerPassword: 1,
           promoClips: 1,
+          nominations: 1,
           releaseLinkUrl: 1,
           contactEmail: 1,
           durationHours: 1,
