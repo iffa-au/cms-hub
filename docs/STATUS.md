@@ -27,9 +27,9 @@ submission from the live one in between.
 6. iffa-2026 `feat/nominations`: the Award Nominations step (required on the form)
 7. cms-hub `chore/require-nominations`: requires at least one nomination
 
-Still to build: a "Requested nominations" panel on the CMS submission view so
-reviewers can see them, and the nominations line in the submission PDF. The
-data is already in `GET /submissions/:id/overview`.
+Staff see the requests on the submission view (Requested Nominations), in
+its PDF, and on the Nominate page, where USE prefills the category. Checked in
+a browser against a mocked API only.
 
 ## In review, not merged (branch `feat/search-filter`, 2026-09-23)
 
