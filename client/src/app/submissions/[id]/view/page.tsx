@@ -10,6 +10,7 @@ import {
   type SubmissionOverview,
 } from '@/lib/submission-pdf';
 import CrewThumb from '@/components/crew/crew-thumb';
+import RequestedNominations from '@/components/submissions/requested-nominations';
 
 type OverviewResponse = {
   success: boolean;
@@ -496,6 +497,21 @@ export default function ViewSubmissionPage() {
                 </div>
               </div>
             </section>
+
+            {/* Requested nominations. Hidden on records that predate the
+                field rather than shown empty — for those, "none requested"
+                would be untrue: nobody was asked. */}
+            {details.nominations && (
+              <section className={CARD}>
+                <h2 className={SECTION_TITLE}>Requested Nominations</h2>
+                <p className='text-muted-foreground text-xs mt-1'>
+                  What the submitter asked to be considered for. Create the festival&apos;s nominations from NOMINATE.
+                </p>
+                <div className='mt-6'>
+                  <RequestedNominations nominations={details.nominations} />
+                </div>
+              </section>
+            )}
 
             {/* Crew */}
             {hasCrew && (

@@ -20,6 +20,26 @@ export type CrewEntry = {
   notes?: string;
 };
 
+/**
+ * An award the submitter asked to be considered for on the public form — a
+ * request, not a nomination. Staff create the real ones on the Nominate page.
+ * Nominees are name snapshots of the submitted crew; a whole-team request has
+ * none.
+ */
+export type RequestedNomination = {
+  awardCategoryId: string;
+  categoryName: string;
+  wholeTeam: boolean;
+  nominees: Array<{ group: 'actors' | 'directors' | 'producers' | 'other'; fullName: string; role?: string }>;
+};
+
+export const formatNominees = (nomination: RequestedNomination) =>
+  nomination.wholeTeam || nomination.nominees.length === 0
+    ? 'Whole team'
+    : nomination.nominees
+        .map((n) => (n.role?.trim() ? `${n.fullName} (${n.role.trim()})` : n.fullName))
+        .join(', ');
+
 export type SubmissionOverview = {
   _id: string;
   creatorId?: string;
@@ -58,6 +78,8 @@ export type SubmissionOverview = {
     producers?: CrewEntry[];
     other?: CrewEntry[];
   };
+  /** Absent on submissions that predate the nominations step. */
+  nominations?: RequestedNomination[];
 };
 
 // Submission list PDF row
@@ -297,6 +319,48 @@ export const buildSubmissionPdf = (doc: jsPDF, details: SubmissionOverview) => {
   addSectionTitle('Submission Timeline');
   addField('Submitted At', formatDateTime(details.createdAt));
   addField('Last Updated', formatDate(details.updatedAt));
+
+  const nominations = details.nominations ?? [];
+  y += 8;
+  addSectionTitle('Requested Nominations');
+  autoTable(doc, {
+    startY: y,
+    margin: { left: margin, right: margin },
+    head: [['Award Category', 'Nominee(s)']],
+    body:
+      nominations.length > 0
+        ? nominations.map((n) => [valueOrDash(n.categoryName), formatNominees(n)])
+        : [['—', 'None requested']],
+    theme: 'grid',
+    tableWidth: maxWidth,
+    styles: {
+      fontSize: 9,
+      cellPadding: 5,
+      overflow: 'linebreak',
+      valign: 'top',
+      lineColor: [215, 220, 228],
+      lineWidth: 0.35,
+    },
+    headStyles: {
+      fontStyle: 'bold',
+      fillColor: [40, 56, 86],
+      textColor: 255,
+      valign: 'middle',
+    },
+    bodyStyles: {
+      textColor: [35, 35, 35],
+    },
+    alternateRowStyles: {
+      fillColor: [247, 249, 252],
+    },
+    columnStyles: {
+      0: { cellWidth: maxWidth * 0.35 },
+      1: { cellWidth: maxWidth * 0.65 },
+    },
+  });
+  y =
+    ((doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable
+      ?.finalY || y) + 14;
 
   const crewGroups: Array<{ title: string; entries?: CrewEntry[] }> = [
     { title: 'Actors', entries: details.crew?.actors },

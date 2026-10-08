@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { deleteData, getData, postData, updateData } from '@/lib/fetch-util';
 import { inputClass, labelClass } from '@/components/form-section';
+import RequestedNominations from '@/components/submissions/requested-nominations';
+import type { RequestedNomination } from '@/lib/submission-pdf';
 
 const INPUT = inputClass;
 const LABEL = labelClass;
@@ -30,6 +32,9 @@ export default function SubmissionNominationPage() {
   const [categories, setCategories] = useState<AwardCategory[]>([]);
   const [crew, setCrew] = useState<CrewMember[]>([]);
   const [items, setItems] = useState<Nomination[]>([]);
+  // The submitter's own requests. `null` = the record predates the field.
+  const [requested, setRequested] = useState<RequestedNomination[] | null>(null);
+  const createFormRef = useRef<HTMLElement>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -75,6 +80,17 @@ export default function SubmissionNominationPage() {
       const allMembers = await getData<{ success: boolean; data: CrewMember[] }>(`/crew-members`);
       const filtered = (allMembers?.data ?? []).filter((m) => memberIds.has(m._id));
       setCrew(filtered);
+
+      // From the staff overview: the public GET /submissions/:id strips
+      // requested nominations. A failure here only hides the panel.
+      try {
+        const overview = await getData<{ success: boolean; data: { nominations?: RequestedNomination[] } }>(
+          `/submissions/${submissionId}/overview?expand=meta`
+        );
+        setRequested(overview?.data?.nominations ?? null);
+      } catch {
+        setRequested(null);
+      }
     } catch (e: any) {
       setError(e?.message || 'Failed to load nominations');
     } finally {
@@ -180,6 +196,30 @@ export default function SubmissionNominationPage() {
         </div>
       </div>
 
+      {/* Requested by the submitter */}
+      {requested && (
+        <section className='rounded border border-border bg-surface-dark mb-8'>
+          <div className='px-6 py-4 border-b border-border'>
+            <h3 className='text-sm font-semibold'>Requested by the Submitter</h3>
+            <p className='text-muted-foreground text-xs mt-1'>
+              USE fills in the category below. Pick the crew member yourself — this list is the CrewMember
+              directory, which doesn&apos;t hold names from the public form.
+            </p>
+          </div>
+          <div className='p-6'>
+            <RequestedNominations
+              nominations={requested}
+              onUse={(n) => {
+                setCatId(n.awardCategoryId);
+                setCrewMemberId('');
+                setFormError(null);
+                createFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+            />
+          </div>
+        </section>
+      )}
+
       {/* Submission history */}
       <section className='rounded border border-border bg-surface-dark mb-8'>
         <div className='px-6 py-4 border-b border-border'>
@@ -250,7 +290,7 @@ export default function SubmissionNominationPage() {
       </section>
 
       {/* Create new nomination */}
-      <section className='rounded border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50'>
+      <section ref={createFormRef} className='rounded border border-border bg-surface-dark overflow-hidden shadow-2xl shadow-black/50'>
         <div className='px-6 py-4 border-b border-border'>
           <h3 className='text-sm font-semibold'>
             Create a new Nomination
