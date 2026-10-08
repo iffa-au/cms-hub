@@ -24,6 +24,7 @@ export interface ISubmission {
   imdbUrl?: string;
   trailerUrl?: string;
   trailerPassword?: string;
+  promoClips?: Array<{ url: string; password?: string }>;
   releaseLinkUrl?: string;
   contactEmail?: string;
   genreIds: Types.ObjectId[];
@@ -40,6 +41,8 @@ export interface ISubmission {
       imageUrl?: string;
       biography?: string;
       instagramUrl?: string;
+      representativeName?: string;
+      representativeRelationship?: string;
       email?: string;
       contactPhone?: string;
       notes?: string;
@@ -51,6 +54,8 @@ export interface ISubmission {
       imageUrl?: string;
       instagramUrl?: string;
       biography?: string;
+      representativeName?: string;
+      representativeRelationship?: string;
       email?: string;
       contactPhone?: string;
       notes?: string;
@@ -61,6 +66,8 @@ export interface ISubmission {
       imageUrl?: string;
       instagramUrl?: string;
       biography?: string;
+      representativeName?: string;
+      representativeRelationship?: string;
       email?: string;
       contactPhone?: string;
       notes?: string;
@@ -71,6 +78,8 @@ export interface ISubmission {
       imageUrl?: string;
       instagramUrl?: string;
       biography?: string;
+      representativeName?: string;
+      representativeRelationship?: string;
       email?: string;
       contactPhone?: string;
       notes?: string;
@@ -185,6 +194,20 @@ const submissionSchema = new Schema<ISubmission>(
       default: "",
       trim: true,
     },
+    // Short clips the submitter offers for social promotion, each a download
+    // link plus the password for it when the folder is protected. The
+    // passwords are staff-only on the same terms as trailerPassword — see
+    // the exclusion in getSubmission.
+    promoClips: {
+      type: [
+        {
+          _id: false,
+          url: { type: String, required: true, trim: true },
+          password: { type: String, default: "", trim: true },
+        },
+      ],
+      default: [],
+    },
     releaseLinkUrl: {
       type: String,
       default: "",
@@ -234,6 +257,11 @@ const submissionSchema = new Schema<ISubmission>(
               trim: true,
             },
             instagramUrl: { type: String, default: "", trim: true },
+            // Required on public submissions, but enforced in
+            // createSubmissionPublic rather than here: records that predate
+            // these fields would otherwise fail every staff save.
+            representativeName: { type: String, default: "", trim: true },
+            representativeRelationship: { type: String, default: "", trim: true },
             email: { type: String, default: "", trim: true },
             contactPhone: { type: String, default: "", trim: true },
             notes: { type: String, default: "", trim: true, maxLength: 1000 },
@@ -258,6 +286,8 @@ const submissionSchema = new Schema<ISubmission>(
               default: "",
               trim: true,
             },
+            representativeName: { type: String, default: "", trim: true },
+            representativeRelationship: { type: String, default: "", trim: true },
             email: { type: String, default: "", trim: true },
             contactPhone: { type: String, default: "", trim: true },
             notes: { type: String, default: "", trim: true, maxLength: 1000 },
@@ -282,6 +312,8 @@ const submissionSchema = new Schema<ISubmission>(
               default: "",
               trim: true,
             },
+            representativeName: { type: String, default: "", trim: true },
+            representativeRelationship: { type: String, default: "", trim: true },
             email: { type: String, default: "", trim: true },
             contactPhone: { type: String, default: "", trim: true },
             notes: { type: String, default: "", trim: true, maxLength: 1000 },
@@ -306,6 +338,8 @@ const submissionSchema = new Schema<ISubmission>(
               default: "",
               trim: true,
             },
+            representativeName: { type: String, default: "", trim: true },
+            representativeRelationship: { type: String, default: "", trim: true },
             email: { type: String, default: "", trim: true },
             contactPhone: { type: String, default: "", trim: true },
             notes: { type: String, default: "", trim: true, maxLength: 1000 },

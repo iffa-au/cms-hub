@@ -40,6 +40,22 @@ function normalizeNotes(value: unknown): string {
 }
 
 /**
+ * Rows without a URL are dropped rather than rejected — the list is optional
+ * and the public form already filters its own blank rows. Capped like the
+ * crew groups so a malformed payload can't grow the document without bound.
+ */
+function normalizePromoClips(value: unknown): Array<{ url: string; password: string }> {
+  if (!Array.isArray(value)) return [];
+  return value
+    .slice(0, 50)
+    .map((x: any) => ({
+      url: String(x?.url || "").trim(),
+      password: String(x?.password || "").trim(),
+    }))
+    .filter((x) => x.url);
+}
+
+/**
  * Array position is the display order — the schema has no `order` path, so a
  * sort key would be silently dropped by Mongoose strict mode.
  */
@@ -53,6 +69,8 @@ function normalizeCrewGroup(value: unknown) {
       imageUrl: String(x?.imageUrl || "").trim(),
       biography: String(x?.biography || "").trim(),
       instagramUrl: String(x?.instagramUrl || "").trim(),
+      representativeName: String(x?.representativeName || "").trim(),
+      representativeRelationship: String(x?.representativeRelationship || "").trim(),
       email: String(x?.email || "").trim().toLowerCase(),
       // Optional on the public form. Not normalised beyond a trim: a phone
       // number has no single correct shape once submissions are
@@ -105,6 +123,44 @@ export function publicCrew(crew: unknown) {
     producers: publicCrewGroup(source.producers),
     other: publicCrewGroup(source.other),
   };
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const CREW_GROUP_LABELS = {
+  actors: "Actor",
+  directors: "Director",
+  producers: "Producer",
+  other: "Crew member",
+} as const;
+
+/**
+ * Every credited person on a public submission must name a representative
+ * IFFA can contact: their name, their relationship to the person, and a
+ * valid email. The public form enforces the same; this is the backstop.
+ * Deliberately not applied to the staff create/update paths — records that
+ * predate these fields have to stay editable.
+ *
+ * Returns the first problem as a user-facing message, or null.
+ */
+function findMissingRepresentative(
+  crew: ReturnType<typeof normalizeCrewPayload>,
+): string | null {
+  for (const key of Object.keys(CREW_GROUP_LABELS) as Array<keyof typeof CREW_GROUP_LABELS>) {
+    for (const [index, member] of crew[key].entries()) {
+      const who = `${CREW_GROUP_LABELS[key]} ${index + 1} (${member.fullName})`;
+      if (!member.representativeName) {
+        return `${who}: representative name is required`;
+      }
+      if (!member.representativeRelationship) {
+        return `${who}: representative relationship is required`;
+      }
+      if (!EMAIL_RE.test(member.email)) {
+        return `${who}: a valid representative email is required`;
+      }
+    }
+  }
+  return null;
 }
 
 export function normalizeCrewPayload(crew: unknown) {
@@ -490,6 +546,7 @@ export const createSubmission = async (req: AuthedRequest, res) => {
       imdbUrl = "",
       trailerUrl = "",
       trailerPassword = "",
+      promoClips,
       releaseLinkUrl = "",
       durationHours,
       durationMinutes,
@@ -549,6 +606,7 @@ export const createSubmission = async (req: AuthedRequest, res) => {
       imdbUrl,
       trailerUrl,
       trailerPassword: String(trailerPassword || "").trim(),
+      promoClips: normalizePromoClips(promoClips),
       releaseLinkUrl: String(releaseLinkUrl || "").trim(),
       ...parsedDuration,
       submission_year: resolvedSubmissionYear,
@@ -600,6 +658,7 @@ export const createSubmissionPublic = async (req, res) => {
       imdbUrl = "",
       trailerUrl = "",
       trailerPassword = "",
+      promoClips,
       releaseLinkUrl = "",
       submissionYear,
       durationHours,
@@ -679,6 +738,11 @@ export const createSubmissionPublic = async (req, res) => {
     // Create anonymous creator id for public submission
     const creatorId = new Types.ObjectId();
 
+    // findMissingRepresentative is deliberately not called yet. The live
+    // public form doesn't send representative fields, and App Runner deploys
+    // this before Amplify deploys the form that does — enforcing it now
+    // would reject every submission in between. It's switched on in a
+    // follow-up once that form is live.
     const crewGroups = normalizeCrewPayload(crew);
 
     const uniqueGenreIds = Array.from(new Set(providedGenreIds)) as string[];
@@ -693,6 +757,7 @@ export const createSubmissionPublic = async (req, res) => {
       imdbUrl,
       trailerUrl,
       trailerPassword: String(trailerPassword || "").trim(),
+      promoClips: normalizePromoClips(promoClips),
       releaseLinkUrl: String(releaseLinkUrl || "").trim(),
       contactEmail: String(contactEmail || "").trim().toLowerCase(),
       // Recomputed from the same ref + title the presign calls used, rather
@@ -798,6 +863,7 @@ export const updateSubmission = async (req: AuthedRequest, res) => {
       imdbUrl,
       trailerUrl,
       trailerPassword,
+      promoClips,
       releaseLinkUrl,
       contactEmail,
       durationHours,
@@ -839,6 +905,8 @@ export const updateSubmission = async (req: AuthedRequest, res) => {
     if (trailerUrl !== undefined) updates.trailerUrl = trailerUrl;
     if (trailerPassword !== undefined)
       updates.trailerPassword = String(trailerPassword || "").trim();
+    if (promoClips !== undefined)
+      updates.promoClips = normalizePromoClips(promoClips);
     if (releaseLinkUrl !== undefined)
       updates.releaseLinkUrl = String(releaseLinkUrl || "").trim();
     if (contactEmail !== undefined)
@@ -1002,10 +1070,10 @@ export const getSubmission = async (req: Request, res: Response) => {
     }
     // Public endpoint (synopsis page). This returns the whole document, so
     // every staff-only field has to be excluded by name: contactEmail is
-    // submitter PII, and trailerPassword would hand anyone with a film's id
-    // the key to its private screener folder.
+    // submitter PII, and trailerPassword (like each promo clip's password)
+    // would hand anyone with a film's id the key to its private folders.
     const item = await Submission.findById(id)
-      .select("-contactEmail -trailerPassword")
+      .select("-contactEmail -trailerPassword -promoClips.password")
       .populate("genreIds");
     if (!item) {
       return res
@@ -1099,6 +1167,7 @@ export const getSubmissionOverview = async (req, res) => {
           imdbUrl: 1,
           trailerUrl: 1,
           trailerPassword: 1,
+          promoClips: 1,
           releaseLinkUrl: 1,
           contactEmail: 1,
           durationHours: 1,

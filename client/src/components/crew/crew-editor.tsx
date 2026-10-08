@@ -267,6 +267,8 @@ export default function CrewEditor({
           imageUrl: '',
           biography: '',
           instagramUrl: '',
+          representativeName: '',
+          representativeRelationship: '',
           email: '',
           contactPhone: '',
           notes: '',
@@ -448,6 +450,24 @@ export default function CrewEditor({
                               value={person.instagramUrl ?? ''}
                               onChange={(e) => mutate(key, index, { instagramUrl: e.target.value })}
                               placeholder='https://instagram.com/…'
+                            />
+                          </div>
+                          <div>
+                            <label className={LABEL}>Representative Name</label>
+                            <input
+                              className={`${INPUT} mt-1.5`}
+                              value={person.representativeName ?? ''}
+                              onChange={(e) => mutate(key, index, { representativeName: e.target.value })}
+                              placeholder='Full name'
+                            />
+                          </div>
+                          <div>
+                            <label className={LABEL}>Relationship</label>
+                            <input
+                              className={`${INPUT} mt-1.5`}
+                              value={person.representativeRelationship ?? ''}
+                              onChange={(e) => mutate(key, index, { representativeRelationship: e.target.value })}
+                              placeholder='e.g. Self, Agent, Manager, Publicist, Family member'
                             />
                           </div>
                           <div>

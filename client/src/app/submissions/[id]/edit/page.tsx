@@ -47,6 +47,8 @@ function formatSubmittedAt(value?: string) {
   }).format(date);
 }
 
+type PromoClip = { url: string; password: string };
+
 type MetaItem = { _id: string; name: string; description?: string };
 type SubmissionDetail = {
   _id: string;
@@ -100,6 +102,11 @@ export default function EditSubmissionPage() {
   const [imdbUrl, setImdbUrl] = useState<string>('');
   const [trailerUrl, setTrailerUrl] = useState<string>('');
   const [releaseLinkUrl, setReleaseLinkUrl] = useState<string>('');
+  const [promoClips, setPromoClips] = useState<PromoClip[]>([]);
+  // Same reasoning as crewEditable below: the public fallback route strips
+  // each clip's password, and clips are saved as a whole list, so saving from
+  // that copy would silently wipe every password.
+  const [clipsEditable, setClipsEditable] = useState(true);
   const [durationHours, setDurationHours] = useState<string>('');
   const [durationMinutes, setDurationMinutes] = useState<string>('');
   const [submissionYear, setSubmissionYear] = useState<string>('');
@@ -146,6 +153,14 @@ export default function EditSubmissionPage() {
             setImdbUrl(d.imdbUrl || '');
             setTrailerUrl(d.trailerUrl || '');
             setReleaseLinkUrl(d.releaseLinkUrl || '');
+            setPromoClips(
+              Array.isArray(d.promoClips)
+                ? d.promoClips.map((c: { url?: string; password?: string }) => ({
+                    url: c?.url || '',
+                    password: c?.password || '',
+                  }))
+                : [],
+            );
             setDurationHours(d.durationHours != null ? String(d.durationHours) : '');
             setDurationMinutes(d.durationMinutes != null ? String(d.durationMinutes) : '');
             setSubmissionYear(d.submission_year != null ? String(d.submission_year) : '');
@@ -209,6 +224,7 @@ export default function EditSubmissionPage() {
             // Crew is deliberately NOT loaded here. This fallback reads the
             // public route, whose crew projection drops every staff-only field.
             setCrewEditable(false);
+            setClipsEditable(false);
           }
         }
       } catch (e: any) {
@@ -241,6 +257,13 @@ export default function EditSubmissionPage() {
         imdbUrl,
         trailerUrl,
         releaseLinkUrl,
+        ...(clipsEditable
+          ? {
+              promoClips: promoClips
+                .map((c) => ({ url: c.url.trim(), password: c.password.trim() }))
+                .filter((c) => c.url),
+            }
+          : {}),
         // Omit when blank so admins can save unrelated edits without being
         // forced to fill in every field first.
         ...(durationHours.trim() ? { durationHours: durationHours.trim() } : {}),
@@ -582,6 +605,65 @@ export default function EditSubmissionPage() {
                   value={releaseLinkUrl}
                   onChange={(e) => setReleaseLinkUrl(e.target.value)}
                 />
+              </div>
+              <div className='space-y-3 md:col-span-2'>
+                <div className='flex items-center justify-between gap-3'>
+                  <p className={LABEL}>Short Promotional Clips</p>
+                  {clipsEditable && (
+                    <Button
+                      type='button'
+                      variant='ghost'
+                      size='sm'
+                      onClick={() => setPromoClips((prev) => [...prev, { url: '', password: '' }])}
+                    >
+                      + Add clip
+                    </Button>
+                  )}
+                </div>
+                {!clipsEditable ? (
+                  <p className='text-muted-foreground text-xs'>
+                    Clips can&apos;t be edited here: the staff view of this submission failed to load.
+                  </p>
+                ) : promoClips.length === 0 ? (
+                  <p className='text-muted-foreground text-xs'>No clips provided.</p>
+                ) : (
+                  promoClips.map((clip, index) => (
+                    <div key={index} className='grid grid-cols-1 gap-3 rounded-lg border border-border p-3 md:grid-cols-[2fr_1fr_auto] md:items-center'>
+                      <input
+                        aria-label={`Clip ${index + 1} URL`}
+                        className={INPUT}
+                        type='text'
+                        placeholder='Download link for the clip'
+                        value={clip.url}
+                        onChange={(e) =>
+                          setPromoClips((prev) => prev.map((c, i) => (i === index ? { ...c, url: e.target.value } : c)))
+                        }
+                      />
+                      <input
+                        aria-label={`Clip ${index + 1} password`}
+                        className={`${INPUT} font-mono`}
+                        type='text'
+                        autoComplete='off'
+                        placeholder='Password (blank if none)'
+                        value={clip.password}
+                        onChange={(e) =>
+                          setPromoClips((prev) =>
+                            prev.map((c, i) => (i === index ? { ...c, password: e.target.value } : c)),
+                          )
+                        }
+                      />
+                      <Button
+                        type='button'
+                        variant='ghost'
+                        size='sm'
+                        aria-label={`Remove clip ${index + 1}`}
+                        onClick={() => setPromoClips((prev) => prev.filter((_, i) => i !== index))}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </section>

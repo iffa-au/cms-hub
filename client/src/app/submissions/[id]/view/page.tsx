@@ -111,11 +111,11 @@ function UrlField({ label, value }: { label: string; value?: string }) {
 }
 
 /**
- * The trailer link plus, when the submitter told us the folder is locked,
- * the password to open it — sat right beside the URL so a reviewer never
- * has to go hunting or email the filmmaker to get in.
+ * The password for a protected link, sat right beside the URL so a reviewer
+ * never has to go hunting or email the filmmaker to get in. Shared by the
+ * trailer and every promotional clip.
  */
-function TrailerField({ url, password }: { url?: string; password?: string }) {
+function PasswordChip({ password }: { password?: string }) {
   const [copied, setCopied] = useState(false);
   const secret = password?.trim();
 
@@ -131,24 +131,46 @@ function TrailerField({ url, password }: { url?: string; password?: string }) {
     }
   };
 
+  return secret ? (
+    <div className='mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2'>
+      <span className={LABEL}>Password</span>
+      <code className='font-mono text-white text-sm break-all'>{secret}</code>
+      <button
+        type='button'
+        onClick={copy}
+        className='ml-auto rounded border border-border px-2 py-1 text-xs font-bold tracking-widest text-foreground hover:border-primary transition-colors'
+      >
+        {copied ? 'COPIED' : 'COPY'}
+      </button>
+    </div>
+  ) : (
+    <p className='mt-2 text-muted-foreground text-xs'>No password provided</p>
+  );
+}
+
+function TrailerField({ url, password }: { url?: string; password?: string }) {
   return (
     <div className='min-w-0'>
       <UrlField label='Trailer URL' value={url} />
-      {secret ? (
-        <div className='mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2'>
-          <span className={LABEL}>Password</span>
-          <code className='font-mono text-white text-sm break-all'>{secret}</code>
-          <button
-            type='button'
-            onClick={copy}
-            className='ml-auto rounded border border-border px-2 py-1 text-xs font-bold tracking-widest text-foreground hover:border-primary transition-colors'
-          >
-            {copied ? 'COPIED' : 'COPY'}
-          </button>
-        </div>
-      ) : (
-        <p className='mt-2 text-muted-foreground text-xs'>No password provided</p>
-      )}
+      <PasswordChip password={password} />
+    </div>
+  );
+}
+
+function PromoClipsField({ clips }: { clips?: Array<{ url: string; password?: string }> }) {
+  const list = clips ?? [];
+  if (list.length === 0) return <Field label='Short Promotional Clips' value='—' />;
+  return (
+    <div className='min-w-0'>
+      <p className={LABEL}>Short Promotional Clips</p>
+      <div className='mt-2 grid grid-cols-1 md:grid-cols-2 gap-4'>
+        {list.map((clip, index) => (
+          <div key={`${index}-${clip.url}`} className='min-w-0 rounded-lg border border-border p-4'>
+            <UrlField label={`Clip ${index + 1}`} value={clip.url} />
+            <PasswordChip password={clip.password} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -440,6 +462,9 @@ export default function ViewSubmissionPage() {
                 <UrlField label='IMDb URL' value={details.imdbUrl} />
                 <TrailerField url={details.trailerUrl} password={details.trailerPassword} />
                 <UrlField label='Release, Broadcast or Exhibition Link' value={details.releaseLinkUrl} />
+                <div className='md:col-span-2'>
+                  <PromoClipsField clips={details.promoClips} />
+                </div>
               </div>
             </section>
 
@@ -508,12 +533,49 @@ export default function ViewSubmissionPage() {
                               {member.biography ? (
                                 <p className='text-muted-foreground mt-2 whitespace-pre-wrap'>{member.biography}</p>
                               ) : null}
-                              {member.email ? (
-                                <p className='text-muted-foreground text-xs mt-2 break-all'>{member.email}</p>
-                              ) : null}
-                              {member.contactPhone ? (
-                                <p className='text-muted-foreground text-xs mt-2 break-all'>{member.contactPhone}</p>
-                              ) : null}
+                              {/* Always rendered, with dashes for gaps, so a
+                                  reviewer can see at a glance who to contact —
+                                  and that an older record has no representative
+                                  on file rather than that the block is missing. */}
+                              <div className='mt-3 rounded-md border border-border bg-surface-dark/60 p-3'>
+                                <p className='text-[11px] font-bold uppercase tracking-widest text-label'>
+                                  Representative
+                                </p>
+                                <dl className='mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-xs'>
+                                  <div className='min-w-0'>
+                                    <dt className='text-muted-foreground'>Name</dt>
+                                    <dd className='text-white break-words'>{valueOrDash(member.representativeName)}</dd>
+                                  </div>
+                                  <div className='min-w-0'>
+                                    <dt className='text-muted-foreground'>Role</dt>
+                                    <dd className='text-white break-words'>{valueOrDash(member.representativeRelationship)}</dd>
+                                  </div>
+                                  <div className='min-w-0'>
+                                    <dt className='text-muted-foreground'>Email</dt>
+                                    <dd className='text-white break-all'>
+                                      {member.email ? (
+                                        <a href={`mailto:${member.email}`} className='underline hover:text-primary transition-colors'>
+                                          {member.email}
+                                        </a>
+                                      ) : (
+                                        '—'
+                                      )}
+                                    </dd>
+                                  </div>
+                                  <div className='min-w-0'>
+                                    <dt className='text-muted-foreground'>Contact</dt>
+                                    <dd className='text-white break-all'>
+                                      {member.contactPhone ? (
+                                        <a href={`tel:${member.contactPhone.replace(/[^\d+]/g, '')}`} className='underline hover:text-primary transition-colors'>
+                                          {member.contactPhone}
+                                        </a>
+                                      ) : (
+                                        '—'
+                                      )}
+                                    </dd>
+                                  </div>
+                                </dl>
+                              </div>
                               {member.notes ? (
                                 <p className='text-muted-foreground text-xs mt-2 whitespace-pre-wrap border-l-2 border-border pl-2'>
                                   {member.notes}
