@@ -862,6 +862,12 @@ export const createSubmissionPublic = async (req, res) => {
     if ("message" in nominationsResult) {
       return res.status(400).json({ success: false, message: nominationsResult.message });
     }
+    if (nominationsResult.nominations.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Choose at least one award to enter",
+      });
+    }
 
     const uniqueGenreIds = Array.from(new Set(providedGenreIds)) as string[];
 
