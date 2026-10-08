@@ -738,12 +738,11 @@ export const createSubmissionPublic = async (req, res) => {
     // Create anonymous creator id for public submission
     const creatorId = new Types.ObjectId();
 
-    // findMissingRepresentative is deliberately not called yet. The live
-    // public form doesn't send representative fields, and App Runner deploys
-    // this before Amplify deploys the form that does — enforcing it now
-    // would reject every submission in between. It's switched on in a
-    // follow-up once that form is live.
     const crewGroups = normalizeCrewPayload(crew);
+    const representativeError = findMissingRepresentative(crewGroups);
+    if (representativeError) {
+      return res.status(400).json({ success: false, message: representativeError });
+    }
 
     const uniqueGenreIds = Array.from(new Set(providedGenreIds)) as string[];
 
