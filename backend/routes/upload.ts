@@ -5,6 +5,7 @@ import {
   requestSubmissionCrewUploadUrl,
   requestFestivalUploadUrl,
   requestFestivalPageUploadUrl,
+  requestTrailerUploadUrl,
 } from "../controllers/upload.controller.js";
 import { requireAuth, requireRole } from "../middlewares/auth.middleware.js";
 
@@ -44,6 +45,14 @@ router.post(
   requireAuth,
   requireRole("admin", "staff"),
   requestFestivalPageUploadUrl,
+);
+
+// Staff-only — homepage trailer videos, managed from the CMS.
+router.post(
+  "/presign/homepage-trailer",
+  requireAuth,
+  requireRole("admin", "staff"),
+  requestTrailerUploadUrl,
 );
 
 export default router;
