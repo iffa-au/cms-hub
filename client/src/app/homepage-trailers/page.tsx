@@ -302,10 +302,8 @@ export default function HomepageTrailersPage() {
     // An open draft was copied from rows before the save; applying it afterwards
     // would bring back a file that was just uploaded, or miss a row whose id the
     // save replaced.
-    if (formOpen) {
-      setError("Apply or cancel the open trailer form before saving.");
-      return;
-    }
+    // The button is disabled while the form is open; this guards keyboard/stale clicks.
+    if (formOpen) return;
     const problem = firstProblem(rows);
     if (problem) {
       setError(problem);
@@ -702,11 +700,16 @@ export default function HomepageTrailersPage() {
 
           <button
             onClick={handleSave}
-            disabled={!dirty || saving}
+            disabled={!dirty || saving || formOpen}
             className="mt-6 w-full rounded bg-foreground px-6 py-3 text-xs font-bold uppercase tracking-widest text-background transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? "Saving..." : "Save changes"}
           </button>
+          {formOpen && dirty && (
+            <p className="mt-2 text-center text-xs text-muted-foreground">
+              Apply or cancel the open trailer form to save.
+            </p>
+          )}
         </section>
       )}
 
