@@ -238,8 +238,11 @@ export default function HomepageTrailersPage() {
     if (!file) return;
     const problem = validateTrailerFile(file);
     setFileError(problem);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    if (problem) return;
+    if (problem) {
+      // Cleared so picking a corrected file with the same name still fires onChange.
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
     setDraft((d) => ({ ...d, pendingFile: file }));
   };
 
@@ -296,6 +299,13 @@ export default function HomepageTrailersPage() {
     setError(null);
     setSuccess(null);
     setStale(false);
+    // An open draft was copied from rows before the save; applying it afterwards
+    // would bring back a file that was just uploaded, or miss a row whose id the
+    // save replaced.
+    if (formOpen) {
+      setError("Apply or cancel the open trailer form before saving.");
+      return;
+    }
     const problem = firstProblem(rows);
     if (problem) {
       setError(problem);
@@ -514,7 +524,8 @@ export default function HomepageTrailersPage() {
           <div className="flex flex-wrap gap-3 pt-2">
             <button
               type="submit"
-              className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              disabled={saving}
+              className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
             >
               APPLY
             </button>
