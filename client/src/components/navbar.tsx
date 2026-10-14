@@ -48,6 +48,7 @@ export default function Navbar() {
       items.push({
         label: "Site content",
         children: [
+          { href: "/homepage-trailers", label: "Homepage trailers" },
           { href: "/carousel", label: "Submissions carousel" },
           { href: "/featured-films", label: "Featured films" },
           { href: "/partners", label: "Partners" },
