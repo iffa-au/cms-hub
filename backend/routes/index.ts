@@ -23,6 +23,7 @@ import partnerRoutes from "./partner.js";
 import festivalRoutes from "./festival.js";
 import podcastRoutes from "./podcast.js";
 import featuredFilmsRoutes from "./featuredFilms.js";
+import homepageTrailersRoutes from "./homepageTrailers.js";
 
 const router = e.Router();
 
@@ -52,5 +53,6 @@ router.use("/partners", partnerRoutes);
 router.use("/festivals", festivalRoutes);
 router.use("/podcasts", podcastRoutes);
 router.use("/featured-films", featuredFilmsRoutes);
+router.use("/homepage-trailers", homepageTrailersRoutes);
 
 export default router;

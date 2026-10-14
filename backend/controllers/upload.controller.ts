@@ -10,14 +10,17 @@ import {
   createPresignedUpload,
   createSubmissionAssetUpload,
   createSubmissionAssetUploadAtPrefix,
+  createTrailerUpload,
   describeS3Failure,
   generateSubmissionRef,
   isValidSubmissionRef,
+  MAX_TRAILER_BYTES,
   MAX_UPLOAD_BYTES,
   S3ConfigError,
   STAFF_CREW_CONTENT_TYPES,
   SUBMISSION_ASSET_GROUPS,
   FESTIVAL_ASSET_GROUPS,
+  TRAILER_CONTENT_TYPE,
   type SubmissionAssetGroup,
   type FestivalAssetGroup,
 } from "../libs/s3.js";
@@ -383,6 +386,47 @@ export const requestPartnerUploadUrl = async (req: Request, res: Response) => {
     if (explained) {
       return res.status(500).json({ success: false, message: explained });
     }
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+/**
+ * Staff-only: presigned POST for a homepage trailer MP4.
+ *
+ * The key is minted server-side from the title plus a fresh random ref — the
+ * client never names a path. POST rather than PUT so S3 enforces the size cap
+ * itself (see createSubmissionAssetUpload). The returned key is not trusted
+ * later either: the save path re-checks it with isTrailerKey and HeadObject.
+ */
+export const requestTrailerUploadUrl = async (req: Request, res: Response) => {
+  try {
+    const { title, contentType, contentLength } = req.body as Record<string, unknown>;
+
+    if (contentType !== TRAILER_CONTENT_TYPE) {
+      return res.status(400).json({ success: false, message: "Trailers must be MP4 files" });
+    }
+    const size = Number(contentLength);
+    if (!Number.isFinite(size) || size <= 0) {
+      return res.status(400).json({ success: false, message: "Invalid file size" });
+    }
+    if (size > MAX_TRAILER_BYTES) {
+      return res.status(413).json({
+        success: false,
+        message: `Video is too large. The limit is ${Math.round(MAX_TRAILER_BYTES / (1024 * 1024))}MB.`,
+      });
+    }
+
+    const { uploadUrl, fields, key } = await createTrailerUpload(
+      typeof title === "string" ? title : "",
+    );
+    res.status(200).json({ success: true, uploadUrl, fields, key, publicUrl: buildPublicUrl(key) });
+  } catch (error) {
+    console.error(error);
+    if (error instanceof S3ConfigError) {
+      return res.status(500).json({ success: false, message: error.message });
+    }
+    const explained = describeS3Failure(error);
+    if (explained) return res.status(500).json({ success: false, message: explained });
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 };

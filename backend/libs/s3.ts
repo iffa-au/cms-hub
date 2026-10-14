@@ -5,6 +5,7 @@ import {
   DeleteObjectCommand,
   DeleteObjectsCommand,
   ListObjectsV2Command,
+  HeadObjectCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
@@ -722,4 +723,97 @@ export async function deleteUploadedPrefix(prefix: string): Promise<number> {
   }
 
   return deleted;
+}
+
+/* -------------------------------------------------------------------------
+ * Homepage trailers
+ *
+ *   iffa/videos/homepage-trailers/<title-slug>-<8hex>.mp4
+ *
+ * One flat folder, a fresh key per upload: replacing a trailer writes a new
+ * object rather than overwriting, so CloudFront can never keep serving the
+ * old video from cache, and the old key is deleted by the controller once the
+ * save that dropped it has succeeded.
+ * ---------------------------------------------------------------------- */
+
+export const TRAILER_CONTENT_TYPE = "video/mp4";
+
+/** 200MB — fits a two-minute 1080p H.264 trailer; catches a 4K or ProRes master. */
+export const MAX_TRAILER_BYTES = 200 * 1024 * 1024;
+
+/**
+ * Longer than PRESIGN_EXPIRY_SECONDS: a 200MB upload on a slow connection
+ * takes minutes, and the CMS presigns each file just before sending it.
+ */
+const TRAILER_PRESIGN_EXPIRY_SECONDS = 30 * 60;
+
+/** Not derived from AWS_S3_UPLOAD_PREFIX: videos live under iffa/videos, not iffa/images. */
+export function trailersPrefix(): string {
+  return (process.env.AWS_S3_TRAILERS_PREFIX || "iffa/videos/homepage-trailers").replace(
+    /^\/+|\/+$/g,
+    "",
+  );
+}
+
+/**
+ * True only for a key this module could have issued. Allowlisted to the
+ * charset slugify emits plus the hex ref, so "..", "/" and foreign folders are
+ * structurally impossible — this is the guard in front of every delete.
+ */
+export function isTrailerKey(key: unknown): key is string {
+  if (typeof key !== "string") return false;
+  const root = `${trailersPrefix()}/`;
+  if (!key.startsWith(root)) return false;
+  return /^[a-z0-9][a-z0-9-]*-[a-f0-9]{8}\.mp4$/.test(key.slice(root.length));
+}
+
+export async function createTrailerUpload(title: string): Promise<PresignedUpload> {
+  const config = loadConfig();
+  const ref = randomBytes(4).toString("hex");
+  const key = `${trailersPrefix()}/${slugify(title, "trailer")}-${ref}.mp4`;
+
+  const { url, fields } = await createPresignedPost(getClient(), {
+    Bucket: config.bucket,
+    Key: key,
+    Expires: TRAILER_PRESIGN_EXPIRY_SECONDS,
+    Conditions: [
+      ["content-length-range", MIN_UPLOAD_BYTES, MAX_TRAILER_BYTES],
+      ["eq", "$Content-Type", TRAILER_CONTENT_TYPE],
+    ],
+    Fields: { "Content-Type": TRAILER_CONTENT_TYPE },
+  });
+
+  return { uploadUrl: url, fields, key };
+}
+
+export class S3VerifyError extends Error {}
+
+/**
+ * Confirms an upload actually landed before a record is allowed to point at it.
+ *
+ * Null for a missing object. S3 answers 403 rather than 404 for a missing key
+ * when the role lacks s3:ListBucket, and 403 is also what a role without
+ * s3:GetObject gets — the two cannot be told apart, so 403 throws a message
+ * naming both causes rather than guessing.
+ */
+export async function headUploadedObject(
+  key: string,
+): Promise<{ contentType?: string; size?: number } | null> {
+  try {
+    const res = await getClient().send(
+      new HeadObjectCommand({ Bucket: loadConfig().bucket, Key: key }),
+    );
+    return { contentType: res.ContentType, size: res.ContentLength };
+  } catch (error) {
+    const status = (error as { $metadata?: { httpStatusCode?: number } })?.$metadata
+      ?.httpStatusCode;
+    if (status === 404 || (error as { name?: string })?.name === "NotFound") return null;
+    if (status === 403) {
+      throw new S3VerifyError(
+        "Could not confirm the uploaded video. Either the upload never finished, or this " +
+          "server's IAM role lacks s3:GetObject / s3:ListBucket on the media bucket.",
+      );
+    }
+    throw error;
+  }
 }
