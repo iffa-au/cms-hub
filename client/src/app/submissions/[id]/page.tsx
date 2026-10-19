@@ -27,7 +27,7 @@ type Submission = {
   imdbUrl?: string;
   trailerUrl?: string;
   genreIds: string[] | { _id: string; name?: string }[];
-  status: "SUBMITTED" | "APPROVED" | "REJECTED";
+  status: "SUBMITTED" | "APPROVED" | "REJECTED" | "ARCHIVED";
   crew?: {
     actors: Array<{
       fullName: string;

@@ -1,14 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { getData } from '@/lib/fetch-util';
+import { getData, patchData } from '@/lib/fetch-util';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import DownloadAllPdfButton from '@/components/review-queue/download-all-pdf-button';
 import PageShell from '@/components/page-shell';
 import Pagination from '@/components/pagination';
 import RecordList, { type Column } from '@/components/record-list';
+import ConfirmDialog from '@/components/confirm-dialog';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 import {
   AdvancedFiltersDialog,
   EMPTY_FILTERS,
@@ -48,6 +50,38 @@ type ListResponse = {
 
 const PAGE_LIMIT = 20;
 
+type BulkAction = 'APPROVED' | 'REJECTED' | 'ARCHIVED';
+
+type BulkResponse = {
+  success: boolean;
+  data?: { updated: number; skipped: number };
+  message?: string;
+};
+
+const BULK_COPY: Record<
+  BulkAction,
+  { verb: string; done: string; tone: 'default' | 'danger'; note: string }
+> = {
+  APPROVED: {
+    verb: 'Approve',
+    done: 'approved',
+    tone: 'default',
+    note: 'They will appear on the public site.',
+  },
+  REJECTED: {
+    verb: 'Reject',
+    done: 'rejected',
+    tone: 'danger',
+    note: 'They move to the Archive page, where they can be restored.',
+  },
+  ARCHIVED: {
+    verb: 'Archive',
+    done: 'archived',
+    tone: 'default',
+    note: 'Use this for duplicates. They move to the Archive page without being rejected, and can be restored.',
+  },
+};
+
 const formatSubmittedAt = (value?: string) => {
   if (!value) return '—';
   const date = new Date(value);
@@ -75,6 +109,11 @@ export default function ReviewQueuePage() {
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [pageMeta, setPageMeta] = useState<{ page: number; limit: number; total: number } | null>(null);
+  // Page-scoped: cleared on every load, so a selection can never include a
+  // film that is no longer on screen.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [pendingBulk, setPendingBulk] = useState<BulkAction | null>(null);
+  const [isBulkBusy, setIsBulkBusy] = useState(false);
 
   const getErrorMessage = (value: unknown, fallback: string) => {
     if (value instanceof Error && value.message) return value.message;
@@ -93,6 +132,7 @@ export default function ReviewQueuePage() {
     try {
       setLoading(true);
       setError(null);
+      setSelected(new Set());
       const safePage = Math.max(page, 1);
       const safeQuery = q.trim();
       const parts = [`page=${safePage}`, `limit=${PAGE_LIMIT}`, `status=SUBMITTED`];
@@ -124,6 +164,33 @@ export default function ReviewQueuePage() {
     if (loading || targetPage === activePage || targetPage < 1 || targetPage > totalPages) return;
     setCurrentPage(targetPage);
     void load(query, filters, targetPage);
+  };
+
+  const selectedTitles = items.filter((item) => selected.has(item._id)).map((item) => item.title);
+
+  const runBulk = async (action: BulkAction) => {
+    const ids = Array.from(selected);
+    if (ids.length === 0) return;
+    try {
+      setIsBulkBusy(true);
+      setActionError(null);
+      const res = await patchData<BulkResponse>('/submissions/bulk-status', { ids, status: action });
+      const updated = res?.data?.updated ?? 0;
+      const skipped = res?.data?.skipped ?? 0;
+      toast.success(
+        `${updated} film${updated === 1 ? '' : 's'} ${BULK_COPY[action].done}` +
+          (skipped > 0 ? ` · ${skipped} already decided elsewhere, left unchanged` : ''),
+      );
+      setPendingBulk(null);
+      // Emptying the last page would otherwise land on a blank one.
+      const nextPage = ids.length >= items.length && activePage > 1 ? activePage - 1 : activePage;
+      await load(query, filters, nextPage);
+    } catch (e: unknown) {
+      setActionError(getErrorMessage(e, `Failed to ${BULK_COPY[action].verb.toLowerCase()} submissions`));
+      setPendingBulk(null);
+    } finally {
+      setIsBulkBusy(false);
+    }
   };
 
   const columns: Column<Submission>[] = [
@@ -298,7 +365,38 @@ export default function ReviewQueuePage() {
         }}
       />
 
+      {selected.size > 0 && (
+        <div
+          role="region"
+          aria-label="Bulk actions"
+          className="sticky top-[calc(var(--header-h)+0.5rem)] z-20 mb-4 flex flex-col gap-2 rounded-lg border border-border-strong bg-surface-overlay p-3 shadow-lg sm:flex-row sm:items-center sm:justify-between"
+        >
+          <p className="text-sm text-foreground" aria-live="polite">
+            {selected.size} selected
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => setPendingBulk('APPROVED')} disabled={isBulkBusy}>
+              Approve
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setPendingBulk('REJECTED')} disabled={isBulkBusy}>
+              Reject
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setPendingBulk('ARCHIVED')} disabled={isBulkBusy}>
+              Archive
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())} disabled={isBulkBusy}>
+              Clear selection
+            </Button>
+          </div>
+        </div>
+      )}
+
       <RecordList
+        selection={{
+          selected,
+          onChange: setSelected,
+          label: (key) => `Select ${items.find((item) => item._id === key)?.title ?? 'film'}`,
+        }}
         items={items}
         columns={columns}
         getKey={(item) => item._id}
@@ -315,6 +413,34 @@ export default function ReviewQueuePage() {
             Review
           </Button>
         )}
+      />
+
+      <ConfirmDialog
+        open={pendingBulk !== null}
+        title={
+          pendingBulk
+            ? `${BULK_COPY[pendingBulk].verb} ${selected.size} film${selected.size === 1 ? '' : 's'}?`
+            : ''
+        }
+        description={
+          pendingBulk && (
+            <>
+              <p>{BULK_COPY[pendingBulk].note}</p>
+              <ul className="mt-3 max-h-40 list-disc space-y-0.5 overflow-y-auto pl-5 text-foreground/80">
+                {selectedTitles.map((title, idx) => (
+                  <li key={idx}>{title}</li>
+                ))}
+              </ul>
+            </>
+          )
+        }
+        confirmLabel={pendingBulk ? BULK_COPY[pendingBulk].verb : 'Confirm'}
+        tone={pendingBulk ? BULK_COPY[pendingBulk].tone : 'default'}
+        busy={isBulkBusy}
+        onConfirm={() => pendingBulk && void runBulk(pendingBulk)}
+        onCancel={() => {
+          if (!isBulkBusy) setPendingBulk(null);
+        }}
       />
 
       <Pagination
