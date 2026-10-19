@@ -1,7 +1,9 @@
 import { Request, Response } from "express";
 import Submission, {
+  SUBMISSION_STATUSES,
   type CrewGroup,
   type ISubmission,
+  type SubmissionStatus,
 } from "../models/submission.model.js";
 import AwardCategory, { type NomineeType } from "../models/awardCategory.model.js";
 import type { AuthedRequest } from "../middlewares/auth.middleware.js";
@@ -1443,7 +1445,16 @@ export const adminListSubmissions = async (req, res) => {
         .filter((v) => Types.ObjectId.isValid(v))
         .map((v) => new Types.ObjectId(v));
     const trimmedQuery = String(q || "").trim();
-    if (status) filter.status = status;
+    // Comma-separated, so the Archive page can list REJECTED and ARCHIVED
+    // together. Unknown values are dropped rather than matched literally.
+    const statusList = String(status || "")
+      .split(",")
+      .map((v) => v.trim().toUpperCase())
+      .filter((v): v is SubmissionStatus =>
+        SUBMISSION_STATUSES.includes(v as SubmissionStatus),
+      );
+    if (statusList.length === 1) filter.status = statusList[0];
+    else if (statusList.length > 1) filter.status = { $in: statusList };
     const languageOid = parseObjectId(languageId);
     const countryOid = parseObjectId(countryId);
     const singleContentTypeOid = parseObjectId(contentTypeId);
@@ -1677,6 +1688,85 @@ export const restoreSubmission = async (req, res) => {
       success: true,
       message: "Submission restored",
       data: updated,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+export const archiveSubmission = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updated = await Submission.findByIdAndUpdate(
+      id,
+      { $set: { status: "ARCHIVED" } },
+      { new: true },
+    );
+    if (!updated) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Submission not found" });
+    }
+    res.status(200).json({
+      success: true,
+      message: "Submission archived",
+      data: updated,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+const BULK_TARGET_STATUSES = new Set<SubmissionStatus>([
+  "APPROVED",
+  "REJECTED",
+  "ARCHIVED",
+]);
+const MAX_BULK_IDS = 100;
+
+// Staff-only: decide several review-queue films at once — mainly for clearing
+// out one film submitted many times. Only films still SUBMITTED are touched,
+// so a stale selection can never flip a film someone else already approved;
+// those are reported back as `skipped` rather than failing the whole batch.
+export const bulkUpdateSubmissionStatus = async (req, res) => {
+  try {
+    const { ids, status } = req.body as { ids?: unknown; status?: unknown };
+    if (!BULK_TARGET_STATUSES.has(status as SubmissionStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: "status must be one of APPROVED, REJECTED, ARCHIVED",
+      });
+    }
+    if (!Array.isArray(ids) || ids.length === 0 || ids.length > MAX_BULK_IDS) {
+      return res.status(400).json({
+        success: false,
+        message: `ids must be an array of 1 to ${MAX_BULK_IDS} submission ids`,
+      });
+    }
+    const uniqueIds = Array.from(new Set(ids.map((id) => String(id || "").trim())));
+    if (!uniqueIds.every((id) => Types.ObjectId.isValid(id))) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid submission id in list" });
+    }
+
+    const result = await Submission.updateMany(
+      {
+        _id: { $in: uniqueIds.map((id) => new Types.ObjectId(id)) },
+        status: "SUBMITTED",
+      },
+      { $set: { status } },
+    );
+
+    res.status(200).json({
+      success: true,
+      message: `${result.modifiedCount} submission(s) updated`,
+      data: {
+        updated: result.modifiedCount,
+        skipped: uniqueIds.length - result.modifiedCount,
+      },
     });
   } catch (error) {
     console.error(error);
