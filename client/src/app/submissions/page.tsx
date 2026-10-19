@@ -29,7 +29,7 @@ type Submission = {
   contentTypeName?: string | null;
   countryName?: string | null;
   genreNames?: string[];
-  status?: 'SUBMITTED' | 'APPROVED' | 'REJECTED';
+  status?: 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'ARCHIVED';
 };
 
 const formatDuration = (hours?: number, minutes?: number): string => {
@@ -47,7 +47,7 @@ type ListResponse = {
   meta?: { page: number; limit: number; total: number };
 };
 
-type StatusFilter = 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'ALL';
+type StatusFilter = 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'ARCHIVED' | 'ALL';
 
 type LoadOverrides = {
   q?: string;
@@ -227,6 +227,7 @@ export default function SubmissionsPage() {
             <option value="SUBMITTED">Submitted</option>
             <option value="APPROVED">Approved</option>
             <option value="REJECTED">Rejected</option>
+            <option value="ARCHIVED">Archived</option>
           </select>
 
           <Button

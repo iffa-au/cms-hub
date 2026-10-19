@@ -1,6 +1,6 @@
 # Status
 
-Updated: 2026-09-23
+Updated: 2026-10-19
 
 Short by design — delete finished items rather than accumulating a changelog.
 The public site's status lives in `../iffa-2026/docs/STATUS.md`; the AWS
@@ -11,6 +11,29 @@ the previous day answered 401 rather than 404. Amplify does the same for the
 client. They are not atomic, so a change spanning both wants two PRs with the
 backend merged first — otherwise the UI can land against an API that has not
 caught up, and writes silently no-op.
+
+## Not pushed: bulk review + ARCHIVED status (2026-10-19)
+
+Two stacked local branches, off `main`. Merge and deploy the API first: the UI
+calls endpoints that 404 on the current backend.
+
+1. `feat/bulk-review-api`: new `ARCHIVED` submission status (out of the queue
+   without a verdict, meant for one film submitted many times),
+   `PATCH /submissions/:id/archive`, and `PATCH /submissions/bulk-status`
+   `{ids, status}` (APPROVED / REJECTED / ARCHIVED, max 100, a single
+   `updateMany` restricted to `status: "SUBMITTED"`; anything else comes back as
+   `skipped`). The staff list's `status` filter now takes a comma-separated list.
+2. `feat/bulk-review-ui`: review-queue row checkboxes (opt-in `selection` prop
+   on `RecordList`, page-scoped, cleared on every load) with a bulk
+   Approve / Reject / Archive bar, each confirmed with the selected titles listed;
+   an ARCHIVE button on the review screen beside APPROVE / REJECT; the Archive
+   page lists `REJECTED,ARCHIVED` with a status chip; "Archived" option in the
+   All submissions status filter.
+
+Clicked through in a browser against an in-memory mock API (bulk archive of 5
+duplicates, single archive, Archive page). **Not run against Mongo**: the
+`ARCHIVED` enum was checked offline with `validateSync` only. After deploying,
+confirm `PATCH /submissions/bulk-status` answers 401 rather than 404.
 
 ## Not pushed: crew representatives + award nominations (2026-10-08)
 

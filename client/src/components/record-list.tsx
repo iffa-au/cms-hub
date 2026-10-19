@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { StatusChip, statusBar, statusEdge, type RecordStatus } from "./status";
 
@@ -37,6 +37,17 @@ const ALIGN = {
 // Literal class names — Tailwind can't see an interpolated one.
 const SHOW_FROM = { xl: "hidden xl:table-cell" } as const;
 
+/**
+ * Opt-in row checkboxes. The list only draws them; the page owns which keys
+ * are selected, so it can clear them when the rows underneath change.
+ */
+export type Selection = {
+  selected: ReadonlySet<string>;
+  onChange: (next: Set<string>) => void;
+  /** Accessible name for one row's checkbox, e.g. "Select Dust". */
+  label: (key: string) => string;
+};
+
 type Props<T> = {
   items: T[];
   columns: Column<T>[];
@@ -49,6 +60,7 @@ type Props<T> = {
   /** Shown when there is nothing to list — an invitation, not a dead end. */
   empty?: ReactNode;
   skeletonRows?: number;
+  selection?: Selection;
 };
 
 export default function RecordList<T>({
@@ -61,12 +73,30 @@ export default function RecordList<T>({
   error = null,
   empty = "Nothing here yet.",
   skeletonRows = 5,
+  selection,
 }: Props<T>) {
   const titleCol = columns.find((c) => c.role === "title") ?? columns[0];
   const detailCols = columns.filter(
     (c) => c !== titleCol && c.role !== "cardHidden",
   );
-  const span = columns.length + (actions ? 1 : 0);
+  const span = columns.length + (actions ? 1 : 0) + (selection ? 1 : 0);
+  const keys = items.map(getKey);
+  const selectedHere = selection ? keys.filter((k) => selection.selected.has(k)).length : 0;
+
+  const toggle = (key: string) => {
+    if (!selection) return;
+    const next = new Set(selection.selected);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    selection.onChange(next);
+  };
+  const toggleAll = () => {
+    if (!selection) return;
+    const next = new Set(selection.selected);
+    if (selectedHere === keys.length) keys.forEach((k) => next.delete(k));
+    else keys.forEach((k) => next.add(k));
+    selection.onChange(next);
+  };
 
   if (error) {
     return (
@@ -95,6 +125,19 @@ export default function RecordList<T>({
       <table className="hidden w-full border-t border-border text-left lg:table">
         <thead>
           <tr>
+            {selection && (
+              <th
+                scope="col"
+                className="sticky top-[var(--header-h)] z-10 w-10 border-b border-border-strong bg-surface-dark py-3 pl-4 pr-0"
+              >
+                <RowCheckbox
+                  checked={selectedHere > 0 && selectedHere === keys.length}
+                  indeterminate={selectedHere > 0 && selectedHere < keys.length}
+                  onChange={toggleAll}
+                  label="Select every film on this page"
+                />
+              </th>
+            )}
             {columns.map((c) => (
               <th
                 key={c.key}
@@ -124,11 +167,30 @@ export default function RecordList<T>({
         <tbody>
           {items.map((item) => {
             const status = getStatus?.(item);
+            const key = getKey(item);
+            const isSelected = selection?.selected.has(key) ?? false;
             return (
               <tr
-                key={getKey(item)}
-                className="border-b border-border transition-colors hover:bg-surface-dark/60"
+                key={key}
+                className={cn(
+                  "border-b border-border transition-colors hover:bg-surface-dark/60",
+                  isSelected && "bg-surface-dark/60",
+                )}
               >
+                {selection && (
+                  <td
+                    className={cn(
+                      "w-10 border-l-2 py-4 pl-4 pr-0 align-middle",
+                      statusEdge(status),
+                    )}
+                  >
+                    <RowCheckbox
+                      checked={isSelected}
+                      onChange={() => toggle(key)}
+                      label={selection.label(key)}
+                    />
+                  </td>
+                )}
                 {columns.map((c, i) => (
                   <td
                     key={c.key}
@@ -136,8 +198,8 @@ export default function RecordList<T>({
                       "px-4 py-4 align-middle text-sm",
                       // The status rides the first cell's edge, so it reads
                       // down the whole list without costing a column.
-                      i === 0 && "border-l-2",
-                      i === 0 && statusEdge(status),
+                      i === 0 && !selection && "border-l-2",
+                      i === 0 && !selection && statusEdge(status),
                       ALIGN[c.align ?? "left"],
                       c.showFrom && SHOW_FROM[c.showFrom],
                     )}
@@ -162,17 +224,33 @@ export default function RecordList<T>({
       <ul className="space-y-3 lg:hidden">
         {items.map((item) => {
           const status = getStatus?.(item);
+          const key = getKey(item);
+          const isSelected = selection?.selected.has(key) ?? false;
           return (
             <li
-              key={getKey(item)}
-              className="relative overflow-hidden rounded-lg border border-border bg-card/60 p-4 pl-5"
+              key={key}
+              className={cn(
+                "relative overflow-hidden rounded-lg border border-border bg-card/60 p-4 pl-5",
+                isSelected && "border-border-strong bg-surface-dark/60",
+              )}
             >
               <span
                 aria-hidden
                 className={cn("absolute inset-y-0 left-0 w-1", statusBar(status))}
               />
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">{titleCol?.cell(item)}</div>
+                <div className="flex min-w-0 items-start gap-3">
+                  {selection && (
+                    <span className="pt-1.5">
+                      <RowCheckbox
+                        checked={isSelected}
+                        onChange={() => toggle(key)}
+                        label={selection.label(key)}
+                      />
+                    </span>
+                  )}
+                  <div className="min-w-0">{titleCol?.cell(item)}</div>
+                </div>
                 {status && <StatusChip status={status} />}
               </div>
 
@@ -197,6 +275,35 @@ export default function RecordList<T>({
         })}
       </ul>
     </>
+  );
+}
+
+function RowCheckbox({
+  checked,
+  indeterminate = false,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  indeterminate?: boolean;
+  onChange: () => void;
+  label: string;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  // `indeterminate` is a DOM property with no HTML attribute, so React can't
+  // set it from JSX.
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = indeterminate;
+  }, [indeterminate]);
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      checked={checked}
+      onChange={onChange}
+      aria-label={label}
+      className="block size-4 cursor-pointer rounded-none accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+    />
   );
 }
 

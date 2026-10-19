@@ -189,6 +189,8 @@ export default function ViewSubmissionPage() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
   const [isRejectConfirmOpen, setIsRejectConfirmOpen] = useState(false);
+  const [isArchiveConfirmOpen, setIsArchiveConfirmOpen] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
   const [isUndoConfirmOpen, setIsUndoConfirmOpen] = useState(false);
   const [isUndoing, setIsUndoing] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
@@ -264,6 +266,21 @@ export default function ViewSubmissionPage() {
       router.push('/review-queue');
     } catch (e: unknown) {
       setError(getErrorMessage(e, 'Failed to reject submission'));
+    }
+  };
+
+  // Archive: out of the queue without a verdict — for duplicates and test
+  // entries. It lands on the Archive page and can be restored from there.
+  const archive = async () => {
+    try {
+      setError(null);
+      setIsArchiving(true);
+      await patchData(`/submissions/${id}/archive`, {});
+      router.push('/review-queue');
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, 'Failed to archive submission'));
+      setIsArchiving(false);
+      setIsArchiveConfirmOpen(false);
     }
   };
 
@@ -359,6 +376,13 @@ export default function ViewSubmissionPage() {
                   className='rounded-lg border border-red-500 text-red-500 px-4 py-2 text-xs font-bold tracking-widest hover:bg-red-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
                 >
                   REJECT
+                </button>
+                <button
+                  onClick={() => setIsArchiveConfirmOpen(true)}
+                  disabled={!details || isArchiving}
+                  className='rounded-lg border border-border text-muted-foreground px-4 py-2 text-xs font-bold tracking-widest hover:border-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
+                >
+                  {isArchiving ? 'ARCHIVING...' : 'ARCHIVE'}
                 </button>
               </>
             )}
@@ -659,6 +683,43 @@ export default function ViewSubmissionPage() {
                 className='px-5 py-2.5 rounded bg-red-600 hover:bg-red-500 text-white text-xs font-bold tracking-widest transition-colors'
               >
                 REJECT
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isArchiveConfirmOpen && (
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isArchiving) setIsArchiveConfirmOpen(false);
+          }}
+          className='fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center'
+        >
+          <div className='bg-card border border-border rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl'>
+            <h2 className='text-white font-serif text-xl font-bold mb-2'>Archive Submission</h2>
+            <p className='text-foreground text-sm'>
+              Move this film out of the review queue:
+              <br />
+              <span className='text-primary font-semibold'>{details?.title}</span>
+            </p>
+            <p className='text-muted-foreground text-sm mt-2'>
+              Use this for duplicates. It is not rejected — it moves to the Archive page and can be restored.
+            </p>
+            <div className='flex justify-end gap-3 mt-6'>
+              <button
+                onClick={() => setIsArchiveConfirmOpen(false)}
+                disabled={isArchiving}
+                className='px-5 py-2.5 rounded border border-border text-foreground text-xs font-bold tracking-widest hover:border-primary transition-colors disabled:opacity-50'
+              >
+                CANCEL
+              </button>
+              <button
+                onClick={() => void archive()}
+                disabled={isArchiving}
+                className='px-5 py-2.5 rounded bg-primary text-primary-foreground text-xs font-bold tracking-widest hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed'
+              >
+                {isArchiving ? 'ARCHIVING...' : 'ARCHIVE'}
               </button>
             </div>
           </div>

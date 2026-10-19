@@ -8,7 +8,7 @@ import PageShell from "@/components/page-shell";
 import RecordList, { type Column } from "@/components/record-list";
 import { StatusChip, type RecordStatus } from "@/components/status";
 
-type SubmissionStatus = "SUBMITTED" | "APPROVED" | "REJECTED";
+type SubmissionStatus = "SUBMITTED" | "APPROVED" | "REJECTED" | "ARCHIVED";
 
 type SubmissionItem = {
   _id: string;
