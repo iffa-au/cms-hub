@@ -8,6 +8,8 @@ import {
   adminListSubmissions,
   approveSubmission,
   rejectSubmission,
+  archiveSubmission,
+  bulkUpdateSubmissionStatus,
   restoreSubmission,
   updateSubmission,
   deleteSubmission,
@@ -51,6 +53,15 @@ router.get("/my/list", requireAuth, getMySubmissions);
 router.get("/carousel", requireAuth, requireRole("admin", "staff"), listCarouselCandidates);
 router.put("/carousel", requireAuth, requireRole("admin", "staff"), setCarouselSubmissions);
 
+// Bulk approve / reject / archive from the review queue. Above the /:id
+// routes so "bulk-status" is never read as a submission id.
+router.patch(
+  "/bulk-status",
+  requireAuth,
+  requireRole("admin", "staff"),
+  bulkUpdateSubmissionStatus
+);
+
 // Now returns contactEmail (submitter PII) — staff-only, matching the
 // CMS client's fetch-util which already attaches a bearer token to every request.
 router.get(
@@ -77,6 +88,12 @@ router.patch(
   requireAuth,
   requireRole("admin", "staff"),
   rejectSubmission
+);
+router.patch(
+  "/:id/archive",
+  requireAuth,
+  requireRole("admin", "staff"),
+  archiveSubmission
 );
 router.patch(
   "/:id/restore",

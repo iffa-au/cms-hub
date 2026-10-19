@@ -1,6 +1,15 @@
 import { Schema, model, Types } from "mongoose";
 
-export type SubmissionStatus = "SUBMITTED" | "APPROVED" | "REJECTED";
+// ARCHIVED takes a film out of the review queue without passing judgement on
+// it — duplicates of one film submitted many times, test entries. REJECTED is
+// a decision about the film; ARCHIVED is housekeeping. Neither is public.
+export type SubmissionStatus = "SUBMITTED" | "APPROVED" | "REJECTED" | "ARCHIVED";
+export const SUBMISSION_STATUSES: SubmissionStatus[] = [
+  "SUBMITTED",
+  "APPROVED",
+  "REJECTED",
+  "ARCHIVED",
+];
 export interface ISubmission {
   creatorId: Types.ObjectId;
   title: string;
@@ -134,7 +143,7 @@ const submissionSchema = new Schema<ISubmission>(
     },
     status: {
       type: String,
-      enum: ["SUBMITTED", "APPROVED", "REJECTED"],
+      enum: SUBMISSION_STATUSES,
       default: "SUBMITTED",
     },
     languageId: {
