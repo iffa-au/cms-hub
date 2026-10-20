@@ -9,11 +9,13 @@ import Pagination from '@/components/pagination';
 import RecordList, { type Column } from '@/components/record-list';
 import ConfirmDialog from '@/components/confirm-dialog';
 import { Button } from '@/components/ui/button';
+import { StatusChip } from '@/components/status';
 import { toast } from 'sonner';
 
 type Submission = {
   _id: string;
   title: string;
+  status?: 'REJECTED' | 'ARCHIVED';
   synopsis?: string;
   releaseDate?: string;
   createdAt?: string;
@@ -74,7 +76,7 @@ export default function ArchivePage() {
       setError(null);
       const safePage = Math.max(page, 1);
       const safeQuery = q.trim();
-      const parts = [`page=${safePage}`, `limit=${PAGE_LIMIT}`, `status=REJECTED`];
+      const parts = [`page=${safePage}`, `limit=${PAGE_LIMIT}`, `status=REJECTED,ARCHIVED`];
       if (safeQuery) parts.push(`q=${encodeURIComponent(safeQuery)}`);
       const res = await getData<ListResponse>(`/submissions?${parts.join('&')}`);
       setItems(res?.data ?? []);
@@ -129,6 +131,12 @@ export default function ArchivePage() {
       ),
     },
     {
+      key: 'status',
+      header: 'Status',
+      role: 'cardHidden',
+      cell: (item) => <StatusChip status={item.status ?? 'REJECTED'} />,
+    },
+    {
       key: 'contentType',
       header: 'Type',
       cell: (item) => (
@@ -179,7 +187,7 @@ export default function ArchivePage() {
   return (
     <PageShell
       title="Archive"
-      description="Submissions that were rejected. Restoring one returns it to the review queue."
+      description="Submissions that were rejected or archived. Restoring one returns it to the review queue."
       actions={
         <Button variant="outline" asChild>
           <Link href="/review-queue">Back to review queue</Link>
@@ -232,10 +240,10 @@ export default function ArchivePage() {
         items={items}
         columns={columns}
         getKey={(item) => item._id}
-        getStatus={() => 'REJECTED'}
+        getStatus={(item) => item.status ?? 'REJECTED'}
         loading={loading}
         error={error}
-        empty="Nothing has been rejected."
+        empty="Nothing has been rejected or archived."
         actions={(item) => (
           <>
             <Button
