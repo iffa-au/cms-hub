@@ -12,10 +12,13 @@ client. They are not atomic, so a change spanning both wants two PRs with the
 backend merged first — otherwise the UI can land against an API that has not
 caught up, and writes silently no-op.
 
-## Not pushed: bulk review + ARCHIVED status (2026-10-19)
+## Bulk review + ARCHIVED status (2026-10-19)
 
-Two stacked local branches, off `main`. Merge and deploy the API first: the UI
-calls endpoints that 404 on the current backend.
+The API (#51) is on `main`. The UI (#52) was merged into its stacked base
+`feat/bulk-review-api` rather than `main` — it was merged seconds after #51,
+before GitHub retargeted it — so it never deployed. Re-landed from
+`fix/bulk-review-ui-main`. Lesson: after merging the bottom of a stack, check
+the next PR's base says `main` before merging it.
 
 1. `feat/bulk-review-api`: new `ARCHIVED` submission status (out of the queue
    without a verdict, meant for one film submitted many times),
