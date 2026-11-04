@@ -1,6 +1,6 @@
 # Status
 
-Updated: 2026-10-19
+Updated: 2026-11-04
 
 Short by design — delete finished items rather than accumulating a changelog.
 The public site's status lives in `../iffa-2026/docs/STATUS.md`; the AWS
@@ -11,6 +11,25 @@ the previous day answered 401 rather than 404. Amplify does the same for the
 client. They are not atomic, so a change spanning both wants two PRs with the
 backend merged first — otherwise the UI can land against an API that has not
 caught up, and writes silently no-op.
+
+## Optional festival and screening dates (2026-11-04, not merged)
+
+Branch `claude/compassionate-kare-00fe4c`. Festival and screening dates are
+both-or-neither: a blank start means no end either (stored as `""`), and an
+end date without a start is rejected. Create still requires both dates (the
+CMS creates into a year slot with defaults); they can be cleared on edit. An
+undated festival keeps its stored `year`; with dates it is recomputed from
+`startDate`. Lists sort by `year`. The CMS editor clears and disables the end
+date when the start is cleared. Public site: iffa-2026
+`claude/elastic-driscoll-d879d8` shows "Dates to be confirmed" / "To be
+confirmed". Merge this backend first.
+
+Fixes the live festival: its "Chilean Showcase – 2027" is stored with blank
+dates, so every save failed with `needs a start date in YYYY-MM-DD form`.
+
+Checked offline only (typecheck, `validateSync`); `updateFestival`'s
+both-or-neither rule has not been run against a database. The `{ startDate:
+-1 }` index was dropped from the schema but still exists in Mongo, unused.
 
 ## Bulk review + ARCHIVED status (2026-10-19)
 

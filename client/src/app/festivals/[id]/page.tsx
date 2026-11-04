@@ -354,8 +354,13 @@ export default function FestivalEditorPage() {
       setError("Name is required");
       return;
     }
-    if (!startDate || !endDate) {
-      setError("Start and end dates are required");
+    // Both dates or neither. Clearing the start clears the end (see the input).
+    if (startDate && !endDate) {
+      setError("Set an end date, or clear the start date too");
+      return;
+    }
+    if (startDate && endDate < startDate) {
+      setError("The festival ends before it starts — check its dates");
       return;
     }
     const untitled = screenings.find((row) => !row.title.trim());
@@ -363,9 +368,10 @@ export default function FestivalEditorPage() {
       setError("Every screening needs a title");
       return;
     }
-    const undated = screenings.find((row) => !row.startDate);
-    if (undated) {
-      setError(`"${undated.title}" needs a start date`);
+    // A screening's dates are optional, but an end date needs a start.
+    const endOnly = screenings.find((row) => !row.startDate && row.endDate);
+    if (endOnly) {
+      setError(`"${endOnly.title}" has an end date but no start date`);
       return;
     }
     // Caught here as well as on the server so staff see it against the field
@@ -429,8 +435,9 @@ export default function FestivalEditorPage() {
         tagline: tagline.trim(),
         description: description.trim(),
         city: city.trim(),
-        startDate,
-        endDate,
+        // null, not "", for a cleared date. The server stores either as blank.
+        startDate: startDate || null,
+        endDate: endDate || null,
         isPublished,
         heroImageUrl: nextHeroUrl,
         heroImageKey: nextHeroKey,
@@ -536,18 +543,23 @@ export default function FestivalEditorPage() {
                   onChange={(e) => setCity(e.target.value)} placeholder="Melbourne" />
               </div>
               <div>
-                <label className={labelClass} htmlFor="f-start">Start date *</label>
+                <label className={labelClass} htmlFor="f-start">Start date</label>
                 <input id="f-start" type="date" className={field} value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)} />
+                  onChange={(e) => {
+                    setStartDate(e.target.value);
+                    // No start date means no end date either.
+                    if (!e.target.value) setEndDate("");
+                  }} />
                 <p className="mt-1 text-xs text-muted-foreground/70">
                   {startDate
                     ? `This is the ${startDate.slice(0, 4)} festival. Only one festival can exist per year.`
-                    : "The year of this date decides which festival year this is."}
+                    : "Optional. Leave blank while the dates are unannounced: the festival keeps its year and the site shows \"To be confirmed\"."}
                 </p>
               </div>
               <div>
-                <label className={labelClass} htmlFor="f-end">End date *</label>
-                <input id="f-end" type="date" className={field} value={endDate}
+                <label className={labelClass} htmlFor="f-end">End date</label>
+                <input id="f-end" type="date" className={`${field} disabled:opacity-50`} value={endDate}
+                  disabled={!startDate} min={startDate || undefined}
                   onChange={(e) => setEndDate(e.target.value)} />
               </div>
               <div className="md:col-span-2">
@@ -616,7 +628,7 @@ export default function FestivalEditorPage() {
                   const dates =
                     row.startDate && row.endDate && row.endDate !== row.startDate
                       ? `${row.startDate} → ${row.endDate}`
-                      : row.startDate;
+                      : row.startDate || "Dates TBC";
 
                   return (
                     <div key={row.localId} className="rounded border border-border bg-card/60">
@@ -674,7 +686,7 @@ export default function FestivalEditorPage() {
                                 placeholder="Opening Night Gala" />
                             </div>
                             <div>
-                              <label className={labelClass}>Start date *</label>
+                              <label className={labelClass}>Start date</label>
                               <input type="date" className={field} value={row.startDate}
                                 onChange={(e) => {
                                   const startDateValue = e.target.value;

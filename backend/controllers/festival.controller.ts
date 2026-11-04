@@ -52,7 +52,8 @@ const slugify = (value: string): string =>
     .slice(0, 100);
 
 /**
- * The year a festival belongs to, taken from the day it opens.
+ * The year a festival belongs to, taken from the day it opens. A festival with
+ * no dates keeps the year it already has (see updateFestival).
  *
  * Always computed, never read from the request. `year` carries the unique
  * index that makes one-festival-a-year a rule rather than a convention, so
@@ -114,7 +115,12 @@ const normaliseFilm = (
       error: `"${title}" needs a screening date in YYYY-MM-DD form, or none at all`,
     };
   }
-  if (rawStart && (rawStart < screening.startDate || rawStart > screening.endDate)) {
+  // An undated session has no range to check against.
+  if (
+    rawStart &&
+    screening.startDate &&
+    (rawStart < screening.startDate || rawStart > screening.endDate)
+  ) {
     return {
       error:
         `"${title}" is set to play on ${rawStart}, but "${screening.title}" ` +
@@ -155,7 +161,7 @@ const normaliseFilm = (
 /**
  * Normalises one screening row from the CMS, with its films.
  *
- * A screening needs a title and an opening date; everything else is optional
+ * A screening needs a title; everything else is optional, including its dates,
  * and defaulted, including its lineup — a session can be announced before the
  * films in it are confirmed.
  *
@@ -170,12 +176,16 @@ const normaliseScreening = (raw: unknown): IScreening | { error: string } => {
   const title = String(row.title ?? "").trim();
   if (!title) return { error: "Every screening needs a title" };
 
+  // Optional: blank means the session's dates are not announced yet.
   const startDate = String(row.startDate ?? "").trim();
-  if (!ISO_DATE.test(startDate)) {
-    return { error: `Screening "${title}" needs a start date in YYYY-MM-DD form` };
+  if (startDate && !ISO_DATE.test(startDate)) {
+    return { error: `Screening "${title}" needs a start date in YYYY-MM-DD form, or none at all` };
   }
 
   const rawEnd = String(row.endDate ?? "").trim();
+  if (rawEnd && !startDate) {
+    return { error: `Screening "${title}" has an end date but no start date` };
+  }
   if (rawEnd && !ISO_DATE.test(rawEnd)) {
     return { error: `Screening "${title}" needs an end date in YYYY-MM-DD form` };
   }
@@ -274,7 +284,7 @@ const loadFestivalSettingsForWrite = async () =>
 export const fetchFestivals = async (_req: Request, res: Response) => {
   try {
     const [festivals, settings] = await Promise.all([
-      Festival.find({ isPublished: true }, PUBLIC_FIELDS).sort({ startDate: -1 }).lean(),
+      Festival.find({ isPublished: true }, PUBLIC_FIELDS).sort({ year: -1 }).lean(),
       readFestivalSettings(),
     ]);
     res.status(200).json({ success: true, data: { festivals, settings } });
@@ -317,7 +327,7 @@ export const fetchFestivalBySlug = async (req: Request, res: Response) => {
 /** Staff-only: includes drafts, so an unpublished festival can be found again. */
 export const listFestivals = async (_req: Request, res: Response) => {
   try {
-    const festivals = await Festival.find({}).sort({ startDate: -1 }).lean();
+    const festivals = await Festival.find({}).sort({ year: -1 }).lean();
     res.status(200).json({ success: true, data: festivals });
   } catch (error) {
     console.error(error);
@@ -357,6 +367,8 @@ export const createFestival = async (req: Request, res: Response) => {
 
     const startDate = String(body.startDate ?? "").trim();
     const endDate = String(body.endDate ?? "").trim();
+    // Required on create, because the dates are what place a new festival in a
+    // year. They can be cleared afterwards with an update.
     if (!ISO_DATE.test(startDate) || !ISO_DATE.test(endDate)) {
       return res.status(400).json({
         success: false,
@@ -478,17 +490,30 @@ export const updateFestival = async (req: Request, res: Response) => {
       updates.slug = slug;
     }
 
+    // Both dates or neither: blank means "dates to be confirmed". null clears a
+    // date, the same as "". An end date with no start is rejected rather than
+    // silently dropped.
     const startDate =
-      body.startDate !== undefined ? String(body.startDate).trim() : existing.startDate;
+      body.startDate !== undefined
+        ? String(body.startDate ?? "").trim()
+        : (existing.startDate ?? "");
     const endDate =
-      body.endDate !== undefined ? String(body.endDate).trim() : existing.endDate;
+      body.endDate !== undefined
+        ? String(body.endDate ?? "").trim()
+        : (existing.endDate ?? "");
 
-    if (!ISO_DATE.test(startDate) || !ISO_DATE.test(endDate)) {
+    if (!startDate && endDate) {
+      return res.status(400).json({
+        success: false,
+        message: "A festival with no start date cannot have an end date — clear both, or set the start date",
+      });
+    }
+    if (startDate && (!ISO_DATE.test(startDate) || !ISO_DATE.test(endDate))) {
       return res
         .status(400)
         .json({ success: false, message: "Dates must be in YYYY-MM-DD form" });
     }
-    if (endDate < startDate) {
+    if (startDate && endDate < startDate) {
       return res
         .status(400)
         .json({ success: false, message: "endDate cannot be before startDate" });
@@ -499,8 +524,15 @@ export const updateFestival = async (req: Request, res: Response) => {
     // Moving a festival's dates can move it into another year, which is the
     // only way an edit can collide with the one-a-year rule. Recomputed on
     // every write rather than only when the dates change, so a record saved
-    // before `year` existed picks it up the next time it is touched.
-    const year = yearOf(startDate);
+    // before `year` existed picks it up the next time it is touched. With the
+    // dates cleared there is nothing to compute from, so the year stays put.
+    const year = startDate ? yearOf(startDate) : existing.year;
+    if (!year) {
+      return res.status(400).json({
+        success: false,
+        message: "This festival has no year yet — set its dates before clearing them",
+      });
+    }
     if (year !== existing.year) {
       const occupied = await festivalInYear(year, existing._id);
       if (occupied) {
