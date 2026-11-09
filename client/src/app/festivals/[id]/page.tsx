@@ -25,6 +25,7 @@ import { ArrowLeft, ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
  * document can reference them), and only then does the document write.
  */
 
+/*
 const SEAT_STATUSES = [
   { value: "available", label: "Seats available" },
   { value: "limited", label: "Seats limited" },
@@ -32,6 +33,23 @@ const SEAT_STATUSES = [
 ] as const;
 
 type SeatStatus = (typeof SEAT_STATUSES)[number]["value"];
+*/
+
+const SEAT_STATUSES = [
+  { value: "available", label: "Seats available" },
+  { value: "limited", label: "Seats limited" },
+  { value: "sold-out", label: "Sold out" },
+] as const;
+
+const SCREENING_STATUSES = [
+  { value: "upcoming", label: "Upcoming" },
+  { value: "screening", label: "Screening" },
+  { value: "to-be-announced", label: "To be announced" },
+  { value: "coming-soon", label: "Coming soon" },
+] as const;
+
+type SeatStatus = (typeof SEAT_STATUSES)[number]["value"];
+type ScreeningStatus = (typeof SCREENING_STATUSES)[number]["value"];
 
 /**
  * One film inside a screening.
@@ -69,10 +87,25 @@ type FilmRow = {
  * is what they describe. A shorts block used to be six separate screenings
  * repeating the same time and venue six times, with nothing naming the block.
  */
+/*
 type ScreeningRow = {
   localId: string;
   title: string;
   description: string;
+  startDate: string;
+  endDate: string;
+  time: string;
+  venue: string;
+  seatStatus: SeatStatus;
+  films: FilmRow[];
+};
+*/
+
+type ScreeningRow = {
+  localId: string;
+  title: string;
+  description: string;
+  status: ScreeningStatus;
   startDate: string;
   endDate: string;
   time: string;
@@ -124,10 +157,27 @@ const emptyFilm = (): FilmRow => ({
   trailerUrl: "",
 });
 
+/*
 const emptyScreening = (date: string): ScreeningRow => ({
   localId: newLocalId(),
   title: "",
   description: "",
+  startDate: date,
+  // Most sessions run once, so the end date starts equal to the start and
+  // staff only touch it for a strand that actually repeats.
+  endDate: date,
+  time: "",
+  venue: "",
+  seatStatus: "available",
+  films: [emptyFilm()],
+});
+*/
+
+const emptyScreening = (date: string): ScreeningRow => ({
+  localId: newLocalId(),
+  title: "",
+  description: "",
+  status: "upcoming",
   startDate: date,
   // Most sessions run once, so the end date starts equal to the start and
   // staff only touch it for a strand that actually repeats.
@@ -168,10 +218,31 @@ const toRow = (raw: Record<string, unknown>): ScreeningRow => {
   const startDate = String(raw.startDate ?? raw.date ?? "");
   const rawEnd = String(raw.endDate ?? "");
 
+/*
   return {
     localId: newLocalId(),
     title: String(raw.title ?? ""),
     description: String(raw.description ?? ""),
+    startDate,
+    endDate: rawEnd || startDate,
+    time: String(raw.time ?? ""),
+    venue: String(raw.venue ?? ""),
+    seatStatus: (SEAT_STATUSES.find((s) => s.value === raw.seatStatus)?.value ??
+      "available") as SeatStatus,
+    films: legacy
+      ? [toFilmRow(raw)]
+      : (raw.films as Record<string, unknown>[]).map(toFilmRow),
+  };
+};
+*/
+
+  return {
+    localId: newLocalId(),
+    title: String(raw.title ?? ""),
+    description: String(raw.description ?? ""),
+    status:
+      (SCREENING_STATUSES.find((status) => status.value === raw.status)?.value ??
+        (startDate ? "screening" : "to-be-announced")) as ScreeningStatus,
     startDate,
     endDate: rawEnd || startDate,
     time: String(raw.time ?? ""),
@@ -354,30 +425,38 @@ export default function FestivalEditorPage() {
       setError("Name is required");
       return;
     }
-    // Both dates or neither. Clearing the start clears the end (see the input).
-    if (startDate && !endDate) {
-      setError("Set an end date, or clear the start date too");
+    /*
+    if (!startDate || !endDate) {
+      setError("Start and end dates are required");
       return;
     }
-    if (startDate && endDate < startDate) {
-      setError("The festival ends before it starts — check its dates");
-      return;
-    }
+    */
+/*
     const untitled = screenings.find((row) => !row.title.trim());
     if (untitled) {
       setError("Every screening needs a title");
       return;
     }
-    // A screening's dates are optional, but an end date needs a start.
-    const endOnly = screenings.find((row) => !row.startDate && row.endDate);
-    if (endOnly) {
-      setError(`"${endOnly.title}" has an end date but no start date`);
+    const undated = screenings.find((row) => !row.startDate);
+    if (undated) {
+      setError(`"${undated.title}" needs a start date`);
       return;
     }
-    // Caught here as well as on the server so staff see it against the field
-    // they just typed, rather than as a rejected save a scroll away.
     const backwards = screenings.find(
       (row) => row.endDate && row.endDate < row.startDate,
+    );
+*/
+
+    const untitled = screenings.find((row) => !row.title.trim());
+    if (untitled) {
+      setError("Every screening needs a title");
+      return;
+    }
+    // A screening can be saved before the dates are announced, so a blank
+    // start date is allowed as long as the staff member picks an explicit
+    // status to explain the slot.
+    const backwards = screenings.find(
+      (row) => row.startDate && row.endDate && row.endDate < row.startDate,
     );
     if (backwards) {
       setError(`"${backwards.title}" ends before it starts — check its dates`);
@@ -435,19 +514,20 @@ export default function FestivalEditorPage() {
         tagline: tagline.trim(),
         description: description.trim(),
         city: city.trim(),
-        // null, not "", for a cleared date. The server stores either as blank.
-        startDate: startDate || null,
-        endDate: endDate || null,
+        startDate,
+        endDate,
         isPublished,
         heroImageUrl: nextHeroUrl,
         heroImageKey: nextHeroKey,
         screenings: uploadedRows.map((row) => ({
           title: row.title.trim(),
           description: row.description.trim(),
+          status: row.status,
           startDate: row.startDate,
-          // A blank end date means a single sitting. Sent as the start rather
-          // than as "" so the stored document always carries a real range.
-          endDate: row.endDate || row.startDate,
+          // Blank dates are valid for an unreleased or unannounced screening.
+          // If a session has a date but not an end date, the end falls back to
+          // the start so the public site can still treat it as a single-day run.
+          endDate: row.startDate && !row.endDate ? row.startDate : row.endDate,
           time: row.time.trim(),
           venue: row.venue.trim(),
           seatStatus: row.seatStatus,
@@ -545,21 +625,16 @@ export default function FestivalEditorPage() {
               <div>
                 <label className={labelClass} htmlFor="f-start">Start date</label>
                 <input id="f-start" type="date" className={field} value={startDate}
-                  onChange={(e) => {
-                    setStartDate(e.target.value);
-                    // No start date means no end date either.
-                    if (!e.target.value) setEndDate("");
-                  }} />
+                  onChange={(e) => setStartDate(e.target.value)} />
                 <p className="mt-1 text-xs text-muted-foreground/70">
                   {startDate
                     ? `This is the ${startDate.slice(0, 4)} festival. Only one festival can exist per year.`
-                    : "Optional. Leave blank while the dates are unannounced: the festival keeps its year and the site shows \"To be confirmed\"."}
+                    : "Leave blank if the festival dates have not been announced yet."}
                 </p>
               </div>
               <div>
                 <label className={labelClass} htmlFor="f-end">End date</label>
-                <input id="f-end" type="date" className={`${field} disabled:opacity-50`} value={endDate}
-                  disabled={!startDate} min={startDate || undefined}
+                <input id="f-end" type="date" className={field} value={endDate}
                   onChange={(e) => setEndDate(e.target.value)} />
               </div>
               <div className="md:col-span-2">
@@ -628,7 +703,7 @@ export default function FestivalEditorPage() {
                   const dates =
                     row.startDate && row.endDate && row.endDate !== row.startDate
                       ? `${row.startDate} → ${row.endDate}`
-                      : row.startDate || "Dates TBC";
+                      : row.startDate;
 
                   return (
                     <div key={row.localId} className="rounded border border-border bg-card/60">
@@ -685,14 +760,12 @@ export default function FestivalEditorPage() {
                                 onChange={(e) => patchScreening(row.localId, { title: e.target.value })}
                                 placeholder="Opening Night Gala" />
                             </div>
+{/* 
                             <div>
-                              <label className={labelClass}>Start date</label>
+                              <label className={labelClass}>Start date *</label>
                               <input type="date" className={field} value={row.startDate}
                                 onChange={(e) => {
                                   const startDateValue = e.target.value;
-                                  // A session that ran one day keeps doing so
-                                  // when its date moves. Only a real range,
-                                  // already set, is left for staff to adjust.
                                   patchScreening(row.localId, {
                                     startDate: startDateValue,
                                     endDate:
@@ -701,6 +774,41 @@ export default function FestivalEditorPage() {
                                         : row.endDate,
                                   });
                                 }} />
+                            </div> */}
+
+
+                            <div>
+                              <label className={labelClass}>Status</label>
+                              <select className={field} value={row.status}
+                                onChange={(e) =>
+                                  patchScreening(row.localId, {
+                                    status: e.target.value as ScreeningStatus,
+                                  })
+                                }>
+                                {SCREENING_STATUSES.map((status) => (
+                                  <option key={status.value} value={status.value}>
+                                    {status.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className={labelClass}>Start date</label>
+                              <input type="date" className={field} value={row.startDate}
+                                onChange={(e) => {
+                                  const startDateValue = e.target.value;
+                                  patchScreening(row.localId, {
+                                    startDate: startDateValue,
+                                    endDate:
+                                      !row.endDate || row.endDate === row.startDate
+                                        ? startDateValue
+                                        : row.endDate,
+                                  });
+                                }} />
+                              <p className="mt-1 text-xs text-muted-foreground/70">
+                                Leave blank if this screening has no date yet. The
+                                status above tells the public what to expect.
+                              </p>
                             </div>
                             <div>
                               <label className={labelClass}>End date</label>
