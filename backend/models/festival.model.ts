@@ -8,8 +8,7 @@ import { Schema, model } from "mongoose";
  * being a convention staff have to remember — a second festival in a year the
  * calendar already holds cannot be written at all. It is always recomputed
  * server-side from `startDate`, never accepted from the client, so the year and
- * the dates can never drift apart. A festival whose dates are cleared keeps
- * the year it had.
+ * the dates can never drift apart.
  *
  * This replaced a two-festivals-a-month model. The public site used to render
  * month -> festival -> screening; it now renders one festival and files the
@@ -102,14 +101,21 @@ export interface IFilm {
  * across several days sets a real range, which is why the public programme
  * cannot group by night any more.
  */
+export const SCREENING_STATUSES = [
+  "upcoming",
+  "screening",
+  "to-be-announced",
+  "coming-soon",
+] as const;
+export type ScreeningStatus = (typeof SCREENING_STATUSES)[number];
+
 export interface IScreening {
   title: string;
   /** A short blurb for the session as a whole. */
   description?: string;
-  /**
-   * ISO date the session opens, e.g. "2026-08-07". Blank ("") when the date
-   * is not announced yet; endDate is then blank too.
-   */
+  /** Public-facing status when the date has not been finalised yet. */
+  status?: ScreeningStatus;
+  /** ISO date the session opens, e.g. "2026-08-07". */
   startDate: string;
   /** ISO date it closes. Equal to startDate for a single sitting. */
   endDate: string;
@@ -127,9 +133,8 @@ export interface IFestival {
   /**
    * The festival year. Unique across the collection: one festival a year.
    *
-   * Recomputed from `startDate` on every write, and left as it is when the
-   * dates are blank. A festival that straddles New Year belongs to the year it
-   * opens in, which is also how it is billed.
+   * Recomputed from `startDate` on every write. A festival that straddles New
+   * Year belongs to the year it opens in, which is also how it is billed.
    */
   year: number;
   /**
@@ -150,11 +155,7 @@ export interface IFestival {
   heroImageUrl?: string;
   heroImageKey?: string;
   city?: string;
-  /**
-   * ISO dates. The public site derives every label and range from these.
-   * Both or neither: blank ("") means the dates are not announced yet, and the
-   * site says "To be confirmed".
-   */
+  /** ISO dates. Blank means the festival dates have not been announced yet. */
   startDate?: string;
   endDate?: string;
   /** Lets staff draft a festival before announcing it. Public API returns published only. */
@@ -188,9 +189,15 @@ const screeningSchema = new Schema<IScreening>(
   {
     title: { type: String, required: true, trim: true, maxLength: 300 },
     description: { type: String, default: "", trim: true, maxLength: 4000 },
+    status: {
+      type: String,
+      enum: SCREENING_STATUSES,
+      default: "upcoming",
+    },
     // MONGOOSE TRAP (see AGENTS.md): startDate/endDate/films must exist here
     // as well as on the interface, or they are silently dropped on save.
-    // Optional: blank means "dates to be confirmed".
+    // Dates are optional on an individual screening: staff may leave a slot
+    // announced without a date while the programme is still being locked.
     startDate: { type: String, default: "", trim: true },
     endDate: { type: String, default: "", trim: true },
     time: { type: String, default: "", trim: true, maxLength: 40 },
@@ -225,7 +232,8 @@ const festivalSchema = new Schema<IFestival>(
     heroImageUrl: { type: String, default: "", trim: true },
     heroImageKey: { type: String, default: "", trim: true },
     city: { type: String, default: "", trim: true, maxLength: 120 },
-    // Optional, both or neither. Blank is stored as "", like a screening's.
+    // Festival dates can stay blank until they are announced. The public site
+    // can render a status label instead of a date range in that state.
     startDate: { type: String, default: "", trim: true },
     endDate: { type: String, default: "", trim: true },
     isPublished: { type: Boolean, default: false },
@@ -234,6 +242,9 @@ const festivalSchema = new Schema<IFestival>(
   { timestamps: true },
 );
 
+// The public API returns the most recent festival first, so the archive on the
+// site is already in the order it renders.
+festivalSchema.index({ startDate: -1 });
 
 const Festival = model("Festival", festivalSchema);
 export default Festival;

@@ -1,6 +1,6 @@
 # Status
 
-Updated: 2026-11-04
+Updated: 2026-11-09
 
 Short by design — delete finished items rather than accumulating a changelog.
 The public site's status lives in `../iffa-2026/docs/STATUS.md`; the AWS
@@ -12,7 +12,29 @@ client. They are not atomic, so a change spanning both wants two PRs with the
 backend merged first — otherwise the UI can land against an API that has not
 caught up, and writes silently no-op.
 
-## Optional festival and screening dates (2026-11-04, not merged)
+## Optional screening dates (2026-11-09, branch `feat/optional-screening-dates`)
+
+Supersedes the festival-level approach below for this branch: festival dates
+stay required. A **screening** may be saved with no dates, plus a `status`
+(upcoming / screening / to-be-announced / coming-soon) shown on the public
+site in place of the date. Backend model + `normaliseScreening`, the CMS
+festival editor, and iffa-2026 `fix/homepage-trailers-sync` (festival-api /
+festival-utils / screening page).
+
+Fixed since 2026-11-02:
+
+- `countFestivalDays` skips undated screenings, so the archive band and
+  archive page no longer throw `Invalid time value`.
+- `normaliseFilm` keeps a film's own date inside an undated screening (live
+  data has two: Chilean and Mexican Showcase – 2027).
+
+`scripts/make-festival-year-index-partial.ts` belongs to the reverted
+festival-level approach and is not committed. Do not run it.
+
+Deploy order: backend, then site. Not yet tested by saving a real undated
+screening.
+
+## (Superseded) Optional festival and screening dates (2026-11-04, not merged)
 
 Branch `claude/compassionate-kare-00fe4c`. Festival and screening dates are
 both-or-neither: a blank start means no end either (stored as `""`), and an

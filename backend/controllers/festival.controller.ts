@@ -52,8 +52,7 @@ const slugify = (value: string): string =>
     .slice(0, 100);
 
 /**
- * The year a festival belongs to, taken from the day it opens. A festival with
- * no dates keeps the year it already has (see updateFestival).
+ * The year a festival belongs to, taken from the day it opens.
  *
  * Always computed, never read from the request. `year` carries the unique
  * index that makes one-festival-a-year a rule rather than a convention, so
@@ -115,7 +114,18 @@ const normaliseFilm = (
       error: `"${title}" needs a screening date in YYYY-MM-DD form, or none at all`,
     };
   }
-  // An undated session has no range to check against.
+  // Original version kept for reference:
+  // if (rawStart && (rawStart < screening.startDate || rawStart > screening.endDate)) {
+  //   return {
+  //     error:
+  //       `"${title}" is set to play on ${rawStart}, but "${screening.title}" ` +
+  //       `only runs ${screening.startDate} to ${screening.endDate}`,
+  //   };
+  // }
+
+  // New version: a screening can now have no dates. With no range to check
+  // against, the film's own date is the only date there is, so it is kept as
+  // entered. A dated screening still rejects a film outside its range.
   if (
     rawStart &&
     screening.startDate &&
@@ -159,16 +169,60 @@ const normaliseFilm = (
 };
 
 /**
- * Normalises one screening row from the CMS, with its films.
+ * Original version kept for reference.
  *
- * A screening needs a title; everything else is optional, including its dates,
- * and defaulted, including its lineup — a session can be announced before the
- * films in it are confirmed.
+ * const normaliseScreening = (raw: unknown): IScreening | { error: string } => {
+ *   const row = (raw ?? {}) as Record<string, unknown>;
  *
- * A missing end date means a single sitting, which is the common case and not
- * worth rejecting a save over. An end date BEFORE the start is rejected rather
- * than silently collapsed: unlike a blank, it is unambiguously a mistake, and
- * quietly rewriting a date staff typed is how they stop trusting the form.
+ *   const title = String(row.title ?? "").trim();
+ *   if (!title) return { error: "Every screening needs a title" };
+ *
+ *   const startDate = String(row.startDate ?? "").trim();
+ *   if (!ISO_DATE.test(startDate)) {
+ *     return { error: `Screening "${title}" needs a start date in YYYY-MM-DD form` };
+ *   }
+ *
+ *   const rawEnd = String(row.endDate ?? "").trim();
+ *   if (rawEnd && !ISO_DATE.test(rawEnd)) {
+ *     return { error: `Screening "${title}" needs an end date in YYYY-MM-DD form` };
+ *   }
+ *   if (rawEnd && rawEnd < startDate) {
+ *     return {
+ *       error: `Screening "${title}" ends before it starts — check its dates`,
+ *     };
+ *   }
+ *   const endDate = rawEnd || startDate;
+ *
+ *   const rawFilms = row.films;
+ *   if (rawFilms !== undefined && !Array.isArray(rawFilms)) {
+ *     return { error: `Screening "${title}": films must be a list` };
+ *   }
+ *
+ *   const films: IFilm[] = [];
+ *   for (const item of (rawFilms ?? []) as unknown[]) {
+ *     const result = normaliseFilm(item, { title, startDate, endDate });
+ *     if ("error" in result) return result;
+ *     films.push(result);
+ *   }
+ *
+ *   return {
+ *     title,
+ *     description: String(row.description ?? "").trim(),
+ *     startDate,
+ *     endDate,
+ *     time: String(row.time ?? "").trim(),
+ *     venue: String(row.venue ?? "").trim(),
+ *     seatStatus: isSeatStatus(row.seatStatus)
+ *       ? (row.seatStatus as IScreening["seatStatus"])
+ *       : "available",
+ *     films,
+ *   };
+ * };
+ */
+
+/**
+ * New version: dates are optional for a screening, and the status explains the
+ * public state while the date is still pending.
  */
 const normaliseScreening = (raw: unknown): IScreening | { error: string } => {
   const row = (raw ?? {}) as Record<string, unknown>;
@@ -176,25 +230,32 @@ const normaliseScreening = (raw: unknown): IScreening | { error: string } => {
   const title = String(row.title ?? "").trim();
   if (!title) return { error: "Every screening needs a title" };
 
-  // Optional: blank means the session's dates are not announced yet.
+  const status = String(row.status ?? "").trim();
+  const validStatus: IScreening["status"] =
+    ["upcoming", "screening", "to-be-announced", "coming-soon"].includes(status)
+      ? (status as IScreening["status"])
+      : "upcoming";
+
   const startDate = String(row.startDate ?? "").trim();
   if (startDate && !ISO_DATE.test(startDate)) {
-    return { error: `Screening "${title}" needs a start date in YYYY-MM-DD form, or none at all` };
+    return { error: `Screening "${title}" needs a start date in YYYY-MM-DD form` };
   }
 
   const rawEnd = String(row.endDate ?? "").trim();
-  if (rawEnd && !startDate) {
-    return { error: `Screening "${title}" has an end date but no start date` };
-  }
   if (rawEnd && !ISO_DATE.test(rawEnd)) {
     return { error: `Screening "${title}" needs an end date in YYYY-MM-DD form` };
   }
-  if (rawEnd && rawEnd < startDate) {
+  if (startDate && rawEnd && rawEnd < startDate) {
     return {
       error: `Screening "${title}" ends before it starts — check its dates`,
     };
   }
-  const endDate = rawEnd || startDate;
+  if (!startDate && rawEnd) {
+    return {
+      error: `Screening "${title}" has an end date but no start date — clear one of them or set both`,
+    };
+  }
+  const endDate = startDate ? rawEnd || startDate : "";
 
   const rawFilms = row.films;
   if (rawFilms !== undefined && !Array.isArray(rawFilms)) {
@@ -211,6 +272,7 @@ const normaliseScreening = (raw: unknown): IScreening | { error: string } => {
   return {
     title,
     description: String(row.description ?? "").trim(),
+    status: validStatus,
     startDate,
     endDate,
     time: String(row.time ?? "").trim(),
@@ -284,7 +346,7 @@ const loadFestivalSettingsForWrite = async () =>
 export const fetchFestivals = async (_req: Request, res: Response) => {
   try {
     const [festivals, settings] = await Promise.all([
-      Festival.find({ isPublished: true }, PUBLIC_FIELDS).sort({ year: -1 }).lean(),
+      Festival.find({ isPublished: true }, PUBLIC_FIELDS).sort({ startDate: -1 }).lean(),
       readFestivalSettings(),
     ]);
     res.status(200).json({ success: true, data: { festivals, settings } });
@@ -327,7 +389,7 @@ export const fetchFestivalBySlug = async (req: Request, res: Response) => {
 /** Staff-only: includes drafts, so an unpublished festival can be found again. */
 export const listFestivals = async (_req: Request, res: Response) => {
   try {
-    const festivals = await Festival.find({}).sort({ year: -1 }).lean();
+    const festivals = await Festival.find({}).sort({ startDate: -1 }).lean();
     res.status(200).json({ success: true, data: festivals });
   } catch (error) {
     console.error(error);
@@ -365,10 +427,9 @@ export const createFestival = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: "Name is required" });
     }
 
+    /*
     const startDate = String(body.startDate ?? "").trim();
     const endDate = String(body.endDate ?? "").trim();
-    // Required on create, because the dates are what place a new festival in a
-    // year. They can be cleared afterwards with an update.
     if (!ISO_DATE.test(startDate) || !ISO_DATE.test(endDate)) {
       return res.status(400).json({
         success: false,
@@ -380,10 +441,38 @@ export const createFestival = async (req: Request, res: Response) => {
         .status(400)
         .json({ success: false, message: "endDate cannot be before startDate" });
     }
+    */
 
-    const year = yearOf(startDate);
+    const startDate = String(body.startDate ?? "").trim();
+    const endDate = String(body.endDate ?? "").trim();
+
+    if (startDate && !ISO_DATE.test(startDate)) {
+      return res.status(400).json({
+        success: false,
+        message: "startDate must be in YYYY-MM-DD form when set",
+      });
+    }
+    if (endDate && !ISO_DATE.test(endDate)) {
+      return res.status(400).json({
+        success: false,
+        message: "endDate must be in YYYY-MM-DD form when set",
+      });
+    }
+    if (startDate && endDate && endDate < startDate) {
+      return res
+        .status(400)
+        .json({ success: false, message: "endDate cannot be before startDate" });
+    }
+    if (!startDate && endDate) {
+      return res.status(400).json({
+        success: false,
+        message: "Set the start date too, or clear both dates together",
+      });
+    }
+
+    const year = startDate ? yearOf(startDate) : 0;
     const occupied = await festivalInYear(year);
-    if (occupied) {
+    if (year && occupied) {
       return res.status(409).json({
         success: false,
         message:
@@ -490,33 +579,43 @@ export const updateFestival = async (req: Request, res: Response) => {
       updates.slug = slug;
     }
 
-    // Both dates or neither: blank means "dates to be confirmed". null clears a
-    // date, the same as "". An end date with no start is rejected rather than
-    // silently dropped.
     const startDate =
-      body.startDate !== undefined
-        ? String(body.startDate ?? "").trim()
-        : (existing.startDate ?? "");
+      body.startDate !== undefined ? String(body.startDate).trim() : existing.startDate;
     const endDate =
-      body.endDate !== undefined
-        ? String(body.endDate ?? "").trim()
-        : (existing.endDate ?? "");
+      body.endDate !== undefined ? String(body.endDate).trim() : existing.endDate;
 
-    if (!startDate && endDate) {
-      return res.status(400).json({
-        success: false,
-        message: "A festival with no start date cannot have an end date — clear both, or set the start date",
-      });
-    }
-    if (startDate && (!ISO_DATE.test(startDate) || !ISO_DATE.test(endDate))) {
+    /*
+    if (!ISO_DATE.test(startDate) || !ISO_DATE.test(endDate)) {
       return res
         .status(400)
         .json({ success: false, message: "Dates must be in YYYY-MM-DD form" });
     }
-    if (startDate && endDate < startDate) {
+    if (endDate < startDate) {
       return res
         .status(400)
         .json({ success: false, message: "endDate cannot be before startDate" });
+    }
+    */
+
+    if (startDate && !ISO_DATE.test(startDate)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "startDate must be in YYYY-MM-DD form when set" });
+    }
+    if (endDate && !ISO_DATE.test(endDate)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "endDate must be in YYYY-MM-DD form when set" });
+    }
+    if (startDate && endDate && endDate < startDate) {
+      return res
+        .status(400)
+        .json({ success: false, message: "endDate cannot be before startDate" });
+    }
+    if (!startDate && endDate) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Set the start date too, or clear both dates together" });
     }
     if (body.startDate !== undefined) updates.startDate = startDate;
     if (body.endDate !== undefined) updates.endDate = endDate;
@@ -524,16 +623,9 @@ export const updateFestival = async (req: Request, res: Response) => {
     // Moving a festival's dates can move it into another year, which is the
     // only way an edit can collide with the one-a-year rule. Recomputed on
     // every write rather than only when the dates change, so a record saved
-    // before `year` existed picks it up the next time it is touched. With the
-    // dates cleared there is nothing to compute from, so the year stays put.
-    const year = startDate ? yearOf(startDate) : existing.year;
-    if (!year) {
-      return res.status(400).json({
-        success: false,
-        message: "This festival has no year yet — set its dates before clearing them",
-      });
-    }
-    if (year !== existing.year) {
+    // before `year` existed picks it up the next time it is touched.
+    const year = startDate ? yearOf(startDate) : 0;
+    if (year !== existing.year && year !== 0) {
       const occupied = await festivalInYear(year, existing._id);
       if (occupied) {
         return res.status(409).json({
