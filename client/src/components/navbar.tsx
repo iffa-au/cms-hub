@@ -34,7 +34,9 @@ export default function Navbar() {
    * tools without widening the bar again.
    */
   const navItems = useMemo<NavItem[]>(() => {
-    const items: NavItem[] = [{ href: "/dashboard", label: "Dashboard" }];
+    const items: NavItem[] = [
+      { href: "/dashboard", label: "Dashboard" },
+    ];
 
     if (isStaff) {
       const films: NavLink[] = [];
@@ -75,6 +77,8 @@ export default function Navbar() {
         ],
       });
     }
+
+    items.push({ href: "/news", label: "News" });
 
     return items;
   }, [isAdmin, isStaff]);
