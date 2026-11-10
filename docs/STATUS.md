@@ -12,6 +12,29 @@ client. They are not atomic, so a change spanning both wants two PRs with the
 backend merged first — otherwise the UI can land against an API that has not
 caught up, and writes silently no-op.
 
+## Talent Lab hub, phase 1 (2026-11-10, branch `feat/talent-lab-hub`, not merged)
+
+- **Forms:** public `POST /talent-lab/applications` and `/registrations` save
+  the site's Apply / Register forms (honeypot `homepage`, server-minted
+  `TL-XXXXXX` reference), then email the applicant and IFFA (plain-text
+  Mailchimp, no template; optional `CMS_URL` env adds a CMS link to IFFA's
+  email). Staff inbox in the CMS at /talent-lab/applications (status, notes,
+  CSV) and /talent-lab/registrations (mailing-list CSV).
+- **Privacy promise** printed on the Apply form: optional answers are "seen only
+  by program staff, never used in assessment, never public". So
+  accessRequirements / firstNationsIdentification / regionalRemote never appear
+  in list routes, CSVs or emails, and the CMS hides them behind "Show private
+  answers". The site's comments referred to a blocking note in
+  `talent_lab_progress.md`; that file is in neither repo, so it was not read.
+- **Content:** Events, Opportunities, Mentors in `models/talentLabContent.model.ts`
+  (fields = iffa-2026 `talent-lab/lib/types.ts`), one generic controller,
+  public `GET /talent-lab/<kind>` with `configured` flag, staff CRUD + reorder,
+  CMS at /talent-lab/<kind>. `scripts/seed-talent-lab.ts` copies the site's data
+  files in (dry run validated 6 events, 8 opportunities, 10 mentors on
+  2026-11-10; `--confirm` writes prod, skips kinds that already have records).
+- Not yet done: a real form submission end to end (writes prod + sends email),
+  the seed run, phase 2 (programs, alumni, partners, resources, FAQs).
+
 ## IFFA trailer player for Instagram reels (2026-11-10, branch `feat/iffa-trailer-player`, not merged)
 
 Instagram's embed always shows "View more on Instagram" over a reel and never

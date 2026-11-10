@@ -59,6 +59,17 @@ export default function Navbar() {
           { href: "/podcasts", label: "Podcasts" },
         ],
       });
+
+      items.push({
+        label: "Talent Lab",
+        children: [
+          { href: "/talent-lab/applications", label: "Applications" },
+          { href: "/talent-lab/registrations", label: "Registrations" },
+          { href: "/talent-lab/events", label: "Events" },
+          { href: "/talent-lab/opportunities", label: "Opportunities" },
+          { href: "/talent-lab/mentors", label: "Mentors" },
+        ],
+      });
     }
 
     // Crew is deliberately absent. /admin/crew manages the normalised
