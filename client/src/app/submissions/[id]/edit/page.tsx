@@ -62,6 +62,7 @@ type SubmissionDetail = {
   contentTypeId: string;
   imdbUrl?: string;
   trailerUrl?: string;
+  trailerVideoUrl?: string;
   releaseLinkUrl?: string;
   durationHours?: number;
   durationMinutes?: number;
@@ -101,6 +102,12 @@ export default function EditSubmissionPage() {
   const [landscapeImageUrl, setLandscapeImageUrl] = useState<string>('');
   const [imdbUrl, setImdbUrl] = useState<string>('');
   const [trailerUrl, setTrailerUrl] = useState<string>('');
+  // The trailer link as stored, and our copy of it (an @iffaawards Instagram
+  // reel copied into IFFA's bucket so the site can play it in its own player).
+  const [savedTrailerUrl, setSavedTrailerUrl] = useState<string>('');
+  const [trailerVideoUrl, setTrailerVideoUrl] = useState<string>('');
+  const [importingTrailer, setImportingTrailer] = useState(false);
+  const [trailerImportMessage, setTrailerImportMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [releaseLinkUrl, setReleaseLinkUrl] = useState<string>('');
   const [promoClips, setPromoClips] = useState<PromoClip[]>([]);
   // Same reasoning as crewEditable below: the public fallback route strips
@@ -152,6 +159,8 @@ export default function EditSubmissionPage() {
             setLandscapeImageUrl(d.landscapeImageUrl || '');
             setImdbUrl(d.imdbUrl || '');
             setTrailerUrl(d.trailerUrl || '');
+            setSavedTrailerUrl(d.trailerUrl || '');
+            setTrailerVideoUrl(d.trailerVideoUrl || '');
             setReleaseLinkUrl(d.releaseLinkUrl || '');
             setPromoClips(
               Array.isArray(d.promoClips)
@@ -211,6 +220,8 @@ export default function EditSubmissionPage() {
             setLandscapeImageUrl(d2.landscapeImageUrl || '');
             setImdbUrl(d2.imdbUrl || '');
             setTrailerUrl(d2.trailerUrl || '');
+            setSavedTrailerUrl(d2.trailerUrl || '');
+            setTrailerVideoUrl(d2.trailerVideoUrl || '');
             setReleaseLinkUrl(d2.releaseLinkUrl || '');
             setDurationHours(d2.durationHours != null ? String(d2.durationHours) : '');
             setDurationMinutes(d2.durationMinutes != null ? String(d2.durationMinutes) : '');
@@ -238,6 +249,31 @@ export default function EditSubmissionPage() {
       cancelled = true;
     };
   }, [id]);
+
+  const isInstagramTrailer = /(^|[./"])instagram\.com\//i.test(trailerUrl);
+
+  // Copies the saved Instagram trailer into IFFA's bucket. Works only for
+  // @iffaawards' own reels; the server explains anything else.
+  const useIffaPlayer = async () => {
+    setImportingTrailer(true);
+    setTrailerImportMessage(null);
+    try {
+      const res = await postData<{ success: boolean; message?: string; data?: { trailerVideoUrl?: string } }>(
+        `/submissions/${id}/trailer-video`,
+        {}
+      );
+      setTrailerVideoUrl(res?.data?.trailerVideoUrl || '');
+      setTrailerImportMessage({ ok: true, text: res?.message || 'The trailer now plays in the IFFA player' });
+    } catch (err) {
+      const e = err as { response?: { data?: { message?: string } }; message?: string };
+      setTrailerImportMessage({
+        ok: false,
+        text: e.response?.data?.message || e.message || 'Could not copy the trailer',
+      });
+    } finally {
+      setImportingTrailer(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -592,6 +628,35 @@ export default function EditSubmissionPage() {
                   value={trailerUrl}
                   onChange={(e) => setTrailerUrl(e.target.value)}
                 />
+                {/* Staff only (the endpoint is): owners reach this page without `from`. */}
+                {from && isInstagramTrailer && (
+                  <div className='space-y-2 rounded-md border border-white/10 bg-white/[0.03] p-3 text-sm'>
+                    {trailerUrl !== savedTrailerUrl ? (
+                      <p className='text-white/60'>
+                        Save the new Instagram link first, then you can switch it to the IFFA player.
+                      </p>
+                    ) : trailerVideoUrl ? (
+                      <p className='text-emerald-400'>
+                        Plays on the website in IFFA&apos;s own player, starting on click.
+                      </p>
+                    ) : (
+                      <>
+                        <p className='text-white/60'>
+                          Plays through Instagram&apos;s embed, with its &ldquo;View more on Instagram&rdquo; bar.
+                          Reels from @iffaawards can play in IFFA&apos;s own player instead.
+                        </p>
+                        <Button type='button' size='sm' onClick={useIffaPlayer} disabled={importingTrailer}>
+                          {importingTrailer ? 'Copying video…' : 'Use IFFA player'}
+                        </Button>
+                      </>
+                    )}
+                    {trailerImportMessage && (
+                      <p className={trailerImportMessage.ok ? 'text-emerald-400' : 'text-red-400'}>
+                        {trailerImportMessage.text}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
               <div className='space-y-2'>
                 <label htmlFor='releaseLinkUrl' className={LABEL}>

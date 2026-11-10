@@ -1,6 +1,6 @@
 # Status
 
-Updated: 2026-11-09
+Updated: 2026-11-10
 
 Short by design — delete finished items rather than accumulating a changelog.
 The public site's status lives in `../iffa-2026/docs/STATUS.md`; the AWS
@@ -11,6 +11,29 @@ the previous day answered 401 rather than 404. Amplify does the same for the
 client. They are not atomic, so a change spanning both wants two PRs with the
 backend merged first — otherwise the UI can land against an API that has not
 caught up, and writes silently no-op.
+
+## IFFA trailer player for Instagram reels (2026-11-10, branch `feat/iffa-trailer-player`, not merged)
+
+Instagram's embed always shows "View more on Instagram" over a reel and never
+autoplays. For @iffaawards' own reels, Meta's API hands over the MP4
+(`media_url`), so staff click **Use IFFA player** on the submission edit page
+and `POST /submissions/:id/trailer-video` copies it to
+`iffa/videos/submission-trailers/` and sets `trailerVideoUrl`/`Key`/`Source`.
+The public list and single routes expose `trailerVideoUrl`; the site plays it
+in a `<video>`. Changing the trailer link clears the copy (`updateSubmission`).
+
+- Env: `IG_ACCESS_TOKEN` (system-user token, system user `iffa-website` in the
+  iffaawards portfolio, app "IFFA Website", never expires) and
+  `IG_USER_ID=17841455094581337`. **Must also be set in App Runner.** The
+  token currently has far more scopes than needed; regenerate it with
+  `instagram_basic`, `pages_show_list`, `pages_read_engagement` only.
+- `scripts/check-instagram-trailers.ts` (read-only) reported 3/3 Instagram
+  trailers copyable on 2026-11-10 (SATLUJ, North to Paradise, test 1).
+- `scripts/import-instagram-trailers.ts` backfills; dry run by default,
+  `--confirm` writes to prod Mongo + S3 and needs AWS creds.
+- Not run end to end yet: the S3 copy needs the deployed role. First real test
+  is the button on App Runner after merge. Reels with licensed audio get no
+  `media_url` and stay on the embed.
 
 ## Optional screening dates (2026-11-09, branch `feat/optional-screening-dates`)
 
