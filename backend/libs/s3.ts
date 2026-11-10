@@ -817,3 +817,78 @@ export async function headUploadedObject(
     throw error;
   }
 }
+
+/* -------------------------------------------------------------------------
+ * Submission trailers
+ *
+ *   iffa/videos/submission-trailers/<title-slug>-<8hex>.mp4
+ *
+ * Copies of @iffaawards Instagram reels, made server-side by
+ * importSubmissionTrailer so the public site can play them in its own player.
+ * Same shape as homepage trailers: a fresh key per copy (CloudFront never
+ * serves a stale video) and the old key deleted once the save that replaced
+ * it has succeeded.
+ * ---------------------------------------------------------------------- */
+
+export function submissionTrailersPrefix(): string {
+  return (
+    process.env.AWS_S3_SUBMISSION_TRAILERS_PREFIX || "iffa/videos/submission-trailers"
+  ).replace(/^\/+|\/+$/g, "");
+}
+
+/** Same allowlist as isTrailerKey: the guard in front of every delete. */
+export function isSubmissionTrailerKey(key: unknown): key is string {
+  if (typeof key !== "string") return false;
+  const root = `${submissionTrailersPrefix()}/`;
+  if (!key.startsWith(root)) return false;
+  return /^[a-z0-9][a-z0-9-]*-[a-f0-9]{8}\.mp4$/.test(key.slice(root.length));
+}
+
+export class VideoCopyError extends Error {}
+
+/**
+ * Downloads a video from `sourceUrl` and writes it to a new key in the
+ * submission-trailers folder. Returns the key.
+ *
+ * Buffered rather than streamed: PutObject needs a known length, trailers are
+ * a few MB (capped at MAX_TRAILER_BYTES), and a buffer lets us check the size
+ * and type before anything is written to the bucket.
+ */
+export async function copyVideoToSubmissionTrailers(
+  sourceUrl: string,
+  title: string,
+): Promise<string> {
+  const config = loadConfig();
+  const res = await fetch(sourceUrl);
+  if (!res.ok) {
+    throw new VideoCopyError(`Could not download the video (HTTP ${res.status}). Try again.`);
+  }
+
+  const contentType = (res.headers.get("content-type") ?? "").split(";")[0].trim();
+  if (contentType !== TRAILER_CONTENT_TYPE) {
+    throw new VideoCopyError(`The video is ${contentType || "an unknown type"}, not an MP4.`);
+  }
+  const declared = Number(res.headers.get("content-length"));
+  if (declared > MAX_TRAILER_BYTES) {
+    throw new VideoCopyError("The video is larger than 200MB.");
+  }
+
+  const body = Buffer.from(await res.arrayBuffer());
+  if (body.length < MIN_UPLOAD_BYTES || body.length > MAX_TRAILER_BYTES) {
+    throw new VideoCopyError("The downloaded video is empty or larger than 200MB.");
+  }
+
+  const ref = randomBytes(4).toString("hex");
+  const key = `${submissionTrailersPrefix()}/${slugify(title, "trailer")}-${ref}.mp4`;
+  await getClient().send(
+    new PutObjectCommand({
+      Bucket: config.bucket,
+      Key: key,
+      Body: body,
+      ContentType: TRAILER_CONTENT_TYPE,
+      // Fresh key per copy, so the object itself never changes.
+      CacheControl: "public, max-age=31536000, immutable",
+    }),
+  );
+  return key;
+}

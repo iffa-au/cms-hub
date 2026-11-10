@@ -11,9 +11,22 @@ import { Types } from "mongoose";
 import SubmissionGenre from "../models/submissionGenre.model.js";
 import { sendSubmissionReceipt } from "../libs/mailer.js";
 import {
+  buildPublicUrl,
   buildSubmissionAssetPrefix,
+  copyVideoToSubmissionTrailers,
+  deleteUploadedObject,
+  describeS3Failure,
+  isSubmissionTrailerKey,
   isValidSubmissionRef,
+  S3ConfigError,
+  VideoCopyError,
 } from "../libs/s3.js";
+import {
+  findOwnVideo,
+  instagramShortcode,
+  InstagramConfigError,
+  InstagramMediaError,
+} from "../libs/instagram.js";
 
 const ALLOWED_WATCH_FORMATS = new Set([
   "theatrical",
@@ -424,6 +437,7 @@ export const fetchSubmission = async (req: Request, res: Response) => {
           },
           synopsis: 1,
           trailerUrl: 1,
+          trailerVideoUrl: 1,
           durationHours: 1,
           durationMinutes: 1,
           submissionYear: "$submission_year",
@@ -1030,6 +1044,20 @@ export const updateSubmission = async (req: AuthedRequest, res) => {
       updates.landscapeImageUrl = landscapeImageUrl;
     if (imdbUrl !== undefined) updates.imdbUrl = imdbUrl;
     if (trailerUrl !== undefined) updates.trailerUrl = trailerUrl;
+    // Our copy of an Instagram trailer belongs to the link it was made from.
+    // A different link (or none) drops the copy, so the site never plays the
+    // old video under a new trailer. The S3 object goes after the write.
+    let staleTrailerKey = "";
+    if (
+      trailerUrl !== undefined &&
+      existing.trailerVideoUrl &&
+      instagramShortcode(trailerUrl) !== existing.trailerVideoSource
+    ) {
+      updates.trailerVideoUrl = "";
+      updates.trailerVideoKey = "";
+      updates.trailerVideoSource = "";
+      staleTrailerKey = existing.trailerVideoKey ?? "";
+    }
     if (trailerPassword !== undefined)
       updates.trailerPassword = String(trailerPassword || "").trim();
     if (promoClips !== undefined)
@@ -1153,6 +1181,10 @@ export const updateSubmission = async (req: AuthedRequest, res) => {
       }
     }
 
+    if (isSubmissionTrailerKey(staleTrailerKey)) {
+      await deleteUploadedObject(staleTrailerKey);
+    }
+
     res.status(200).json({
       success: true,
       message: "Submission updated successfully",
@@ -1202,7 +1234,9 @@ export const getSubmission = async (req: Request, res: Response) => {
     // Requested nominations are the submitter's wish list, not the
     // festival's announced nominees, so they stay out of public view too.
     const item = await Submission.findById(id)
-      .select("-contactEmail -trailerPassword -promoClips.password -nominations")
+      .select(
+        "-contactEmail -trailerPassword -promoClips.password -nominations -trailerVideoKey -trailerVideoSource",
+      )
       .populate("genreIds");
     if (!item) {
       return res
@@ -1296,6 +1330,7 @@ export const getSubmissionOverview = async (req, res) => {
           imdbUrl: 1,
           trailerUrl: 1,
           trailerPassword: 1,
+          trailerVideoUrl: 1,
           promoClips: 1,
           nominations: 1,
           releaseLinkUrl: 1,
@@ -1569,6 +1604,7 @@ export const adminListSubmissions = async (req, res) => {
           imdbUrl: 1,
           trailerUrl: 1,
           trailerPassword: 1,
+          trailerVideoUrl: 1,
           contactEmail: 1,
           durationHours: 1,
           durationMinutes: 1,
@@ -1842,5 +1878,90 @@ export const setCarouselSubmissions = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+/**
+ * Copies a submission's Instagram trailer into our S3 bucket so the public
+ * site can play it in its own player, without Instagram's embed UI.
+ *
+ * Only works for @iffaawards' own reels whose audio Instagram will release
+ * (see libs/instagram.ts); anything else answers 422 with a message for staff,
+ * and the site keeps using the Instagram embed. Idempotent: a trailer already
+ * copied from the same reel is returned as-is.
+ */
+export const importSubmissionTrailer = async (req: Request, res: Response) => {
+  let newKey = "";
+  try {
+    const { id } = req.params;
+    if (!Types.ObjectId.isValid(String(id))) {
+      return res.status(400).json({ success: false, message: "Invalid ID" });
+    }
+    const submission = await Submission.findById(id).select(
+      "title trailerUrl trailerVideoUrl trailerVideoKey trailerVideoSource",
+    );
+    if (!submission) {
+      return res.status(404).json({ success: false, message: "Submission not found" });
+    }
+
+    const media = await findOwnVideo(submission.trailerUrl);
+    if (submission.trailerVideoUrl && submission.trailerVideoSource === media.shortcode) {
+      return res.status(200).json({
+        success: true,
+        message: "This trailer already plays in the IFFA player",
+        data: { trailerVideoUrl: submission.trailerVideoUrl },
+      });
+    }
+
+    newKey = await copyVideoToSubmissionTrailers(media.mediaUrl, submission.title);
+    const trailerVideoUrl = buildPublicUrl(newKey);
+    const previousKey = submission.trailerVideoKey ?? "";
+
+    // Conditional on the link we copied from: if staff changed the trailer
+    // while the download ran, this copy belongs to nothing.
+    const updated = await Submission.findOneAndUpdate(
+      { _id: submission._id, trailerUrl: submission.trailerUrl },
+      {
+        $set: {
+          trailerVideoUrl,
+          trailerVideoKey: newKey,
+          trailerVideoSource: media.shortcode,
+        },
+      },
+      { new: true },
+    );
+    if (!updated) {
+      await deleteUploadedObject(newKey);
+      return res.status(409).json({
+        success: false,
+        message: "The trailer link changed while the video was copying. Save, then try again.",
+      });
+    }
+
+    if (previousKey !== newKey && isSubmissionTrailerKey(previousKey)) {
+      await deleteUploadedObject(previousKey);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "The trailer now plays in the IFFA player",
+      data: { trailerVideoUrl },
+    });
+  } catch (error) {
+    if (error instanceof InstagramMediaError) {
+      return res.status(422).json({ success: false, message: error.message, reason: error.reason });
+    }
+    console.error("importSubmissionTrailer failed:", error);
+    // A copy that landed in S3 but never reached the record is an orphan.
+    if (newKey) await deleteUploadedObject(newKey);
+    if (
+      error instanceof InstagramConfigError ||
+      error instanceof S3ConfigError ||
+      error instanceof VideoCopyError
+    ) {
+      return res.status(500).json({ success: false, message: error.message });
+    }
+    const explained = describeS3Failure(error);
+    res.status(500).json({ success: false, message: explained ?? "Internal server error" });
   }
 };
