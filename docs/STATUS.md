@@ -1,6 +1,6 @@
 # Status
 
-Updated: 2026-11-10
+Updated: 2026-11-16
 
 Short by design — delete finished items rather than accumulating a changelog.
 The public site's status lives in `../iffa-2026/docs/STATUS.md`; the AWS
@@ -12,7 +12,7 @@ client. They are not atomic, so a change spanning both wants two PRs with the
 backend merged first — otherwise the UI can land against an API that has not
 caught up, and writes silently no-op.
 
-## Talent Lab hub, phase 1 (2026-11-10, branch `feat/talent-lab-hub`, not merged)
+## Talent Lab hub (phase 1 merged as #58, 2026-11-10)
 
 - **Forms:** public `POST /talent-lab/applications` and `/registrations` save
   the site's Apply / Register forms (honeypot `homepage`, server-minted
@@ -32,8 +32,34 @@ caught up, and writes silently no-op.
   CMS at /talent-lab/<kind>. `scripts/seed-talent-lab.ts` copies the site's data
   files in (dry run validated 6 events, 8 opportunities, 10 mentors on
   2026-11-10; `--confirm` writes prod, skips kinds that already have records).
+- **Phase 2a (2026-11-16, not merged):** two PRs, merge in this order:
+  `feat/talent-lab-programs-api` (backend), then `feat/talent-lab-programs-cms`
+  (client), then iffa-2026 `feat/talent-lab-programs`.
+  - Applications: new `archived` status; `PATCH /talent-lab/applications/bulk-status`
+    `{ids, status}` (max 100); `PATCH /:id` also takes the contact/profile
+    fields in `EDITABLE_APPLICATION_FIELDS` (written answers, consents and
+    private answers stay locked). CMS list: search, "All except archived"
+    default, row checkboxes + bulk bar, row Delete. CMS detail: EDIT / DOWNLOAD
+    PDF / DELETE, one-click Reviewing / Shortlist / Accept / Decline / Archive,
+    Email applicant. The PDF (`lib/talent-lab-application-pdf.ts`) leaves out
+    the private answers and staff notes.
+  - Programs: 4th content kind (`TalentLabProgram`, fields = site `Stream`),
+    with new controller field kinds `paragraphs` and `rows`; CMS editor at
+    /talent-lab/programs with paragraph/row editors and a mentor checkbox
+    picker. Seed now includes `streams-data.ts`: dry run 2026-11-16 validated
+    6 events, 8 opportunities, 10 mentors, 10 programs, would insert all.
+  - **Seeded prod 2026-11-16** (`--confirm`): inserted 6 events, 8
+    opportunities, 10 mentors, 10 programs. The public API now returns
+    `configured: true` for all four, byte-identical to the site's data files.
+  - Clicked through locally against prod: bulk Mark reviewing, one-click
+    Shortlist, edit + save of an applicant's location, program edit + save
+    (round-trips unchanged), Hide a program (gone from /programs, Apply,
+    Register; detail 404) then Show. Each test change was put back; the one
+    real application (TL-54D7YY) is back to New / Windsor.
+  - **Production needs the backend deployed** before the CMS: until then the
+    deployed site and CMS still run the old code (no programs route).
 - Not yet done: a real form submission end to end (writes prod + sends email),
-  the seed run, phase 2 (programs, alumni, partners, resources, FAQs).
+  phase 2b (alumni, partners, resources, FAQs).
 
 ## IFFA trailer player for Instagram reels (2026-11-10, branch `feat/iffa-trailer-player`, not merged)
 

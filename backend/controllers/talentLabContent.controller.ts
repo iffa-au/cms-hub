@@ -5,6 +5,7 @@ import {
   TalentLabEvent,
   TalentLabMentor,
   TalentLabOpportunity,
+  TalentLabProgram,
   CAREER_STAGES,
   DELIVERY_MODES,
   DISCIPLINES,
@@ -14,7 +15,7 @@ import {
 } from "../models/talentLabContent.model.js";
 
 /*
-  Events, Opportunities and Mentors share one controller. Each kind is
+  Events, Opportunities, Mentors and Programs share one controller. Each kind is
   described once below — its fields, its unique key, and how it is published —
   and gets the same routes:
 
@@ -32,8 +33,12 @@ import {
 type Field =
   | { key: string; kind: "text"; required?: boolean; max?: number }
   | { key: string; kind: "enum"; values: readonly string[] }
-  | { key: string; kind: "tags" }
-  | { key: string; kind: "optionalUrl" };
+  | { key: string; kind: "tags"; maxItems?: number; maxLength?: number }
+  | { key: string; kind: "optionalUrl" }
+  /** A list of paragraphs. */
+  | { key: string; kind: "paragraphs"; maxItems: number }
+  /** A list of small objects whose values are all required text, e.g. { label, value }. */
+  | { key: string; kind: "rows"; columns: { key: string; max?: number }[]; maxItems: number };
 
 type Kind = {
   label: string;
@@ -51,7 +56,7 @@ const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const SHORT = 200;
 const LONG = 4000;
 
-export const KINDS: Record<"events" | "opportunities" | "mentors", Kind> = {
+export const KINDS: Record<"events" | "opportunities" | "mentors" | "programs", Kind> = {
   events: {
     label: "Event",
     model: TalentLabEvent,
@@ -107,6 +112,32 @@ export const KINDS: Record<"events" | "opportunities" | "mentors", Kind> = {
       { key: "bio", kind: "text", required: true, max: LONG },
     ],
   },
+  programs: {
+    label: "Program",
+    model: TalentLabProgram,
+    keyField: "slug",
+    publicKey: "slug",
+    fields: [
+      { key: "code", kind: "text", required: true, max: 10 },
+      { key: "name", kind: "text", required: true },
+      { key: "description", kind: "text", required: true, max: 600 },
+      { key: "about", kind: "paragraphs", maxItems: 10 },
+      { key: "facts", kind: "rows", columns: [{ key: "label" }, { key: "value", max: 600 }], maxItems: 20 },
+      {
+        key: "curriculum",
+        kind: "rows",
+        columns: [{ key: "week", max: 60 }, { key: "title" }, { key: "body", max: 1000 }],
+        maxItems: 20,
+      },
+      { key: "places", kind: "text" },
+      { key: "assessmentNote", kind: "text", max: 1000 },
+      { key: "deliveryMode", kind: "enum", values: DELIVERY_MODES },
+      { key: "location", kind: "text", required: true },
+      { key: "status", kind: "enum", values: OPPORTUNITY_STATUSES },
+      { key: "mentorSlugs", kind: "tags", maxItems: 30, maxLength: 120 },
+      { key: "resourceIds", kind: "tags", maxItems: 30, maxLength: 120 },
+    ],
+  },
 };
 
 class InputError extends Error {}
@@ -139,8 +170,33 @@ export function normalise(kind: Kind, body: Record<string, unknown>): Record<str
     } else if (field.kind === "tags") {
       const list = Array.isArray(raw) ? raw : text(raw).split(",");
       const tags = list.map(text).filter(Boolean);
-      if (tags.length > 12 || tags.some((t) => t.length > 40)) throw new InputError(`${field.key} has too many or too-long tags`);
+      if (tags.length > (field.maxItems ?? 12) || tags.some((t) => t.length > (field.maxLength ?? 40))) {
+        throw new InputError(`${field.key} has too many or too-long tags`);
+      }
       out[field.key] = tags;
+    } else if (field.kind === "paragraphs") {
+      if (raw !== undefined && raw !== null && !Array.isArray(raw)) throw new InputError(`${field.key} must be a list`);
+      const items = ((raw as unknown[] | undefined) ?? []).map(text).filter(Boolean);
+      if (items.length > field.maxItems) throw new InputError(`${field.key} has more than ${field.maxItems} paragraphs`);
+      if (items.some((p) => p.length > LONG)) throw new InputError(`A paragraph in ${field.key} is too long`);
+      out[field.key] = items;
+    } else if (field.kind === "rows") {
+      if (raw !== undefined && raw !== null && !Array.isArray(raw)) throw new InputError(`${field.key} must be a list`);
+      const rows = ((raw as unknown[] | undefined) ?? [])
+        .map((row) => {
+          const r = (row ?? {}) as Record<string, unknown>;
+          return Object.fromEntries(field.columns.map((c) => [c.key, text(r[c.key])]));
+        })
+        // A row left completely blank in the editor is dropped, not an error.
+        .filter((row) => Object.values(row).some(Boolean));
+      if (rows.length > field.maxItems) throw new InputError(`${field.key} has more than ${field.maxItems} rows`);
+      rows.forEach((row, i) => {
+        for (const c of field.columns) {
+          if (!row[c.key]) throw new InputError(`${field.key} row ${i + 1}: ${c.key} is required`);
+          if (row[c.key].length > (c.max ?? SHORT)) throw new InputError(`${field.key} row ${i + 1}: ${c.key} is too long`);
+        }
+      });
+      out[field.key] = rows;
     } else {
       const value = text(raw);
       if (value) {
@@ -163,7 +219,16 @@ export function normalise(kind: Kind, body: Record<string, unknown>): Record<str
 export function toPublic(kind: Kind, doc: Record<string, unknown>) {
   const out: Record<string, unknown> = { [kind.publicKey]: doc[kind.keyField] };
   for (const field of kind.fields) {
-    out[field.key] = field.kind === "optionalUrl" ? (doc[field.key] || null) : (doc[field.key] ?? (field.kind === "tags" ? [] : ""));
+    const empty = field.kind === "tags" || field.kind === "paragraphs" || field.kind === "rows" ? [] : "";
+    const value = field.kind === "optionalUrl" ? doc[field.key] || null : (doc[field.key] ?? empty);
+    // Subdocument arrays come back from .lean() as plain objects already; strip
+    // anything beyond the declared columns so the public shape stays exact.
+    out[field.key] =
+      field.kind === "rows" && Array.isArray(value)
+        ? value.map((row: Record<string, unknown>) =>
+            Object.fromEntries(field.columns.map((c) => [c.key, row?.[c.key] ?? ""])),
+          )
+        : value;
   }
   return out;
 }

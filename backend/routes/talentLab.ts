@@ -5,6 +5,7 @@ import {
   listTalentLabApplications,
   getTalentLabApplication,
   updateTalentLabApplication,
+  bulkUpdateTalentLabApplicationStatus,
   deleteTalentLabApplication,
   listTalentLabRegistrations,
   getTalentLabRegistration,
@@ -22,6 +23,8 @@ router.post("/registrations", createTalentLabRegistration);
 
 // Staff: the CMS inbox. Applications hold sensitive answers — never public.
 router.get("/applications", ...staff, listTalentLabApplications);
+// Before "/:id" so "bulk-status" is never read as an id.
+router.patch("/applications/bulk-status", ...staff, bulkUpdateTalentLabApplicationStatus);
 router.get("/applications/:id", ...staff, getTalentLabApplication);
 router.patch("/applications/:id", ...staff, updateTalentLabApplication);
 router.delete("/applications/:id", ...staff, deleteTalentLabApplication);
