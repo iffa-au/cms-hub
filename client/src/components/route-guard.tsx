@@ -9,7 +9,9 @@ type RouteGuardProps = {
   children: React.ReactNode;
 };
 
-const PUBLIC_PATHS = new Set<string>(["/login", "/signup"]);
+// "/attend" is the public awards-night registration form: admins send its
+// link to guests. It can only submit; the guest list stays admin-only.
+const PUBLIC_PATHS = new Set<string>(["/login", "/signup", "/attend"]);
 
 function isAdminOnlyPath(pathname: string | null) {
   if (!pathname) return false;
