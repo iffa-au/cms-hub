@@ -56,8 +56,9 @@ type Festival = {
   year?: number;
   name: string;
   tagline?: string;
-  startDate: string;
-  endDate: string;
+  /** Both blank ("") when the dates are not announced yet. */
+  startDate?: string;
+  endDate?: string;
   isPublished?: boolean;
   screenings: Screening[];
 };
@@ -71,7 +72,8 @@ const MONTHS = [
 ];
 
 /** Split by hand rather than via `new Date` — see the note in festival-utils. */
-const dateRange = (start: string, end: string) => {
+const dateRange = (start?: string, end?: string) => {
+  if (!start || !end) return "Dates TBC";
   const [, sm, sd] = start.split("-").map(Number);
   const [ey, em, ed] = end.split("-").map(Number);
   if (sm === em) return `${sd}–${ed} ${MONTHS[em - 1]} ${ey}`;
@@ -83,7 +85,9 @@ const dateRange = (start: string, end: string) => {
  * `year` was stored, so no festival can fall out of the calendar.
  */
 const festivalYear = (festival: Festival): number =>
-  Number(festival.year) || Number(festival.startDate.slice(0, 4)) || 0;
+  Number(festival.year) ||
+  Number((festival.startDate ?? "").slice(0, 4)) ||
+  0;
 
 const errorMessage = (e: unknown, fallback: string) =>
   e instanceof Error && e.message ? e.message : fallback;

@@ -34,7 +34,9 @@ export default function Navbar() {
    * tools without widening the bar again.
    */
   const navItems = useMemo<NavItem[]>(() => {
-    const items: NavItem[] = [{ href: "/dashboard", label: "Dashboard" }];
+    const items: NavItem[] = [
+      { href: "/dashboard", label: "Dashboard" },
+    ];
 
     if (isStaff) {
       const films: NavLink[] = [];
@@ -57,6 +59,18 @@ export default function Navbar() {
           { href: "/podcasts", label: "Podcasts" },
         ],
       });
+
+      items.push({
+        label: "Talent Lab",
+        children: [
+          { href: "/talent-lab/applications", label: "Applications" },
+          { href: "/talent-lab/registrations", label: "Registrations" },
+          { href: "/talent-lab/events", label: "Events" },
+          { href: "/talent-lab/programs", label: "Programs" },
+          { href: "/talent-lab/opportunities", label: "Opportunities" },
+          { href: "/talent-lab/mentors", label: "Mentors" },
+        ],
+      });
     }
 
     // Crew is deliberately absent. /admin/crew manages the normalised
@@ -76,6 +90,8 @@ export default function Navbar() {
         ],
       });
     }
+
+    items.push({ href: "/news", label: "News" });
 
     return items;
   }, [isAdmin, isStaff]);

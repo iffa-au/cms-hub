@@ -33,6 +33,16 @@ export interface ISubmission {
   imdbUrl?: string;
   trailerUrl?: string;
   trailerPassword?: string;
+  /**
+   * The trailer copied into our own S3 bucket (CloudFront URL), for an
+   * @iffaawards Instagram reel — see importSubmissionTrailer. The site plays
+   * it in its own player, ahead of `trailerUrl`'s embed.
+   */
+  trailerVideoUrl?: string;
+  /** S3 key of trailerVideoUrl, for cleanup. Staff-only. */
+  trailerVideoKey?: string;
+  /** Instagram shortcode the copy was made from; a new link clears the copy. Staff-only. */
+  trailerVideoSource?: string;
   promoClips?: Array<{ url: string; password?: string }>;
   releaseLinkUrl?: string;
   contactEmail?: string;
@@ -211,6 +221,13 @@ const submissionSchema = new Schema<ISubmission>(
       default: "",
       trim: true,
     },
+    // Our own copy of an @iffaawards Instagram trailer. All three are written
+    // together by importSubmissionTrailer and cleared together when the
+    // trailer link changes. Key and source are staff-only (excluded in
+    // getSubmission).
+    trailerVideoUrl: { type: String, default: "", trim: true },
+    trailerVideoKey: { type: String, default: "", trim: true },
+    trailerVideoSource: { type: String, default: "", trim: true },
     // Short clips the submitter offers for social promotion, each a download
     // link plus the password for it when the folder is protected. The
     // passwords are staff-only on the same terms as trailerPassword — see

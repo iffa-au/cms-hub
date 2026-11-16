@@ -12,6 +12,7 @@ import {
   bulkUpdateSubmissionStatus,
   restoreSubmission,
   updateSubmission,
+  importSubmissionTrailer,
   deleteSubmission,
   fetchSubmission,
   fetchWinner,
@@ -100,6 +101,14 @@ router.patch(
   requireAuth,
   requireRole("admin", "staff"),
   restoreSubmission
+);
+
+// Copy an @iffaawards Instagram trailer into our bucket for the site's own player.
+router.post(
+  "/:id/trailer-video",
+  requireAuth,
+  requireRole("admin", "staff"),
+  importSubmissionTrailer,
 );
 
 router.put("/:id", requireAuth, updateSubmission);
