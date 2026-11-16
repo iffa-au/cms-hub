@@ -1,7 +1,7 @@
 import { Schema, model } from "mongoose";
 
 /**
- * Staff-editable Talent Lab content: Events, Opportunities, Mentors.
+ * Staff-editable Talent Lab content: Events, Opportunities, Mentors, Programs.
  *
  * Field names and vocabularies match iffa-2026's `talent-lab/lib/types.ts`
  * exactly, because the public routes return these records in that shape and the
@@ -139,6 +139,53 @@ const mentorSchema = new Schema<ITalentLabMentor>(
   { timestamps: true },
 );
 
+export interface ITalentLabProgram {
+  /** The site's `Stream.slug`: /talent-lab/programs/<slug>, and Opportunity.streamSlug. */
+  slug: string;
+  /** "01" — the mono badge on the card. */
+  code: string;
+  name: string;
+  description: string;
+  about: string[];
+  facts: { label: string; value: string }[];
+  curriculum: { week: string; title: string; body: string }[];
+  places: string;
+  assessmentNote: string;
+  deliveryMode: (typeof DELIVERY_MODES)[number];
+  location: string;
+  /** Fallback only: the site shows the linked opportunity's status where there is one. */
+  status: (typeof OPPORTUNITY_STATUSES)[number];
+  mentorSlugs: string[];
+  resourceIds: string[];
+  order: number;
+  isPublished: boolean;
+}
+
+const factSchema = new Schema({ label: str(), value: str() }, { _id: false });
+const weekSchema = new Schema({ week: str(), title: str(), body: str() }, { _id: false });
+
+const programSchema = new Schema<ITalentLabProgram>(
+  {
+    slug: { type: String, required: true, unique: true, trim: true },
+    code: str(),
+    name: str(),
+    description: str(),
+    about: { type: [String], default: [] },
+    facts: { type: [factSchema], default: [] },
+    curriculum: { type: [weekSchema], default: [] },
+    places: str(false),
+    assessmentNote: str(false),
+    deliveryMode: { type: String, enum: DELIVERY_MODES, required: true },
+    location: str(),
+    status: { type: String, enum: OPPORTUNITY_STATUSES, required: true },
+    mentorSlugs: { type: [String], default: [] },
+    resourceIds: { type: [String], default: [] },
+    ...placement,
+  },
+  { timestamps: true },
+);
+
 export const TalentLabEvent = model<ITalentLabEvent>("TalentLabEvent", eventSchema);
 export const TalentLabOpportunity = model<ITalentLabOpportunity>("TalentLabOpportunity", opportunitySchema);
 export const TalentLabMentor = model<ITalentLabMentor>("TalentLabMentor", mentorSchema);
+export const TalentLabProgram = model<ITalentLabProgram>("TalentLabProgram", programSchema);

@@ -6,6 +6,8 @@ export const APPLICATION_STATUSES = [
   "shortlisted",
   "declined",
   "accepted",
+  // Out of the queue without a verdict: duplicates, spam, withdrawn.
+  "archived",
 ] as const;
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 
