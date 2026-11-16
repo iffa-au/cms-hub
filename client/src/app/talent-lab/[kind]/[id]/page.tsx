@@ -11,7 +11,12 @@ import { toast } from "sonner";
 import { requestError } from "@/lib/talent-lab";
 import { CONTENT_KINDS, isContentKind, type ContentItem } from "@/lib/talent-lab-content";
 
-type Values = Record<string, string | boolean>;
+type Values = Record<string, unknown>;
+type Row = Record<string, string>;
+type RefOption = { key: string; label: string };
+
+const smallButton =
+  "text-xs font-semibold text-primary underline-offset-4 hover:underline disabled:opacity-40 disabled:no-underline";
 
 /** Edit one Event, Opportunity or Mentor; `/talent-lab/<kind>/new` creates one. */
 export default function TalentLabContentEditPage() {
@@ -26,6 +31,32 @@ export default function TalentLabContentEditPage() {
   const [loading, setLoading] = useState(!isNew);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [refOptions, setRefOptions] = useState<Record<string, RefOption[]>>({});
+
+  // Choices for "refs" fields (a program's mentors), loaded from that kind's CMS list.
+  useEffect(() => {
+    if (!config || !isAuthenticated || !isStaff) return;
+    let alive = true;
+    for (const field of config.fields) {
+      if (field.type !== "refs" || !field.refKind) continue;
+      const ref = CONTENT_KINDS[field.refKind];
+      (async () => {
+        try {
+          const res = await getData<{ data: ContentItem[] }>(`/talent-lab/${ref.kind}/manage`);
+          const options = (res.data ?? []).map((item) => ({
+            key: String(item[ref.keyField] ?? ""),
+            label: `${String(item[ref.titleField] ?? "")}${item.isPublished ? "" : " (hidden)"}`,
+          }));
+          if (alive) setRefOptions((o) => ({ ...o, [field.key]: options }));
+        } catch {
+          if (alive) setRefOptions((o) => ({ ...o, [field.key]: [] }));
+        }
+      })();
+    }
+    return () => {
+      alive = false;
+    };
+  }, [config, isAuthenticated, isStaff]);
 
   useEffect(() => {
     if (isAuthenticated && !isStaff) {
@@ -42,7 +73,10 @@ export default function TalentLabContentEditPage() {
         next[config.keyField] = String(res.data[config.keyField] ?? "");
         for (const field of config.fields) {
           const raw = res.data[field.key];
-          next[field.key] = field.type === "tags" ? (Array.isArray(raw) ? raw.join(", ") : "") : String(raw ?? "");
+          if (field.type === "tags") next[field.key] = Array.isArray(raw) ? raw.join(", ") : "";
+          else if (field.type === "paragraphs" || field.type === "refs") next[field.key] = Array.isArray(raw) ? raw.map(String) : [];
+          else if (field.type === "rows") next[field.key] = Array.isArray(raw) ? (raw as Row[]).map((r) => ({ ...r })) : [];
+          else next[field.key] = String(raw ?? "");
         }
         setValues(next);
       } catch (e) {
@@ -60,7 +94,14 @@ export default function TalentLabContentEditPage() {
   if (isAuthenticated && !isStaff) return null;
 
   const listHref = `/talent-lab/${config.kind}`;
-  const set = (key: string, value: string | boolean) => setValues((v) => ({ ...v, [key]: value }));
+  const set = (key: string, value: unknown) => setValues((v) => ({ ...v, [key]: value }));
+  const listOf = <T,>(key: string) => (Array.isArray(values[key]) ? (values[key] as T[]) : []);
+  const move = <T,>(list: T[], from: number, to: number) => {
+    const next = [...list];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
+    return next;
+  };
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -128,10 +169,125 @@ export default function TalentLabContentEditPage() {
 
         {config.fields.map((field) => (
           <div key={field.key} className="space-y-2">
-            <label htmlFor={field.key} className={labelClass}>
+            <label htmlFor={["paragraphs", "rows", "refs"].includes(field.type) ? undefined : field.key} className={labelClass}>
               {field.label}
             </label>
-            {field.type === "textarea" ? (
+            {field.type === "paragraphs" ? (
+              <div className="space-y-3">
+                {listOf<string>(field.key).map((para, i, list) => (
+                  <div key={i} className="space-y-1">
+                    <textarea
+                      aria-label={`${field.label} paragraph ${i + 1}`}
+                      className={textareaClass}
+                      rows={4}
+                      value={para}
+                      onChange={(e) => set(field.key, list.map((p, j) => (j === i ? e.target.value : p)))}
+                    />
+                    <div className="flex gap-4">
+                      <button type="button" className={smallButton} disabled={i === 0} onClick={() => set(field.key, move(list, i, i - 1))}>
+                        Move up
+                      </button>
+                      <button type="button" className={smallButton} disabled={i === list.length - 1} onClick={() => set(field.key, move(list, i, i + 1))}>
+                        Move down
+                      </button>
+                      <button type="button" className={`${smallButton} text-status-rejected`} onClick={() => set(field.key, list.filter((_, j) => j !== i))}>
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                <Button type="button" variant="outline" size="sm" onClick={() => set(field.key, [...listOf<string>(field.key), ""])}>
+                  {field.addLabel ?? "Add"}
+                </Button>
+              </div>
+            ) : field.type === "rows" ? (
+              <div className="space-y-3">
+                {listOf<Row>(field.key).map((row, i, list) => (
+                  <div key={i} className="space-y-3 rounded-md border border-border p-4">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      {field.columns?.map((col) => {
+                        const update = (value: string) =>
+                          set(field.key, list.map((r, j) => (j === i ? { ...r, [col.key]: value } : r)));
+                        return (
+                          <div key={col.key} className={col.multiline ? "sm:col-span-2" : undefined}>
+                            <label className={labelClass}>{col.label}</label>
+                            {col.multiline ? (
+                              <textarea
+                                className={textareaClass}
+                                rows={3}
+                                value={row[col.key] ?? ""}
+                                onChange={(e) => update(e.target.value)}
+                              />
+                            ) : (
+                              <input
+                                className={inputClass}
+                                placeholder={col.placeholder}
+                                value={row[col.key] ?? ""}
+                                onChange={(e) => update(e.target.value)}
+                              />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="flex gap-4">
+                      <button type="button" className={smallButton} disabled={i === 0} onClick={() => set(field.key, move(list, i, i - 1))}>
+                        Move up
+                      </button>
+                      <button type="button" className={smallButton} disabled={i === list.length - 1} onClick={() => set(field.key, move(list, i, i + 1))}>
+                        Move down
+                      </button>
+                      <button type="button" className={`${smallButton} text-status-rejected`} onClick={() => set(field.key, list.filter((_, j) => j !== i))}>
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    set(field.key, [
+                      ...listOf<Row>(field.key),
+                      Object.fromEntries((field.columns ?? []).map((c) => [c.key, ""])),
+                    ])
+                  }
+                >
+                  {field.addLabel ?? "Add row"}
+                </Button>
+              </div>
+            ) : field.type === "refs" ? (
+              (() => {
+                const chosen = listOf<string>(field.key);
+                const options = refOptions[field.key];
+                if (options === undefined) return <p className="text-sm text-muted-foreground">Loading…</p>;
+                // Keep chosen keys that no longer match a record visible, so saving never drops them silently.
+                const all = [
+                  ...options,
+                  ...chosen.filter((k) => !options.some((o) => o.key === k)).map((k) => ({ key: k, label: `${k} (not found)` })),
+                ];
+                if (!all.length) {
+                  return <p className="text-sm text-muted-foreground">Nothing to choose from yet.</p>;
+                }
+                return (
+                  <div className="grid grid-cols-1 gap-2 rounded-md border border-border p-4 sm:grid-cols-2">
+                    {all.map((o) => (
+                      <label key={o.key} className="flex items-center gap-2 text-sm text-foreground">
+                        <input
+                          type="checkbox"
+                          checked={chosen.includes(o.key)}
+                          onChange={(e) =>
+                            set(field.key, e.target.checked ? [...chosen, o.key] : chosen.filter((k) => k !== o.key))
+                          }
+                        />
+                        {o.label}
+                      </label>
+                    ))}
+                  </div>
+                );
+              })()
+            ) : field.type === "textarea" ? (
               <textarea
                 id={field.key}
                 className={textareaClass}

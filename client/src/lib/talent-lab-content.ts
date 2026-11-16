@@ -6,12 +6,18 @@
  * mirrors iffa-2026 `talent-lab/lib/types.ts`. Keep all three in step.
  */
 
-export type ContentKind = "events" | "opportunities" | "mentors";
+export type ContentKind = "events" | "opportunities" | "mentors" | "programs";
 
 export type ContentField = {
   key: string;
   label: string;
-  type: "text" | "textarea" | "select" | "tags" | "url";
+  type: "text" | "textarea" | "select" | "tags" | "url" | "paragraphs" | "rows" | "refs";
+  /** For "refs": the kind whose keys this field lists, picked from checkboxes. */
+  refKind?: ContentKind;
+  /** For "rows": the columns of each row, e.g. a fact's label and value. */
+  columns?: { key: string; label: string; multiline?: boolean; placeholder?: string }[];
+  /** For "rows" / "paragraphs": the add button, e.g. "Add week". */
+  addLabel?: string;
   options?: readonly string[];
   /** Labels for select values, when the stored value isn't readable. */
   optionLabels?: Record<string, string>;
@@ -128,7 +134,70 @@ export const CONTENT_KINDS: Record<ContentKind, ContentKindConfig> = {
       { key: "bio", label: "Bio", type: "textarea" },
     ],
   },
+  programs: {
+    kind: "programs",
+    singular: "Program",
+    plural: "Programs",
+    description:
+      "The Talent Lab streams on /talent-lab/programs, each with its own detail page. Their names also fill the program choices on the Apply and Register forms.",
+    keyField: "slug",
+    keyHelp:
+      "Used in the page address: /talent-lab/programs/<slug>. Opportunities link to a program by this slug, so change it in both places.",
+    titleField: "name",
+    subtitle: (p) => `${p.code} · ${p.deliveryMode} · ${p.location}`,
+    siteHref: "/talent-lab/programs",
+    fields: [
+      { key: "code", label: "Number", type: "text", placeholder: "01", help: "The small badge on the program card." },
+      { key: "name", label: "Name", type: "text", placeholder: "Emerging Filmmakers Lab" },
+      { key: "description", label: "Card description", type: "textarea", help: "One or two lines, shown on the program card." },
+      { key: "about", label: "About this program", type: "paragraphs", addLabel: "Add paragraph", help: "The detail page's opening text, one box per paragraph." },
+      {
+        key: "facts",
+        label: "Key facts",
+        type: "rows",
+        addLabel: "Add fact",
+        columns: [
+          { key: "label", label: "Label", placeholder: "Career stage" },
+          { key: "value", label: "Value", placeholder: "Emerging — at least one completed short" },
+        ],
+        help: "Eligibility, disciplines, cost, access. Application dates come from the program's opportunity.",
+      },
+      {
+        key: "curriculum",
+        label: "Curriculum",
+        type: "rows",
+        addLabel: "Add week",
+        columns: [
+          { key: "week", label: "Week", placeholder: "Week 1" },
+          { key: "title", label: "Title", placeholder: "Orientation & goal setting" },
+          { key: "body", label: "Description", multiline: true },
+        ],
+      },
+      { key: "places", label: "Places", type: "text", placeholder: "Twelve places" },
+      { key: "assessmentNote", label: "Assessment note", type: "textarea", help: "Shown beside the Apply button while an opportunity is open." },
+      { key: "deliveryMode", label: "Delivery (filter)", type: "select", options: ["Online", "Hybrid", "In person"] },
+      { key: "location", label: "Delivery, as shown", type: "text", placeholder: "Online + Melbourne intensive" },
+      {
+        key: "status",
+        label: "Status (fallback)",
+        type: "select",
+        options: ["eoi", "opening-soon", "open", "closing-soon", "closed", "in-progress", "completed"],
+        optionLabels: {
+          eoi: "Expressions of interest",
+          "opening-soon": "Opening soon",
+          open: "Open",
+          "closing-soon": "Closing soon",
+          closed: "Closed",
+          "in-progress": "In progress",
+          completed: "Completed",
+        },
+        help: "Only used when no opportunity links to this program. Otherwise the opportunity's status is shown.",
+      },
+      { key: "mentorSlugs", label: "Mentors", type: "refs", refKind: "mentors", help: "Shown on the program page. Manage the people under Talent Lab → Mentors." },
+      { key: "resourceIds", label: "Resources", type: "tags", help: "Comma-separated resource ids, e.g. r1, r2." },
+    ],
+  },
 };
 
 export const isContentKind = (value: unknown): value is ContentKind =>
-  value === "events" || value === "opportunities" || value === "mentors";
+  value === "events" || value === "opportunities" || value === "mentors" || value === "programs";
