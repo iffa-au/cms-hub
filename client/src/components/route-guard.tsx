@@ -32,17 +32,21 @@ export default function RouteGuard({ children }: RouteGuardProps) {
   const router = useRouter();
   const { user } = useAuth();
 
-  // Allow public auth pages without requiring authentication
-  if (pathname && PUBLIC_PATHS.has(pathname)) {
-    return <>{children}</>;
-  }
-
-  // Admin-only routes: if not admin, redirect to dashboard
+  // Admin-only routes: if not admin, redirect to dashboard. Called before the
+  // early return below: hooks must run on every render, and returning first on
+  // /login made React throw "Rendered fewer hooks than expected" whenever the
+  // app redirected from a guarded page to /login.
   useEffect(() => {
     if (isAdminOnlyPath(pathname) && user && user.role !== "admin") {
       router.replace("/dashboard");
     }
   }, [pathname, router, user]);
+
+  // Allow public auth pages without requiring authentication
+  if (pathname && PUBLIC_PATHS.has(pathname)) {
+    return <>{children}</>;
+  }
+
 
   // Protect everything else (must be authenticated)
   return <AuthGuard>{children}</AuthGuard>;
