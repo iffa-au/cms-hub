@@ -8,6 +8,7 @@ export const APPLICATION_STATUSES = [
   "shortlisted",
   "declined",
   "accepted",
+  "archived",
 ] as const;
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 
@@ -17,6 +18,7 @@ export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
   shortlisted: "Shortlisted",
   declined: "Declined",
   accepted: "Accepted",
+  archived: "Archived",
 };
 
 export const APPLICATION_STATUS_CLASSES: Record<ApplicationStatus, string> = {
@@ -25,7 +27,44 @@ export const APPLICATION_STATUS_CLASSES: Record<ApplicationStatus, string> = {
   shortlisted: "border-amber-400/50 text-amber-300",
   declined: "border-white/20 text-muted-foreground",
   accepted: "border-emerald-400/50 text-emerald-300",
+  archived: "border-white/10 text-muted-foreground/70",
 };
+
+/**
+ * One-click review actions, shown as buttons on an application and in the
+ * list's bulk bar. `confirm` actions ask first; the rest apply at once.
+ */
+export const QUICK_ACTIONS: { status: ApplicationStatus; label: string; done: string }[] = [
+  { status: "reviewing", label: "Mark reviewing", done: "marked reviewing" },
+  { status: "shortlisted", label: "Shortlist", done: "shortlisted" },
+  { status: "accepted", label: "Accept", done: "accepted" },
+  { status: "declined", label: "Decline", done: "declined" },
+  { status: "archived", label: "Archive", done: "archived" },
+];
+
+/**
+ * The Apply form's fixed vocabularies. Must match the backend's
+ * talentLabForms.controller.ts and iffa-2026 `talent-lab/data/form-options.ts`.
+ */
+export const APPLY_DISCIPLINES = [
+  "Directing",
+  "Producing",
+  "Writing",
+  "Acting",
+  "Documentary",
+  "Crew & technical",
+  "Other",
+] as const;
+export const APPLY_CAREER_STAGES = [
+  "Student / recent graduate",
+  "Emerging (0–2 credits)",
+  "Early career (3+ credits)",
+] as const;
+export const APPLY_AVAILABILITY = [
+  "Available for all scheduled sessions",
+  "Available for most sessions",
+  "Some conflicts — will explain",
+] as const;
 
 export type TalentLabApplication = {
   _id: string;

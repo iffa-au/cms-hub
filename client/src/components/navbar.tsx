@@ -66,6 +66,7 @@ export default function Navbar() {
           { href: "/talent-lab/applications", label: "Applications" },
           { href: "/talent-lab/registrations", label: "Registrations" },
           { href: "/talent-lab/events", label: "Events" },
+          { href: "/talent-lab/programs", label: "Programs" },
           { href: "/talent-lab/opportunities", label: "Opportunities" },
           { href: "/talent-lab/mentors", label: "Mentors" },
         ],
