@@ -86,6 +86,7 @@ export default function Navbar() {
           { href: "/admin/metadata", label: "Metadata" },
           { href: "/admin/film-enquiry", label: "Film enquiries" },
           { href: "/admin/distribution-enquiry", label: "Distribution enquiries" },
+          { href: "/admin/event-registrations", label: "Event registrations" },
         ],
       });
     }
