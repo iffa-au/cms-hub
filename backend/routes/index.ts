@@ -24,6 +24,7 @@ import festivalRoutes from "./festival.js";
 import podcastRoutes from "./podcast.js";
 import featuredFilmsRoutes from "./featuredFilms.js";
 import homepageTrailersRoutes from "./homepageTrailers.js";
+import eventRegistrationRoutes from "./eventRegistration.js";
 import talentLabRoutes from "./talentLab.js";
 
 const router = e.Router();
@@ -55,6 +56,7 @@ router.use("/festivals", festivalRoutes);
 router.use("/podcasts", podcastRoutes);
 router.use("/featured-films", featuredFilmsRoutes);
 router.use("/homepage-trailers", homepageTrailersRoutes);
+router.use("/event-registrations", eventRegistrationRoutes);
 router.use("/talent-lab", talentLabRoutes);
 
 export default router;

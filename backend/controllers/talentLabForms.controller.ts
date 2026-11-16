@@ -282,31 +282,81 @@ export const getTalentLabApplication = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * Contact and profile fields staff may correct (a typo in an email, the wrong
+ * program picked). The applicant's written answers, consents and private
+ * answers are never editable: they are the application as submitted.
+ */
+const EDITABLE_APPLICATION_FIELDS: Record<string, (body: Record<string, unknown>) => string> = {
+  program: (b) => required(b, "program"),
+  fullName: (b) => required(b, "fullName"),
+  email: (b) => email(b),
+  phone: (b) => required(b, "phone", 40),
+  location: (b) => required(b, "location"),
+  primaryDiscipline: (b) => oneOf(required(b, "primaryDiscipline"), DISCIPLINES, "primaryDiscipline"),
+  secondaryDiscipline: (b) => {
+    const value = optional(b, "secondaryDiscipline", SHORT_MAX);
+    return value ? oneOf(value, DISCIPLINES, "secondaryDiscipline") : "";
+  },
+  careerStage: (b) => oneOf(required(b, "careerStage"), CAREER_STAGES, "careerStage"),
+  portfolioLink: (b) => httpUrl(required(b, "portfolioLink", 1000), "portfolioLink"),
+  availability: (b) => oneOf(required(b, "availability"), AVAILABILITY, "availability"),
+};
+
+const isStatus = (value: string): value is ApplicationStatus =>
+  (APPLICATION_STATUSES as readonly string[]).includes(value);
+
+/** Status, notes and the editable fields above; only keys present in the body change. */
 export const updateTalentLabApplication = async (req: Request, res: Response) => {
   try {
     const id = String(req.params.id);
     if (!Types.ObjectId.isValid(id)) return notFound(res, "Application");
     const body = (req.body ?? {}) as Record<string, unknown>;
 
-    const updates: { status?: ApplicationStatus; staffNotes?: string } = {};
+    const updates: Record<string, string> = {};
     if (body.status !== undefined) {
       const status = text(body.status);
-      if (!(APPLICATION_STATUSES as readonly string[]).includes(status)) {
-        return res.status(400).json({ success: false, message: "status is not valid" });
-      }
-      updates.status = status as ApplicationStatus;
+      if (!isStatus(status)) throw new FormError("status is not valid");
+      updates.status = status;
     }
     if (body.staffNotes !== undefined) {
       const notes = text(body.staffNotes);
-      if (notes.length > TEXT_MAX) {
-        return res.status(400).json({ success: false, message: "staffNotes is too long" });
-      }
+      if (notes.length > TEXT_MAX) throw new FormError("staffNotes is too long");
       updates.staffNotes = notes;
     }
+    for (const [key, validate] of Object.entries(EDITABLE_APPLICATION_FIELDS)) {
+      if (body[key] !== undefined) updates[key] = validate(body);
+    }
+    if (!Object.keys(updates).length) throw new FormError("Nothing to update");
 
     const data = await TalentLabApplication.findByIdAndUpdate(id, { $set: updates }, { new: true }).lean();
     if (!data) return notFound(res, "Application");
     res.status(200).json({ success: true, data });
+  } catch (error) {
+    if (error instanceof FormError) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+    serverError(res, error);
+  }
+};
+
+const BULK_MAX = 100;
+
+/** `{ ids, status }` — one status for up to 100 applications. */
+export const bulkUpdateTalentLabApplicationStatus = async (req: Request, res: Response) => {
+  try {
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const ids = Array.isArray(body.ids) ? [...new Set(body.ids.map(String))] : [];
+    if (!ids.length || ids.length > BULK_MAX || ids.some((id) => !Types.ObjectId.isValid(id))) {
+      return res
+        .status(400)
+        .json({ success: false, message: `ids must be a list of 1–${BULK_MAX} application ids` });
+    }
+    const status = text(body.status);
+    if (!isStatus(status)) return res.status(400).json({ success: false, message: "status is not valid" });
+
+    const result = await TalentLabApplication.updateMany({ _id: { $in: ids } }, { $set: { status } });
+    res.status(200).json({ success: true, data: { matched: result.matchedCount, updated: result.modifiedCount } });
   } catch (error) {
     serverError(res, error);
   }

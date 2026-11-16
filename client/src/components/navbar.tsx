@@ -66,6 +66,7 @@ export default function Navbar() {
           { href: "/talent-lab/applications", label: "Applications" },
           { href: "/talent-lab/registrations", label: "Registrations" },
           { href: "/talent-lab/events", label: "Events" },
+          { href: "/talent-lab/programs", label: "Programs" },
           { href: "/talent-lab/opportunities", label: "Opportunities" },
           { href: "/talent-lab/mentors", label: "Mentors" },
         ],
@@ -85,6 +86,7 @@ export default function Navbar() {
           { href: "/admin/metadata", label: "Metadata" },
           { href: "/admin/film-enquiry", label: "Film enquiries" },
           { href: "/admin/distribution-enquiry", label: "Distribution enquiries" },
+          { href: "/admin/event-registrations", label: "Event registrations" },
         ],
       });
     }

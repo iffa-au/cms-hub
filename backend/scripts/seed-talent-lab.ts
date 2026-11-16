@@ -1,12 +1,12 @@
 /**
- * Seeds Talent Lab Events, Opportunities and Mentors from the public site's
+ * Seeds Talent Lab Events, Opportunities, Mentors and Programs from the public site's
  * built-in data files, so the CMS starts with exactly what iffa.com.au shows.
  *
  *   npx tsx scripts/seed-talent-lab.ts            # dry run: validates, writes nothing
  *   npx tsx scripts/seed-talent-lab.ts --confirm  # writes
  *   npx tsx scripts/seed-talent-lab.ts --site ../path/to/iffa-2026
  *
- * Reads iffa-2026's `src/modules/talent-lab/data/{events,opportunities,mentors}-data.ts`
+ * Reads iffa-2026's `src/modules/talent-lab/data/{events,opportunities,mentors,streams}-data.ts`
  * (default: the sibling checkout `../../iffa-2026`). Each record goes through
  * the same validation as the CMS, so a dry run also proves the rules fit the
  * real content.
@@ -27,6 +27,8 @@ const SOURCES = {
   events: { file: "events-data.ts", exportName: "events" },
   opportunities: { file: "opportunities-data.ts", exportName: "opportunities" },
   mentors: { file: "mentors-data.ts", exportName: "mentors" },
+  // The site calls programs "streams" in its code.
+  programs: { file: "streams-data.ts", exportName: "streams" },
 } as const;
 
 async function main() {
