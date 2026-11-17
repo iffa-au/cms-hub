@@ -11,6 +11,8 @@ import {
 } from '@/lib/submission-pdf';
 import CrewThumb from '@/components/crew/crew-thumb';
 import RequestedNominations from '@/components/submissions/requested-nominations';
+import { getSubmissionsReturnUrl } from '@/lib/list-return';
+import { ArrowLeft } from 'lucide-react';
 
 type OverviewResponse = {
   success: boolean;
@@ -244,7 +246,8 @@ export default function ViewSubmissionPage() {
   };
 
   // Where a completed action returns to depends on where the reviewer came from.
-  const returnPath = from === 'submissions' ? '/submissions' : '/review-queue';
+  // From the Content library, that means the same list page the film was opened from.
+  const returnPath = from === 'submissions' ? getSubmissionsReturnUrl() : '/review-queue';
 
   const approve = async () => {
     try {
@@ -291,7 +294,7 @@ export default function ViewSubmissionPage() {
       setError(null);
       setIsUndoing(true);
       await patchData(`/submissions/${id}/restore`, {});
-      router.push('/submissions');
+      router.push(getSubmissionsReturnUrl());
     } catch (e: unknown) {
       setError(getErrorMessage(e, 'Failed to move submission to review queue'));
       setIsUndoing(false);
@@ -304,7 +307,7 @@ export default function ViewSubmissionPage() {
       setError(null);
       setIsDeleting(true);
       await deleteData(`/submissions/${id}`);
-      router.push('/submissions');
+      router.push(getSubmissionsReturnUrl());
     } catch (e: unknown) {
       setError(getErrorMessage(e, 'Failed to delete submission'));
       setIsDeleting(false);
@@ -322,7 +325,7 @@ export default function ViewSubmissionPage() {
       return;
     }
     if (from === 'submissions') {
-      router.push('/submissions');
+      router.push(getSubmissionsReturnUrl());
       return;
     }
     router.push('/dashboard');
@@ -342,6 +345,14 @@ export default function ViewSubmissionPage() {
   return (
     <main className='mx-auto w-full flex-1 px-4 py-8 sm:px-6 sm:py-10 lg:px-8 max-w-5xl'>
       <div className='max-w-6xl mx-auto pb-24'>
+        <button
+          type='button'
+          onClick={goBack}
+          className='mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors'
+        >
+          <ArrowLeft size={14} aria-hidden='true' /> Back
+        </button>
+
         <div className='flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8'>
           <div>
             <h1 className='text-2xl font-semibold tracking-tight sm:text-3xl'>Film Details</h1>
