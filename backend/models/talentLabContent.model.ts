@@ -10,7 +10,9 @@ import { Schema, model } from "mongoose";
  * as the site's types require.
  *
  * Every record also has `order` (position on the page) and `isPublished`
- * (staff can pull an item off the site without deleting it).
+ * (staff can pull an item off the site without deleting it). Programs also
+ * have `isArchived`: a past program kept for the record, off the website and
+ * listed separately in the CMS. Hidden = draft / not ready; archived = finished.
  */
 
 export const DISCIPLINES = ["Directing", "Producing", "Writing", "Acting", "Documentary", "Crew"] as const;
@@ -159,6 +161,9 @@ export interface ITalentLabProgram {
   resourceIds: string[];
   order: number;
   isPublished: boolean;
+  /** A past program kept for the record: off the website, in the CMS's Archived tab. */
+  isArchived: boolean;
+  archivedAt: Date | null;
 }
 
 const factSchema = new Schema({ label: str(), value: str() }, { _id: false });
@@ -181,6 +186,8 @@ const programSchema = new Schema<ITalentLabProgram>(
     mentorSlugs: { type: [String], default: [] },
     resourceIds: { type: [String], default: [] },
     ...placement,
+    isArchived: { type: Boolean, default: false },
+    archivedAt: { type: Date, default: null },
   },
   { timestamps: true },
 );
