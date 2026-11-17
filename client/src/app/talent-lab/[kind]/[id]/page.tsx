@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { requestError } from "@/lib/talent-lab";
 import { CONTENT_KINDS, isContentKind, type ContentItem } from "@/lib/talent-lab-content";
+import { formatDisplayDate, formatDisplayRange, parseDisplayDate, parseDisplayRange } from "@/lib/display-dates";
 
 type Values = Record<string, unknown>;
 type Row = Record<string, string>;
@@ -27,7 +28,11 @@ export default function TalentLabContentEditPage() {
   const config = isContentKind(params.kind) ? CONTENT_KINDS[params.kind] : null;
   const isNew = params.id === "new";
 
-  const [values, setValues] = useState<Values>({ isPublished: true });
+  const [values, setValues] = useState<Values>(() => ({
+    isPublished: true,
+    // New records start on each field's default, e.g. Applications: Automatic.
+    ...Object.fromEntries((config?.fields ?? []).filter((f) => f.default !== undefined).map((f) => [f.key, f.default])),
+  }));
   const [loading, setLoading] = useState(!isNew);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -79,7 +84,7 @@ export default function TalentLabContentEditPage() {
           if (field.type === "tags") next[field.key] = Array.isArray(raw) ? raw.join(", ") : "";
           else if (field.type === "paragraphs" || field.type === "refs") next[field.key] = Array.isArray(raw) ? raw.map(String) : [];
           else if (field.type === "rows") next[field.key] = Array.isArray(raw) ? (raw as Row[]).map((r) => ({ ...r })) : [];
-          else next[field.key] = String(raw ?? "");
+          else next[field.key] = String(raw ?? "") || field.default || "";
         }
         setValues(next);
       } catch (e) {
@@ -295,6 +300,59 @@ export default function TalentLabContentEditPage() {
                         {o.label}
                       </label>
                     ))}
+                  </div>
+                );
+              })()
+            ) : field.type === "date" ? (
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <input
+                  type="date"
+                  aria-label={`${field.label}: pick a date`}
+                  className={`${inputClass} sm:w-48`}
+                  value={parseDisplayDate(String(values[field.key] ?? ""))}
+                  onChange={(e) => set(field.key, formatDisplayDate(e.target.value))}
+                />
+                <input
+                  id={field.key}
+                  className={inputClass}
+                  type="text"
+                  placeholder={field.placeholder}
+                  value={String(values[field.key] ?? "")}
+                  onChange={(e) => set(field.key, e.target.value)}
+                />
+              </div>
+            ) : field.type === "dateRange" ? (
+              (() => {
+                const current = String(values[field.key] ?? "");
+                const { start, end } = parseDisplayRange(current);
+                return (
+                  <div className="space-y-2">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                      <input
+                        type="date"
+                        aria-label={`${field.label}: start`}
+                        className={`${inputClass} sm:w-48`}
+                        value={start}
+                        onChange={(e) => set(field.key, formatDisplayRange(e.target.value, end))}
+                      />
+                      <span className="text-xs text-muted-foreground">to</span>
+                      <input
+                        type="date"
+                        aria-label={`${field.label}: end`}
+                        className={`${inputClass} sm:w-48`}
+                        value={end}
+                        min={start || undefined}
+                        onChange={(e) => set(field.key, formatDisplayRange(start, e.target.value))}
+                      />
+                    </div>
+                    <input
+                      id={field.key}
+                      className={inputClass}
+                      type="text"
+                      placeholder={field.placeholder}
+                      value={current}
+                      onChange={(e) => set(field.key, e.target.value)}
+                    />
                   </div>
                 );
               })()
