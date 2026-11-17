@@ -16,6 +16,11 @@ import {
   useFilterOptions,
   type AdvancedFilters,
 } from '@/components/submissions/advanced-filters';
+import {
+  SUBMISSIONS_PATH,
+  getSavedSubmissionsFilters,
+  saveSubmissionsListState,
+} from '@/lib/list-return';
 
 type Submission = {
   _id: string;
@@ -48,6 +53,7 @@ type ListResponse = {
 };
 
 type StatusFilter = 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'ARCHIVED' | 'ALL';
+const STATUS_VALUES: StatusFilter[] = ['SUBMITTED', 'APPROVED', 'REJECTED', 'ARCHIVED', 'ALL'];
 
 type LoadOverrides = {
   q?: string;
@@ -87,6 +93,18 @@ export default function SubmissionsPage() {
       setItems(res?.data ?? []);
       setPageMeta(res?.meta ?? null);
       setCurrentPage(page);
+
+      // Mirror page/search/status into the address bar, and remember the
+      // whole state, so returning from a film's details lands back here.
+      const urlParams = new URLSearchParams();
+      if (page > 1) urlParams.set('page', String(page));
+      if (q && q.trim()) urlParams.set('q', q.trim());
+      if (s && s !== 'ALL') urlParams.set('status', s);
+      if (countActiveFilters(overrides.filters ?? filters) > 0) urlParams.set('f', '1');
+      const qs = urlParams.toString();
+      const listUrl = qs ? `${SUBMISSIONS_PATH}?${qs}` : SUBMISSIONS_PATH;
+      window.history.replaceState(null, '', listUrl);
+      saveSubmissionsListState(listUrl, overrides.filters ?? filters);
     } catch (e: any) {
       setError(e?.message || 'Failed to load submissions');
     } finally {
@@ -94,8 +112,26 @@ export default function SubmissionsPage() {
     }
   }
 
+  // Restore the page/search/status from the URL (e.g. coming BACK from a
+  // film's details page), and advanced filters from this tab's session.
   useEffect(() => {
-    void load({ q: '', status: statusFilter });
+    const params = new URLSearchParams(window.location.search);
+    const page = Math.max(1, Number.parseInt(params.get('page') ?? '1', 10) || 1);
+    const q = params.get('q') ?? '';
+    const rawStatus = params.get('status');
+    const status: StatusFilter = STATUS_VALUES.includes(rawStatus as StatusFilter)
+      ? (rawStatus as StatusFilter)
+      : 'ALL';
+    // `f=1` marks that advanced filters were active; they live in this tab's
+    // session rather than the URL. A plain /submissions starts clean.
+    const savedFilters =
+      params.get('f') === '1' ? getSavedSubmissionsFilters<AdvancedFilters>() : null;
+    const restoredFilters = savedFilters ? { ...EMPTY_FILTERS, ...savedFilters } : EMPTY_FILTERS;
+
+    setQuery(q);
+    setStatusFilter(status);
+    setFilters(restoredFilters);
+    void load({ q, status, filters: restoredFilters, page });
   }, []);
 
   const showingStart = items.length === 0 ? 0 : (currentPage - 1) * 20 + 1;
