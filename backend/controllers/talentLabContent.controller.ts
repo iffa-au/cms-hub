@@ -52,7 +52,23 @@ type Kind = {
   fields: Field[];
   /** Has `isArchived` / `archivedAt` (programs). */
   archivable?: boolean;
+  /** Extra conditions for the public list, beyond published and not archived. */
+  publicFilter?: () => Promise<Record<string, unknown>>;
 };
+
+/**
+ * Slugs of programs staff have taken off the site (hidden or archived). An
+ * opportunity is the program's card on the Talent Lab home and opportunities
+ * pages, so it goes with its program: otherwise hiding a program left its card
+ * up, linking to a program page that 404s. Opportunities whose program isn't
+ * in the CMS at all are unaffected.
+ */
+async function offSiteProgramSlugs(): Promise<string[]> {
+  const docs = await TalentLabProgram.find({ $or: [{ isPublished: false }, { isArchived: true }] })
+    .select("slug")
+    .lean();
+  return docs.map((d) => d.slug);
+}
 
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const SHORT = 200;
@@ -81,6 +97,10 @@ export const KINDS: Record<"events" | "opportunities" | "mentors" | "programs", 
     model: TalentLabOpportunity,
     keyField: "opportunityId",
     publicKey: "id",
+    publicFilter: async () => {
+      const slugs = await offSiteProgramSlugs();
+      return slugs.length ? { streamSlug: { $nin: slugs } } : {};
+    },
     fields: [
       { key: "streamSlug", kind: "text", required: true },
       { key: "title", kind: "text", required: true },
@@ -276,8 +296,9 @@ export function contentHandlers(kind: Kind) {
      */
     fetchPublic: async (_req: Request, res: Response) => {
       try {
+        const extra = kind.publicFilter ? await kind.publicFilter() : {};
         const [docs, total] = await Promise.all([
-          kind.model.find(PUBLIC_FILTER).sort(SORT).lean(),
+          kind.model.find({ ...PUBLIC_FILTER, ...extra }).sort(SORT).lean(),
           kind.model.estimatedDocumentCount(),
         ]);
         res.status(200).json({

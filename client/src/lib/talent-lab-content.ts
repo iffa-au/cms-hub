@@ -81,7 +81,8 @@ export const CONTENT_KINDS: Record<ContentKind, ContentKindConfig> = {
     kind: "opportunities",
     singular: "Opportunity",
     plural: "Opportunities",
-    description: "Program intakes and open calls shown on /talent-lab/opportunities, the Talent Lab home page and each program's page.",
+    description:
+      "Program intakes and open calls shown on /talent-lab/opportunities, the Talent Lab home page and each program's page. When a program is hidden or archived under Programs, its opportunity is taken off the website too.",
     keyField: "id",
     keyHelp: "A short unique id, lowercase words joined by hyphens. Not shown to visitors.",
     titleField: "title",
