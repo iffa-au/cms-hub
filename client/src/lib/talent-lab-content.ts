@@ -11,7 +11,12 @@ export type ContentKind = "events" | "opportunities" | "mentors" | "programs";
 export type ContentField = {
   key: string;
   label: string;
-  type: "text" | "textarea" | "select" | "tags" | "url" | "paragraphs" | "rows" | "refs";
+  /**
+   * "date": a calendar picker that writes the text the site shows ("29 Aug 2026"),
+   * plus a text box for anything else ("Rolling"). "dateRange": two pickers that
+   * write "5 Oct – 13 Nov 2026", plus the same text box.
+   */
+  type: "text" | "textarea" | "select" | "tags" | "url" | "paragraphs" | "rows" | "refs" | "date" | "dateRange";
   /** For "refs": the kind whose keys this field lists, picked from checkboxes. */
   refKind?: ContentKind;
   /** For "rows": the columns of each row, e.g. a fact's label and value. */
@@ -23,6 +28,8 @@ export type ContentField = {
   optionLabels?: Record<string, string>;
   help?: string;
   placeholder?: string;
+  /** For "select": the value a record has when it was saved before this field existed, and for new records. */
+  default?: string;
 };
 
 export type ContentKindConfig = {
@@ -86,7 +93,10 @@ export const CONTENT_KINDS: Record<ContentKind, ContentKindConfig> = {
     keyField: "id",
     keyHelp: "A short unique id, lowercase words joined by hyphens. Not shown to visitors.",
     titleField: "title",
-    subtitle: (o) => `${o.cycle} · ${String(o.status)}`,
+    subtitle: (o) =>
+      `${o.cycle} · closes ${o.closesOn}${
+        o.applicationsOverride === "open" ? " · always open" : o.applicationsOverride === "closed" ? " · always closed" : ""
+      }`,
     siteHref: "/talent-lab/opportunities",
     fields: [
       { key: "title", label: "Title", type: "text" },
@@ -106,11 +116,31 @@ export const CONTENT_KINDS: Record<ContentKind, ContentKindConfig> = {
           "in-progress": "In progress",
           completed: "Completed",
         },
+        help: "The badge on the card. With Applications on Automatic, the website shows Applications Closed once the closing date has passed, whatever this says.",
+      },
+      {
+        key: "applicationsOverride",
+        label: "Applications",
+        type: "select",
+        options: ["auto", "open", "closed"],
+        optionLabels: {
+          auto: "Automatic: open until the closing date, then closed",
+          open: "Always open (ignore the closing date)",
+          closed: "Always closed",
+        },
+        default: "auto",
+        help: "Automatic is usually right: to give people more time, just move the closing date. Use Always open or Always closed to override it by hand.",
       },
       { key: "ctaLabel", label: "Button label", type: "text", placeholder: "Apply now" },
-      { key: "opensOn", label: "Opens", type: "text", placeholder: "1 Jul 2026 or Rolling" },
-      { key: "closesOn", label: "Closes", type: "text", placeholder: "30 Aug 2026" },
-      { key: "programDates", label: "Program dates", type: "text", placeholder: "5 Oct – 13 Nov 2026" },
+      { key: "opensOn", label: "Opens", type: "date", placeholder: "1 Jul 2026 or Rolling" },
+      {
+        key: "closesOn",
+        label: "Closes",
+        type: "date",
+        placeholder: "30 Aug 2026 or Rolling",
+        help: "Applications close at the end of this day (Sydney time). Pick a later date to extend. Words like Rolling never close by themselves.",
+      },
+      { key: "programDates", label: "Program dates", type: "dateRange", placeholder: "5 Oct – 13 Nov 2026" },
       { key: "cycle", label: "Cycle", type: "text", placeholder: "Cycle Two 2026 or Year-round" },
       { key: "discipline", label: "Discipline (filter)", type: "select", options: DISCIPLINES },
       { key: "stage", label: "Career stage (filter)", type: "select", options: ["Emerging", "Early career"] },

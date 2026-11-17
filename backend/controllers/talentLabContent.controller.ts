@@ -12,6 +12,7 @@ import {
   EVENT_STATES,
   MENTOR_TYPES,
   OPPORTUNITY_STATUSES,
+  APPLICATION_OVERRIDES,
 } from "../models/talentLabContent.model.js";
 
 /*
@@ -32,7 +33,8 @@ import {
 
 type Field =
   | { key: string; kind: "text"; required?: boolean; max?: number }
-  | { key: string; kind: "enum"; values: readonly string[] }
+  /** `fallback` is used when the value is missing, e.g. on records made before the field existed. */
+  | { key: string; kind: "enum"; values: readonly string[]; fallback?: string }
   | { key: string; kind: "tags"; maxItems?: number; maxLength?: number }
   | { key: string; kind: "optionalUrl" }
   /** A list of paragraphs. */
@@ -116,6 +118,7 @@ export const KINDS: Record<"events" | "opportunities" | "mentors" | "programs", 
       { key: "programDates", kind: "text", required: true },
       { key: "cycle", kind: "text", required: true },
       { key: "ctaLabel", kind: "text", required: true },
+      { key: "applicationsOverride", kind: "enum", values: APPLICATION_OVERRIDES, fallback: "auto" },
     ],
   },
   mentors: {
@@ -185,7 +188,7 @@ export function normalise(kind: Kind, body: Record<string, unknown>): Record<str
       if (value.length > (field.max ?? SHORT)) throw new InputError(`${field.key} is too long`);
       out[field.key] = value;
     } else if (field.kind === "enum") {
-      const value = text(raw);
+      const value = text(raw) || field.fallback || "";
       if (!field.values.includes(value)) {
         throw new InputError(`${field.key} must be one of: ${field.values.join(", ")}`);
       }
@@ -243,7 +246,12 @@ export function normalise(kind: Kind, body: Record<string, unknown>): Record<str
 export function toPublic(kind: Kind, doc: Record<string, unknown>) {
   const out: Record<string, unknown> = { [kind.publicKey]: doc[kind.keyField] };
   for (const field of kind.fields) {
-    const empty = field.kind === "tags" || field.kind === "paragraphs" || field.kind === "rows" ? [] : "";
+    const empty =
+      field.kind === "tags" || field.kind === "paragraphs" || field.kind === "rows"
+        ? []
+        : field.kind === "enum"
+          ? (field.fallback ?? "")
+          : "";
     const value = field.kind === "optionalUrl" ? doc[field.key] || null : (doc[field.key] ?? empty);
     // Subdocument arrays come back from .lean() as plain objects already; strip
     // anything beyond the declared columns so the public shape stays exact.

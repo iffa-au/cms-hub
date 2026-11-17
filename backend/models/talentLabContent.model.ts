@@ -28,6 +28,12 @@ export const OPPORTUNITY_STATUSES = [
   "completed",
 ] as const;
 export const EVENT_STATES = ["upcoming", "past"] as const;
+/**
+ * Whether an opportunity takes applications. "auto" (the default) lets the
+ * site close it once `closesOn` has passed; "open" / "closed" are staff
+ * overriding that by hand.
+ */
+export const APPLICATION_OVERRIDES = ["auto", "open", "closed"] as const;
 export const MENTOR_TYPES = ["Confirmed Mentor", "Past Guest", "Partner"] as const;
 
 const str = (required = true) => ({ type: String, required, trim: true, default: required ? undefined : "" });
@@ -85,6 +91,7 @@ export interface ITalentLabOpportunity {
   programDates: string;
   cycle: string;
   ctaLabel: string;
+  applicationsOverride: (typeof APPLICATION_OVERRIDES)[number];
   order: number;
   isPublished: boolean;
 }
@@ -106,6 +113,7 @@ const opportunitySchema = new Schema<ITalentLabOpportunity>(
     programDates: str(),
     cycle: str(),
     ctaLabel: str(),
+    applicationsOverride: { type: String, enum: APPLICATION_OVERRIDES, default: "auto" },
     ...placement,
   },
   { timestamps: true },
