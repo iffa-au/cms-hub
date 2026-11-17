@@ -38,12 +38,17 @@ export type ContentKindConfig = {
   /** Public page where the content appears, for staff to check their edit. */
   siteHref: string;
   fields: ContentField[];
+  /** Past records can be archived: off the website, listed under an Archived tab. */
+  archivable?: boolean;
 };
 
 export type ContentItem = {
   _id: string;
   order: number;
   isPublished: boolean;
+  /** Only on archivable kinds (programs). */
+  isArchived?: boolean;
+  archivedAt?: string | null;
   [field: string]: unknown;
 };
 
@@ -146,6 +151,7 @@ export const CONTENT_KINDS: Record<ContentKind, ContentKindConfig> = {
     titleField: "name",
     subtitle: (p) => `${p.code} · ${p.deliveryMode} · ${p.location}`,
     siteHref: "/talent-lab/programs",
+    archivable: true,
     fields: [
       { key: "code", label: "Number", type: "text", placeholder: "01", help: "The small badge on the program card." },
       { key: "name", label: "Name", type: "text", placeholder: "Emerging Filmmakers Lab" },

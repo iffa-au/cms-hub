@@ -19,7 +19,7 @@ import {
   described once below — its fields, its unique key, and how it is published —
   and gets the same routes:
 
-    GET    /talent-lab/<kind>             public: published, ordered, site shape
+    GET    /talent-lab/<kind>             public: published, not archived, ordered, site shape
     GET    /talent-lab/<kind>/manage      staff: everything, with _id/order/isPublished
     GET    /talent-lab/<kind>/manage/:id  staff
     POST   /talent-lab/<kind>             staff
@@ -50,6 +50,8 @@ type Kind = {
   keyField: string;
   publicKey: string;
   fields: Field[];
+  /** Has `isArchived` / `archivedAt` (programs). */
+  archivable?: boolean;
 };
 
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -117,6 +119,7 @@ export const KINDS: Record<"events" | "opportunities" | "mentors" | "programs", 
     model: TalentLabProgram,
     keyField: "slug",
     publicKey: "slug",
+    archivable: true,
     fields: [
       { key: "code", kind: "text", required: true, max: 10 },
       { key: "name", kind: "text", required: true },
@@ -212,6 +215,7 @@ export function normalise(kind: Kind, body: Record<string, unknown>): Record<str
   }
 
   if (body.isPublished !== undefined) out.isPublished = body.isPublished === true;
+  if (kind.archivable && body.isArchived !== undefined) out.isArchived = body.isArchived === true;
   return out;
 }
 
@@ -238,7 +242,11 @@ const toManage = (kind: Kind, doc: Record<string, unknown>) => ({
   ...toPublic(kind, doc),
   order: doc.order ?? 0,
   isPublished: doc.isPublished !== false,
+  ...(kind.archivable ? { isArchived: doc.isArchived === true, archivedAt: doc.archivedAt ?? null } : {}),
 });
+
+/** What the public routes show: published and, where archiving exists, not archived. */
+const PUBLIC_FILTER = { isPublished: { $ne: false }, isArchived: { $ne: true } };
 
 function handleError(res: Response, kind: Kind, error: unknown) {
   if (error instanceof InputError) return res.status(400).json({ success: false, message: error.message });
@@ -269,7 +277,7 @@ export function contentHandlers(kind: Kind) {
     fetchPublic: async (_req: Request, res: Response) => {
       try {
         const [docs, total] = await Promise.all([
-          kind.model.find({ isPublished: { $ne: false } }).sort(SORT).lean(),
+          kind.model.find(PUBLIC_FILTER).sort(SORT).lean(),
           kind.model.estimatedDocumentCount(),
         ]);
         res.status(200).json({
@@ -321,6 +329,14 @@ export function contentHandlers(kind: Kind) {
         const id = String(req.params.id);
         if (!Types.ObjectId.isValid(id)) return notFound(res);
         const fields = normalise(kind, (req.body ?? {}) as Record<string, unknown>);
+        if (fields.isArchived !== undefined) {
+          const current = await kind.model.findById(id).select("isArchived").lean();
+          if (!current) return notFound(res);
+          const wasArchived = (current as { isArchived?: boolean }).isArchived === true;
+          // Stamp the date only when it is archived, so a later edit keeps it.
+          if (fields.isArchived && !wasArchived) fields.archivedAt = new Date();
+          if (!fields.isArchived) fields.archivedAt = null;
+        }
         const doc = await kind.model.findByIdAndUpdate(id, { $set: fields }, { new: true, runValidators: true }).lean();
         if (!doc) return notFound(res);
         res.status(200).json({ success: true, data: toManage(kind, doc as Record<string, unknown>) });

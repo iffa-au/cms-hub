@@ -32,6 +32,8 @@ export default function TalentLabContentEditPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [refOptions, setRefOptions] = useState<Record<string, RefOption[]>>({});
+  /** Set when this record is archived: its archive date, or "" if unknown. Kept out of the save payload. */
+  const [archivedOn, setArchivedOn] = useState<string | null>(null);
 
   // Choices for "refs" fields (a program's mentors), loaded from that kind's CMS list.
   useEffect(() => {
@@ -70,6 +72,7 @@ export default function TalentLabContentEditPage() {
         const res = await getData<{ success: boolean; data: ContentItem }>(`/talent-lab/${config.kind}/manage/${params.id}`);
         if (!alive) return;
         const next: Values = { isPublished: res.data.isPublished };
+        setArchivedOn(res.data.isArchived ? String(res.data.archivedAt ?? "") : null);
         next[config.keyField] = String(res.data[config.keyField] ?? "");
         for (const field of config.fields) {
           const raw = res.data[field.key];
@@ -151,6 +154,14 @@ export default function TalentLabContentEditPage() {
       <h1 className="mt-2 mb-8 font-serif text-3xl text-white md:text-4xl">
         {isNew ? `New ${config.singular.toLowerCase()}` : `Edit ${config.singular.toLowerCase()}`}
       </h1>
+
+      {archivedOn !== null && (
+        <p className="mb-6 rounded-lg border border-border bg-card/60 p-4 text-sm text-muted-foreground">
+          {`This ${config.singular.toLowerCase()} is archived${
+            archivedOn ? ` (since ${new Date(archivedOn).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })})` : ""
+          }, so it isn't on the website. You can still edit it; use Restore on the Archived tab to bring it back.`}
+        </p>
+      )}
 
       <form onSubmit={save} className="space-y-6 rounded-lg border border-border bg-card/60 p-6">
         <div className="space-y-2">
