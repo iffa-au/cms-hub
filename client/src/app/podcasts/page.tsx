@@ -153,7 +153,7 @@ export default function PodcastsAdminPage() {
   const handleDelete = async (podcast: Podcast) => {
     const confirmed = window.confirm(
       `Delete "${podcast.title}"?\n\n` +
-        `This removes the episode from the website. The video stays on YouTube — ` +
+        `This removes the episode from the website. The video stays on YouTube ` +
         `only the IFFA page for it goes away. This cannot be undone.`,
     );
     if (!confirmed) return;

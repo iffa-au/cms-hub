@@ -791,6 +791,7 @@ export const createSubmissionPublic = async (req, res) => {
       contentTypeId,
       genreIds,
       crew,
+      contactName,
       contactEmail,
       productionHouse = "",
       distributor = "",
@@ -899,6 +900,7 @@ export const createSubmissionPublic = async (req, res) => {
       trailerPassword: String(trailerPassword || "").trim(),
       promoClips: normalizePromoClips(promoClips),
       releaseLinkUrl: String(releaseLinkUrl || "").trim(),
+      contactName: String(contactName || "").trim(),
       contactEmail: String(contactEmail || "").trim().toLowerCase(),
       // Recomputed from the same ref + title the presign calls used, rather
       // than taken from the request body: this string is a path that asset
@@ -932,6 +934,7 @@ export const createSubmissionPublic = async (req, res) => {
         year: "numeric",
       }).format((created as any).createdAt ?? new Date());
       void sendSubmissionReceipt(safeEmail, {
+        name: String(contactName || "").trim(),
         title,
         id: created._id.toString(),
         submissionDate,
@@ -1006,6 +1009,7 @@ export const updateSubmission = async (req: AuthedRequest, res) => {
       trailerPassword,
       promoClips,
       releaseLinkUrl,
+      contactName,
       contactEmail,
       durationHours,
       durationMinutes,
@@ -1064,6 +1068,8 @@ export const updateSubmission = async (req: AuthedRequest, res) => {
       updates.promoClips = normalizePromoClips(promoClips);
     if (releaseLinkUrl !== undefined)
       updates.releaseLinkUrl = String(releaseLinkUrl || "").trim();
+    if (contactName !== undefined)
+      updates.contactName = String(contactName || "").trim();
     if (contactEmail !== undefined)
       updates.contactEmail = String(contactEmail || "").trim().toLowerCase();
     if (durationHours !== undefined) {
@@ -1228,14 +1234,14 @@ export const getSubmission = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: "Invalid ID" });
     }
     // Public endpoint (synopsis page). This returns the whole document, so
-    // every staff-only field has to be excluded by name: contactEmail is
-    // submitter PII, and trailerPassword (like each promo clip's password)
+    // every staff-only field has to be excluded by name: contactName and
+    // contactEmail are submitter PII, and trailerPassword (like each promo clip's password)
     // would hand anyone with a film's id the key to its private folders.
     // Requested nominations are the submitter's wish list, not the
     // festival's announced nominees, so they stay out of public view too.
     const item = await Submission.findById(id)
       .select(
-        "-contactEmail -trailerPassword -promoClips.password -nominations -trailerVideoKey -trailerVideoSource",
+        "-contactName -contactEmail -trailerPassword -promoClips.password -nominations -trailerVideoKey -trailerVideoSource",
       )
       .populate("genreIds");
     if (!item) {
@@ -1334,6 +1340,7 @@ export const getSubmissionOverview = async (req, res) => {
           promoClips: 1,
           nominations: 1,
           releaseLinkUrl: 1,
+          contactName: 1,
           contactEmail: 1,
           durationHours: 1,
           durationMinutes: 1,
@@ -1605,6 +1612,7 @@ export const adminListSubmissions = async (req, res) => {
           trailerUrl: 1,
           trailerPassword: 1,
           trailerVideoUrl: 1,
+          contactName: 1,
           contactEmail: 1,
           durationHours: 1,
           durationMinutes: 1,

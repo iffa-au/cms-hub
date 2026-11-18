@@ -49,10 +49,14 @@ const SEED: Seed[] = [
   { name: "Best Direction", group: "Craft", nomineeType: "directors", formats: [] },
   { name: "Best Editor", group: "Craft", nomineeType: "craft", formats: [] },
   { name: "Best Screenplay Writing", group: "Craft", nomineeType: "craft", formats: [] },
-
+  { name: "Best Playback Singer", group: "Craft", nomineeType: "craft", formats: [] },
+  { name: "Best Music Direction", group: "Craft", nomineeType: "craft", formats: [] },
+  { name: "Best Screenplay Adaptation", group: "Craft", nomineeType: "craft", formats: [] },
+  
   { name: "Best International Feature Film", group: "Producer", nomineeType: "producers", formats: ["Feature Film"] },
   { name: "Best International Short Film", group: "Producer", nomineeType: "producers", formats: ["Short Film", "Under 18 Film"] },
-
+  
+  { name: "Best International Casting", group: "Whole Team", nomineeType: "whole-team", formats: [] },
   { name: "Best Animated Film", group: "Whole Team", nomineeType: "whole-team", formats: ["Animation"] },
   { name: "Best Original Web Series", group: "Whole Team", nomineeType: "whole-team", formats: ["Web Series (OTT)"] },
   { name: "Best TV Series", group: "Whole Team", nomineeType: "whole-team", formats: ["TV Series"] },

@@ -48,7 +48,7 @@ function getClient() {
 
 export async function sendSubmissionReceipt(
   toEmail: string,
-  vars: { title: string; id: string; submissionDate: string },
+  vars: { name: string; title: string; id: string; submissionDate: string },
 ) {
   const cfg = loadConfig();
   const client = getClient();
@@ -85,6 +85,7 @@ export async function sendSubmissionReceipt(
         `Title: ${vars.title}\n` +
         `Submission ID: ${vars.id}\n` +
         `Submission Date: ${vars.submissionDate}\n` +
+        `Submitter Name: ${vars.name || "Not provided"}\n` +
         `Submitter Email: ${toEmail}\n`,
     },
   });
