@@ -50,9 +50,9 @@ The projection maps `crew.directors` → `crewDirectors`. The legacy `directors`
 array comes from a separate crew-linking workflow most submissions never go
 through, so it is usually empty. Keep both; the frontend prefers `crewDirectors`.
 
-`contactEmail` is PII: it appears in the staff list projection and is stripped
-from the public single-submission route via `.select("-contactEmail")`. Don't
-add it to a public projection.
+`contactName` and `contactEmail` are PII: they appear in the staff list
+projection and are stripped from the public single-submission route via
+`.select("-contactName -contactEmail …")`. Don't add either to a public projection.
 
 ## S3 / CloudFront
 

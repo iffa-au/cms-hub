@@ -45,6 +45,7 @@ export interface ISubmission {
   trailerVideoSource?: string;
   promoClips?: Array<{ url: string; password?: string }>;
   releaseLinkUrl?: string;
+  contactName?: string;
   contactEmail?: string;
   genreIds: Types.ObjectId[];
   productionHouse?: String; // production house name (e.g. "Universal Pictures")
@@ -248,6 +249,12 @@ const submissionSchema = new Schema<ISubmission>(
     },
     // Not shown on the public site — only surfaced to staff via the
     // review queue and the /:id/overview endpoint (which requires auth).
+    // contactName is the submitter's own name, PII on the same terms.
+    contactName: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     contactEmail: {
       type: String,
       default: "",

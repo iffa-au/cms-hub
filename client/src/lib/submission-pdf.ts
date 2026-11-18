@@ -55,6 +55,7 @@ export type SubmissionOverview = {
   /** Staff-only passwords, like trailerPassword; the public API strips them. */
   promoClips?: Array<{ url: string; password?: string }>;
   releaseLinkUrl?: string;
+  contactName?: string;
   contactEmail?: string;
   productionHouse?: string;
   distributor?: string;
@@ -86,6 +87,7 @@ export type SubmissionOverview = {
 export type SubmissionListRow = {
   title?: string;
   createdAt?: string;
+  contactName?: string;
   contactEmail?: string;
 };
 
@@ -276,6 +278,7 @@ export const buildSubmissionPdf = (doc: jsPDF, details: SubmissionOverview) => {
   );
   addField('Production House', details.productionHouse || '—');
   addField('Distributor', details.distributor || '—');
+  addField('Submitter Name', details.contactName || '—');
   addField('Submitter Email', details.contactEmail || '—');
   addLinkField('IMDB URL', details.imdbUrl);
   addLinkField('Trailer Download URL', details.trailerUrl);
@@ -487,7 +490,8 @@ export const buildSubmissionListPdf = (doc: jsPDF, rows: SubmissionListRow[]) =>
       ? rows.map((row, idx) => [
           String(idx + 1),
           valueOrDash(row.title),
-          valueOrDash(row.contactEmail),
+          // Name above email in one cell; older submissions have no name.
+          [row.contactName?.trim(), row.contactEmail?.trim()].filter(Boolean).join('\n') || '—',
           formatSubmissionDate(row.createdAt),
         ])
       : [['—', 'No submissions found', '—', '—']];
@@ -495,7 +499,7 @@ export const buildSubmissionListPdf = (doc: jsPDF, rows: SubmissionListRow[]) =>
   autoTable(doc, {
     startY: margin + 34,
     margin: { left: margin, right: margin },
-    head: [['No.', 'Film Title', 'Submitter Email', 'Submission Date']],
+    head: [['No.', 'Film Title', 'Submitter', 'Submission Date']],
     body,
     theme: 'grid',
     tableWidth: maxWidth,
