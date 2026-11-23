@@ -87,6 +87,7 @@ export default function Navbar() {
           { href: "/admin/film-enquiry", label: "Film enquiries" },
           { href: "/admin/distribution-enquiry", label: "Distribution enquiries" },
           { href: "/admin/event-registrations", label: "Event registrations" },
+          { href: "/admin/chatbot-insights", label: "Chatbot insights" },
         ],
       });
     }
