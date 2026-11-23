@@ -498,7 +498,7 @@ export default function HomepageTrailersPage() {
 
             <div>
               <label className="mb-1 block text-xs text-muted-foreground" htmlFor="trailer-learn-more">
-                Learn More link
+                Watch Now link
               </label>
               <input
                 id="trailer-learn-more"
