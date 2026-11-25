@@ -1,6 +1,7 @@
 import e from "express";
 import { requireAuth, requireRole } from "../middlewares/auth.middleware.js";
 import { getFilmEnquiryById } from "../controllers/filmEnquiry.controller.js";
+import { revalidateSiteOnWrite } from "../middlewares/revalidateSite.middleware.js";
 import authRoutes from "./auth.js";
 import languageRoutes from "./language.js";
 import contentTypeRoutes from "./contentType.js";
@@ -44,6 +45,9 @@ router.use("/crew-roles", crewRoleRoutes);
 // Distinct from /crew-roles above, which serves the legacy CrewAssignment
 // system. See models/creditRole.model.ts for why they are not merged.
 router.use("/credit-roles", creditRoleRoutes);
+// Winners are nominations with isWinner, and the carousel is PUT /submissions/carousel,
+// so these two prefixes cover the saves the public event pages show.
+router.use(["/submissions", "/nominations"], revalidateSiteOnWrite);
 router.use("/submissions", submissionRoutes);
 router.use("/nominations", nominationRoutes);
 router.use("/winners", winnerRoutes);

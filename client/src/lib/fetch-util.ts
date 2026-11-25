@@ -13,8 +13,31 @@ const api = axios.create({
     "Content-Type": "application/json",
   },
   baseURL: BASE_URL,
-  // withCredentials: true,
+  // Sends and stores the httpOnly refresh cookie the backend sets on login.
+  // Without it the browser drops that cookie, so /auth/refresh could never work.
+  withCredentials: true,
 });
+
+// Auth endpoints answer 401 for a wrong password or a dead refresh cookie;
+// refreshing in response to those would loop.
+const NO_REFRESH = ["/auth/login", "/auth/register", "/auth/refresh", "/auth/logout"];
+
+// One refresh at a time: when the token expires, every request that was in
+// flight fails at once, and they should all wait on the same new token.
+let refreshing: Promise<string | null> | null = null;
+
+const refreshAccessToken = () =>
+  (refreshing ??= api
+    .post<{ accessToken?: string }>("/auth/refresh")
+    .then((res) => {
+      const token = res.data?.accessToken ?? null;
+      if (token) localStorage.setItem("token", token);
+      return token;
+    })
+    .catch(() => null)
+    .finally(() => {
+      refreshing = null;
+    }));
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
@@ -28,9 +51,23 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    // Handle 401 Unauthorized errors when the token is invalid or expired
-    if (error.response && error.response.status === 401) {
+  async (error) => {
+    const original = error.config;
+
+    // The access token lasts 15 minutes. On a 401, trade the refresh cookie
+    // for a new one and replay the request once; only if that fails is the
+    // session really over.
+    if (error.response?.status === 401) {
+      const canRefresh =
+        original && !original._retried && !NO_REFRESH.some((p) => original.url?.startsWith(p));
+      if (canRefresh) {
+        original._retried = true;
+        const token = await refreshAccessToken();
+        if (token) {
+          original.headers.Authorization = `Bearer ${token}`;
+          return api(original);
+        }
+      }
       window.dispatchEvent(new Event("force-logout"));
     }
     // Normalize error message for UI toasts

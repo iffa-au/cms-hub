@@ -1,13 +1,31 @@
 import User from "../models/user.model.js";
-import jwt from "jsonwebtoken";
 import aj from "../libs/arcjet.js";
 import { generateToken, verifyRefreshToken } from "../utils/token.js";
 
-const refreshCookieOptions = {
+const isDev = process.env.NODE_ENV === "development";
+
+/*
+ * The CMS (Amplify) and this API (App Runner) are on different sites, so the
+ * browser only sends this cookie on the CMS's calls to /auth/refresh if it is
+ * SameSite=None. "strict" meant it was never sent and staff were logged out
+ * when the 15-minute access token ran out.
+ *
+ * Partitioned (CHIPS) keys the cookie to the CMS as the top-level site, so
+ * browsers that block third-party cookies still keep it. Locally both apps are
+ * on localhost (same site), where Lax works over plain http.
+ *
+ * clearCookie has to repeat these attributes or the browser keeps the cookie.
+ */
+const refreshCookieBase = {
   httpOnly: true,
-  secure: process.env.NODE_ENV !== "development",
-  sameSite: process.env.NODE_ENV === "development" ? "lax" : "strict",
+  secure: !isDev,
+  sameSite: isDev ? "lax" : "none",
+  partitioned: !isDev,
   path: "/",
+} as const;
+
+const refreshCookieOptions = {
+  ...refreshCookieBase,
   maxAge: 1000 * 60 * 60 * 24 * 14, // 14 days
 };
 
@@ -115,9 +133,18 @@ export const refresh = async (req, res) => {
 
   try {
     const payload = verifyRefreshToken(token);
+    // Re-read the user so a deleted account stops refreshing and a role change
+    // applies from the next refresh, rather than riding on the old token for 14 days.
+    const user = await User.findById(payload.sub).select("role");
+    if (!user) {
+      res.clearCookie("refreshToken", refreshCookieBase);
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid/Expired refresh token" });
+    }
     const { accessToken, refreshToken } = generateToken({
-      _id: payload.sub,
-      role: payload.role,
+      _id: user._id.toString(),
+      role: user.role,
     });
     res.cookie("refreshToken", refreshToken, refreshCookieOptions);
     res.status(200).json({
@@ -134,6 +161,6 @@ export const refresh = async (req, res) => {
 };
 
 export const logout = async (req, res) => {
-  res.clearCookie("refreshToken", { path: "/" });
+  res.clearCookie("refreshToken", refreshCookieBase);
   res.status(200).json({ success: true, message: "Logged out successfully" });
 };

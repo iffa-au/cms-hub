@@ -205,7 +205,7 @@ export default function Navbar() {
                   aria-expanded={openGroup === item.label}
                   className={cn(
                     topLevel,
-                    "flex items-center gap-1",
+                    "flex items-center gap-1 cursor-pointer",
                     groupIsActive(item) ? "text-primary" : "text-foreground",
                   )}
                 >
