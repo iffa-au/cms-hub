@@ -87,6 +87,7 @@ export default function Navbar() {
           { href: "/admin/film-enquiry", label: "Film enquiries" },
           { href: "/admin/distribution-enquiry", label: "Distribution enquiries" },
           { href: "/admin/event-registrations", label: "Event registrations" },
+          { href: "/admin/chatbot-insights", label: "Chatbot insights" },
         ],
       });
     }
@@ -180,7 +181,7 @@ export default function Navbar() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:h-20 lg:px-8">
         <Link href="/dashboard" aria-label="CMS Hub home" className="shrink-0">
           <Image
-            src="/assets/IFFA_logo.png"
+            src="/assets/iffa-logo.webp"
             alt="IFFA Awards"
             width={300}
             height={100}

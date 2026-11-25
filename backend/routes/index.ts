@@ -27,6 +27,8 @@ import featuredFilmsRoutes from "./featuredFilms.js";
 import homepageTrailersRoutes from "./homepageTrailers.js";
 import eventRegistrationRoutes from "./eventRegistration.js";
 import talentLabRoutes from "./talentLab.js";
+import chatQuestionRoutes from "./chatQuestion.js";
+import chatTemplateRoutes from "./chatTemplate.js";
 
 const router = e.Router();
 
@@ -62,5 +64,8 @@ router.use("/featured-films", featuredFilmsRoutes);
 router.use("/homepage-trailers", homepageTrailersRoutes);
 router.use("/event-registrations", eventRegistrationRoutes);
 router.use("/talent-lab", talentLabRoutes);
+// The IFFA Assistant chatbot on iffa-2026: question log + admin report.
+router.use("/chatbot-questions", chatQuestionRoutes);
+router.use("/chatbot-templates", chatTemplateRoutes);
 
 export default router;
