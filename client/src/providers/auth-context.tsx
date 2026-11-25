@@ -1,6 +1,7 @@
 "use client";
 import { User } from "@/types";
 import { createContext, useContext, useEffect, useState } from "react";
+import {postData} from "@/lib/fetch-util"; // Ensure fetch-util is imported so that the interceptors are set up
 
 interface AuthContextType {
   user: User | null;
@@ -20,9 +21,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const login = async (email: string, password: string) => {
     try {
       setIsLoading(true);
-      const res = await (
-        await import("@/lib/fetch-util")
-      ).postData<{
+      const res = await postData<{
         message: string;
         user: User;
         accessToken: string;
@@ -45,6 +44,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
   const logout = () => {
+    // Clears the httpOnly refresh cookie, which only the server can remove;
+    // otherwise the next 401 would quietly refresh this session back to life.
+    postData("/auth/logout", {});
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     setUser(null);
